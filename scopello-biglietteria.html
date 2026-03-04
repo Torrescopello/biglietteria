@@ -635,10 +635,12 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); min-he
         <div class="settings-row-item">
           <span class="settings-row-label">Primo ticket del giorno</span>
           <div class="settings-val-row">
-            <button class="s-btn" onclick="changeTicketStart(-1)">−</button>
-            <span class="s-val" id="ticketStartSet">1</span>
-            <button class="s-btn" onclick="changeTicketStart(+1)">+</button>
-            <button class="note-save-btn" onclick="applyTicketStart()" style="margin-left:4px;">Imposta</button>
+            <input type="number" id="ticketStartSet" min="1" max="100" value="1"
+              inputmode="numeric" pattern="[0-9]*"
+              style="width:70px;text-align:center;font-size:1.1rem;font-weight:800;
+                     border:2px solid var(--border);border-radius:8px;padding:6px 8px;
+                     background:var(--bg);font-family:var(--fu);color:var(--sea);outline:none;">
+            <button class="note-save-btn" onclick="applyTicketStart()" style="margin-left:4px;">✓ Imposta</button>
           </div>
         </div>
       </div>
@@ -1053,18 +1055,14 @@ function loadTicketCounter() {
   ticketCounter = isNaN(saved) ? 0 : saved;
 }
 
-function changeTicketStart(d) {
-  const el = document.getElementById('ticketStartSet');
-  let val = parseInt(el.textContent) + d;
-  val = Math.max(1, Math.min(100, val));
-  el.textContent = val;
-}
-
 function applyTicketStart() {
   const el = document.getElementById('ticketStartSet');
-  ticketCounter = parseInt(el.textContent) - 1;
+  const val = parseInt(el.value);
+  if (isNaN(val) || val < 1 || val > 100) { alert('Inserisci un numero tra 1 e 100.'); return; }
+  ticketCounter = val - 1;
   localStorage.setItem('scopello_ticket_counter', ticketCounter);
   updateSummary();
+  alert(`✓ Prossimo ticket: #${String(val).padStart(3,'0')}`);
 }
 
 // ============================================================
@@ -1454,7 +1452,7 @@ function renderCassa() {
     document.getElementById('nameCassa2').value = CONFIG.nomiCasse.op2;
     document.getElementById('pwLabel1').textContent = 'Password ' + CONFIG.nomiCasse.op1;
     document.getElementById('pwLabel2').textContent = 'Password ' + CONFIG.nomiCasse.op2;
-    document.getElementById('ticketStartSet').textContent = ticketCounter + 1 > 100 ? 1 : ticketCounter + 1;
+    document.getElementById('ticketStartSet').value = ticketCounter + 1 > 100 ? 1 : ticketCounter + 1;
   }
 }
 
