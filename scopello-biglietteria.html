@@ -54,10 +54,7 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); min-he
 }
 #loginScreen.active { display: flex; }
 
-.login-logo { text-align: center; margin-bottom: 16px; }
-.login-logo h1 { font-family: var(--fd); font-weight: normal; font-size: 1.4rem; color: var(--text); letter-spacing: 0.04em; }
-.login-logo .sub { font-size: 0.62rem; color: var(--muted); letter-spacing: 0.18em; text-transform: uppercase; margin-top: 3px; }
-.login-logo .line { width: 36px; height: 1.5px; background: var(--stone); margin: 8px auto; opacity: 0.4; }
+.login-logo { display: none; }
 
 .login-box {
   background: var(--white); border: 2px solid var(--border); border-radius: 16px;
@@ -234,6 +231,14 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); min-he
 .sum-row:last-child { border-bottom: none; padding-top: 10px; margin-top: 4px; border-top: 2px solid var(--border); }
 .sum-total { font-family: var(--fd); font-size: 1.8rem; color: var(--text); font-weight: normal; font-variant-numeric: tabular-nums; }
 .sum-ticket-num { font-size: 0.72rem; color: var(--muted); font-weight: 600; }
+.ticket-num-input {
+  width: 100px; border: 2px solid var(--border); border-radius: 8px;
+  padding: 5px 10px; font-family: var(--fu); font-size: 1rem; font-weight: 700;
+  color: var(--sea); background: var(--sea-bg); outline: none; text-align: center;
+  -webkit-appearance: none; transition: border-color 0.2s;
+}
+.ticket-num-input:focus { border-color: var(--sea); }
+.ticket-num-input::placeholder { color: var(--muted); font-weight: 400; font-size: 0.8rem; }
 
 /* ===== CONFERMA BTN ===== */
 .btn-confirm {
@@ -542,7 +547,10 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); min-he
     </div>
 
     <div class="sell-summary">
-      <div class="sum-row"><span>N° Ticket</span><span class="sum-ticket-num" id="sumTicketNum">#—</span></div>
+      <div class="sum-row">
+        <span>N° Ticket</span>
+        <input type="number" id="ticketNumInput" class="ticket-num-input" placeholder="es. 42" min="1" oninput="updateSummary()">
+      </div>
       <div class="sum-row"><span>Biglietto</span><span id="sumTicket">—</span></div>
       <div class="sum-row"><span>Quantità</span><span id="sumQty">—</span></div>
       <div class="sum-row"><span>Pagamento</span><span id="sumPay">—</span></div>
@@ -625,6 +633,30 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); min-he
         <div class="settings-row-item">
           <span class="settings-row-label">Nome Cassa 2</span>
           <input class="name-input" id="nameCassa2" value="Cassa 2" onchange="updateCassaNames()">
+        </div>
+      </div>
+      <div class="sec-label" style="margin-bottom:8px;margin-top:14px;">🔑 Modifica password</div>
+      <div class="settings-section">
+        <div class="settings-row-item">
+          <span class="settings-row-label" id="pwLabel1">Password Cassa 1</span>
+          <div style="display:flex;gap:6px;align-items:center;">
+            <input type="password" class="name-input" id="newPw1" placeholder="nuova pw" style="width:110px;">
+            <button class="note-save-btn" onclick="changePassword('op1')">Salva</button>
+          </div>
+        </div>
+        <div class="settings-row-item">
+          <span class="settings-row-label" id="pwLabel2">Password Cassa 2</span>
+          <div style="display:flex;gap:6px;align-items:center;">
+            <input type="password" class="name-input" id="newPw2" placeholder="nuova pw" style="width:110px;">
+            <button class="note-save-btn" onclick="changePassword('op2')">Salva</button>
+          </div>
+        </div>
+        <div class="settings-row-item">
+          <span class="settings-row-label">Password Direttore</span>
+          <div style="display:flex;gap:6px;align-items:center;">
+            <input type="password" class="name-input" id="newPwDir" placeholder="nuova pw" style="width:110px;">
+            <button class="note-save-btn" onclick="changePassword('dir')">Salva</button>
+          </div>
         </div>
       </div>
       <div class="sec-label" style="margin-bottom:8px;">Esporta</div>
@@ -764,21 +796,14 @@ function savePending() {
   localStorage.setItem('pendingSync', JSON.stringify(pendingSync));
 }
 
-// Progressivo giornaliero
-let ticketCounter = 0;
-function nextTicketNum() {
-  ticketCounter++;
-  return '#' + String(ticketCounter).padStart(4, '0');
-}
+// Progressivo non più automatico — numero inserito a mano dall'operatore
 
 async function loadTodayVendite() {
   if (!isOnline) return;
   const today = new Date().toISOString().split('T')[0];
   const { data, error } = await db.from('vendite').select('*').eq('data', today).order('created_at', { ascending: true });
   if (error || !data) return;
-  ticketCounter = 0;
   data.forEach(v => {
-    ticketCounter++;
     if (state.turni[v.turno]) state.turni[v.turno].prenotati += v.qty;
     state.vendite.push({
       id: Date.now() + Math.random(),
@@ -792,7 +817,7 @@ async function loadTodayVendite() {
       pagamento: v.pagamento,
       operatore: v.operatore,
       timestamp: new Date(v.created_at),
-      ticketNum: v.ticket_num || ('#' + String(ticketCounter).padStart(4,'0'))
+      ticketNum: v.ticket_num || '—'
     });
   });
   renderAll();
@@ -811,6 +836,19 @@ const CONFIG = {
   orari: ['11:00','11:30','12:00','12:30','13:00','13:30','14:00','14:30','15:00','15:30','16:00','16:30','17:00','17:30','18:00'],
   nomiCasse: { op1: 'Cassa 1', op2: 'Cassa 2' }
 };
+
+// Ripristina impostazioni salvate
+(function loadSavedConfig() {
+  try {
+    const pw = JSON.parse(localStorage.getItem('scopello_passwords'));
+    if (pw) Object.assign(CONFIG.passwords, pw);
+    const nomi = JSON.parse(localStorage.getItem('scopello_nomi'));
+    if (nomi) Object.assign(CONFIG.nomiCasse, nomi);
+    // Aggiorna bottoni login con nomi salvati
+    document.getElementById('opBtn1').textContent = CONFIG.nomiCasse.op1;
+    document.getElementById('opBtn2').textContent = CONFIG.nomiCasse.op2;
+  } catch(e) {}
+})();
 
 let state = {
   operatore: null, isDir: false,
@@ -869,7 +907,6 @@ function doLogin() {
 function doLogout() {
   state.operatore = null; state.isDir = false;
   state.vendite = [];
-  ticketCounter = 0;
   CONFIG.orari.forEach(o => { state.turni[o] = { prenotati: 0 }; });
   const u = document.getElementById('undoBtn'); if (u) u.remove();
   resetSellForm();
@@ -951,6 +988,10 @@ function selectPay(tipo) {
   document.getElementById('payCash').classList.toggle('selected', tipo==='cash');
   document.getElementById('payPos').classList.toggle('selected', tipo==='pos');
   document.getElementById('payPosPlus').classList.toggle('selected', tipo==='posplus');
+  // 'gratis' deseleziona tutti i pulsanti visivamente
+  if (tipo === 'gratis') {
+    ['payCash','payPos','payPosPlus'].forEach(id => document.getElementById(id).classList.remove('selected'));
+  }
   updateSummary();
 }
 
@@ -958,13 +999,14 @@ function updateSummary() {
   const t = state.ticketSel, q = state.qty;
   const p = t ? CONFIG.prezzi[t] : 0;
   const tot = p * q;
-  const nextNum = '#' + String(ticketCounter + 1).padStart(4, '0');
-  document.getElementById('sumTicketNum').textContent = nextNum;
-  document.getElementById('sumTicket').textContent = t ? tipoLabel(t) : '—';
+  const sumTicket = document.getElementById('sumTicket');
+  if (!sumTicket) return; // schermata non ancora visibile
+  sumTicket.textContent = t ? tipoLabel(t) : '—';
   document.getElementById('sumQty').textContent = q;
   document.getElementById('sumPay').textContent = state.paySel ? payLabel(state.paySel) : '—';
   document.getElementById('sumTotal').textContent = '€ ' + tot.toFixed(2).replace('.',',');
-  const canConfirm = state.turnoSel && state.ticketSel && (state.paySel || state.ticketSel === 'nopay');
+  const ticketVal = document.getElementById('ticketNumInput').value;
+  const canConfirm = state.turnoSel && state.ticketSel && (state.paySel || state.ticketSel === 'nopay') && ticketVal;
   document.getElementById('btnConferma').disabled = !canConfirm;
 }
 
@@ -977,9 +1019,9 @@ function payLabel(p) {
 
 function confirmSale() {
   const t = state.ticketSel, p = CONFIG.prezzi[t], tot = p * state.qty;
-  const nextNum = '#' + String(ticketCounter + 1).padStart(4, '0');
+  const tNum = '#' + document.getElementById('ticketNumInput').value;
   document.getElementById('modalConfermaText').innerHTML =
-    `Ticket <strong>${nextNum}</strong> — <strong>${state.qty}× ${tipoLabel(t)}</strong><br>
+    `Ticket <strong>${tNum}</strong> — <strong>${state.qty}× ${tipoLabel(t)}</strong><br>
      Turno: <strong>${state.turnoSel}</strong> · Pagamento: <strong>${payLabel(state.paySel||'gratis')}</strong><br><br>
      Totale: <strong style="font-size:1.4rem;color:var(--text)">€ ${tot.toFixed(2).replace('.',',')}</strong>`;
   document.getElementById('modalConferma').classList.add('visible');
@@ -988,7 +1030,7 @@ function confirmSale() {
 function executeSale() {
   const t = state.ticketSel, p = CONFIG.prezzi[t], tot = p * state.qty;
   const now = new Date();
-  const tNum = nextTicketNum();
+  const tNum = '#' + document.getElementById('ticketNumInput').value;
   const pago = state.paySel || 'gratis';
   state.vendite.push({
     id: Date.now(),
@@ -1026,6 +1068,8 @@ function doAnnullaVendita(vendita) {
 function renderUndoBtn() {
   const existing = document.getElementById('undoBtn');
   if (existing) existing.remove();
+  // Il direttore annulla dallo Storico, non serve qui
+  if (!state.operatore || state.operatore === 'dir') return;
   const myLast = [...state.vendite].reverse().find(v => v.operatore === state.operatore);
   if (!myLast) return;
   const btn = document.createElement('button');
@@ -1045,6 +1089,7 @@ function resetSellForm() {
   });
   ['payCash','payPos','payPosPlus'].forEach(id => document.getElementById(id).classList.remove('selected'));
   document.getElementById('qtyVal').textContent = '1';
+  document.getElementById('ticketNumInput').value = '';
   updateSummary(); renderTurniVendita();
 }
 
@@ -1211,6 +1256,8 @@ function renderCassa() {
     document.getElementById('capSet').textContent = CONFIG.capMax;
     document.getElementById('nameCassa1').value = CONFIG.nomiCasse.op1;
     document.getElementById('nameCassa2').value = CONFIG.nomiCasse.op2;
+    document.getElementById('pwLabel1').textContent = 'Password ' + CONFIG.nomiCasse.op1;
+    document.getElementById('pwLabel2').textContent = 'Password ' + CONFIG.nomiCasse.op2;
   }
 }
 
@@ -1236,12 +1283,22 @@ function changeCap(d) {
 function updateCassaNames() {
   CONFIG.nomiCasse.op1 = document.getElementById('nameCassa1').value || 'Cassa 1';
   CONFIG.nomiCasse.op2 = document.getElementById('nameCassa2').value || 'Cassa 2';
-  // Aggiorna badge se operatore corrente
+  localStorage.setItem('scopello_nomi', JSON.stringify(CONFIG.nomiCasse));
   if (state.operatore === 'op1') document.getElementById('opBadge').textContent = CONFIG.nomiCasse.op1;
   if (state.operatore === 'op2') document.getElementById('opBadge').textContent = CONFIG.nomiCasse.op2;
-  // Aggiorna bottoni login
   document.getElementById('opBtn1').textContent = CONFIG.nomiCasse.op1;
   document.getElementById('opBtn2').textContent = CONFIG.nomiCasse.op2;
+}
+
+function changePassword(key) {
+  const inputId = key === 'op1' ? 'newPw1' : key === 'op2' ? 'newPw2' : 'newPwDir';
+  const val = document.getElementById(inputId).value.trim();
+  if (!val) { alert('Inserisci una nuova password.'); return; }
+  if (val.length < 4) { alert('La password deve essere di almeno 4 caratteri.'); return; }
+  CONFIG.passwords[key] = val;
+  localStorage.setItem('scopello_passwords', JSON.stringify(CONFIG.passwords));
+  document.getElementById(inputId).value = '';
+  alert('✓ Password aggiornata e salvata!');
 }
 
 function openDirPw() {
@@ -1252,8 +1309,15 @@ function openDirPw() {
 }
 function checkDirPw() {
   const pw = document.getElementById('pwDirInput').value;
-  if (pw === CONFIG.passwords.dir) { state.isDir = true; closeModal('modalPwDir'); renderCassa(); }
-  else document.getElementById('pwDirError').textContent = 'Password non corretta.';
+  if (pw === CONFIG.passwords.dir) {
+    state.isDir = true;
+    state.operatore = 'dir';
+    document.getElementById('opBadge').textContent = '👑 Direttore';
+    closeModal('modalPwDir');
+    renderCassa();
+  } else {
+    document.getElementById('pwDirError').textContent = 'Password non corretta.';
+  }
 }
 
 // ============================================================
@@ -1275,7 +1339,6 @@ function exportCSV() {
 function resetDay() {
   if (!confirm('Sei sicuro di voler resettare tutti i dati della giornata?')) return;
   state.vendite = [];
-  ticketCounter = 0;
   CONFIG.orari.forEach(o => { state.turni[o] = { prenotati: 0 }; });
   const u = document.getElementById('undoBtn'); if (u) u.remove();
   renderCassa(); renderTurniVendita();
