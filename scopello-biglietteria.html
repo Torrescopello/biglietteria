@@ -4,317 +4,403 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Torre di Scopello">
 <title>Percorso Storico Naturalistico — Torre di Scopello</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 :root {
   --fd: Georgia, 'Times New Roman', serif;
   --fu: -apple-system, 'SF Pro Text', 'Helvetica Neue', sans-serif;
-  --bg: #0c0b09;
-  --s1: #181612;
-  --s2: #211f1b;
-  --s3: #2a2823;
-  --text: #f2ece3;
-  --muted: #7a7268;
-  --stone: #c4b28a;
-  --stone2: #e0d4bc;
-  --gold: #c9a84c;
-  --gold2: #e8c96a;
-  --sea: #2e7d8c;
-  --sea2: #4da8b8;
-  --green: #27ae60;
-  --green2: #2ecc71;
+  /* TEMA CHIARO — leggibile in pieno sole */
+  --bg: #f5f2ed;
+  --white: #ffffff;
+  --s1: #ede9e2;
+  --s2: #e2ddd5;
+  --border: #d0c8bc;
+  --text: #1a1714;
+  --text2: #4a4540;
+  --muted: #8a8278;
+  /* Colori funzionali — saturati per visibilità solare */
+  --green: #1a8c4e;
+  --green-bg: #e8f7ef;
+  --green-border: #a8dfc0;
+  --sea: #1565a0;
+  --sea-bg: #e3edf8;
+  --sea-border: #90bde0;
+  --gold: #b8860b;
+  --gold-bg: #fdf6e3;
+  --gold-border: #e8c84a;
   --red: #c0392b;
-  --red2: #e74c3c;
-  --orange: #e67e22;
-  --r: 16px;
+  --red-bg: #fdecea;
+  --red-border: #f0a8a0;
+  --orange: #d35400;
+  --stone: #8B6914;
+  --stone-bg: #faf3e8;
 }
+
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-body { font-family: var(--fu); background: var(--bg); color: var(--text); min-height: 100vh; overflow-x: hidden; }
-body::before { content:''; position:fixed; inset:0; background: radial-gradient(ellipse at 15% 40%, rgba(46,125,140,0.06) 0%, transparent 55%), radial-gradient(ellipse at 85% 15%, rgba(201,168,76,0.05) 0%, transparent 50%); pointer-events:none; z-index:0; }
+body { font-family: var(--fu); background: var(--bg); color: var(--text); min-height: 100vh; }
 
-/* SCREENS */
-.screen { display:none; position:relative; z-index:1; }
-.screen.active { display:block; }
+.screen { display: none; }
+.screen.active { display: block; }
 
-/* ===== LOGIN SCREEN ===== */
+/* ===== LOGIN ===== */
 #loginScreen {
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 40px 24px;
+  min-height: 100vh; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; padding: 32px 20px;
+  background: linear-gradient(160deg, #f5f2ed 0%, #ede5d8 100%);
 }
 #loginScreen.active { display: flex; }
-.login-logo { text-align: center; margin-bottom: 48px; }
-.login-logo h1 { font-family: var(--fd); font-weight: normal; font-size: 1.8rem; color: var(--stone); letter-spacing: 0.06em; }
-.login-logo p { font-size: 0.68rem; color: var(--muted); letter-spacing: 0.2em; text-transform: uppercase; margin-top: 6px; }
-.login-logo .divider { width: 40px; height: 1px; background: var(--stone); margin: 14px auto; opacity: 0.4; }
-.login-box { background: var(--s1); border: 1px solid rgba(196,178,138,0.15); border-radius: 20px; padding: 32px 28px; width: 100%; max-width: 340px; }
-.login-box h2 { font-family: var(--fd); font-weight: normal; font-size: 1.2rem; color: var(--stone); margin-bottom: 6px; }
-.login-box p { font-size: 0.76rem; color: var(--muted); margin-bottom: 24px; }
-.field-label { font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.14em; color: var(--muted); margin-bottom: 6px; }
+
+.login-logo { text-align: center; margin-bottom: 36px; }
+.login-logo h1 { font-family: var(--fd); font-weight: normal; font-size: 2rem; color: var(--text); letter-spacing: 0.04em; }
+.login-logo .sub { font-size: 0.7rem; color: var(--muted); letter-spacing: 0.2em; text-transform: uppercase; margin-top: 5px; }
+.login-logo .line { width: 48px; height: 2px; background: var(--stone); margin: 12px auto; opacity: 0.4; }
+
+.login-box {
+  background: var(--white); border: 2px solid var(--border); border-radius: 20px;
+  padding: 28px 24px; width: 100%; max-width: 360px;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+  transition: border-color 0.3s;
+}
+.login-box.success { border-color: var(--green); }
+.login-box h2 { font-family: var(--fd); font-weight: normal; font-size: 1.2rem; color: var(--text); margin-bottom: 4px; }
+.login-box .desc { font-size: 0.78rem; color: var(--muted); margin-bottom: 20px; }
+
+.field-label { font-size: 0.68rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text2); margin-bottom: 7px; }
 .field-input {
-  width: 100%; background: var(--bg); border: 1px solid rgba(196,178,138,0.18); border-radius: 10px;
-  padding: 12px 14px; font-family: var(--fu); font-size: 1rem; color: var(--text);
-  outline: none; -webkit-appearance: none; margin-bottom: 16px;
-  transition: border-color 0.2s;
+  width: 100%; background: var(--bg); border: 2px solid var(--border); border-radius: 12px;
+  padding: 13px 14px; font-family: var(--fu); font-size: 1.1rem; color: var(--text);
+  outline: none; -webkit-appearance: none; margin-bottom: 16px; transition: border-color 0.2s;
 }
-.field-input:focus { border-color: rgba(196,178,138,0.45); }
-.btn-login {
-  width: 100%; padding: 14px; border-radius: 12px; border: none; cursor: pointer;
-  font-family: var(--fu); font-size: 0.88rem; font-weight: 600; letter-spacing: 0.06em;
-  background: linear-gradient(135deg, rgba(201,168,76,0.3), rgba(201,168,76,0.15));
-  color: var(--gold2); border: 1px solid rgba(201,168,76,0.4);
-  transition: all 0.2s;
-}
-.btn-login:active { transform: scale(0.97); }
-.login-error { font-size: 0.76rem; color: var(--red2); text-align: center; margin-top: 10px; min-height: 18px; }
-.operator-select { display: flex; gap: 10px; margin-bottom: 16px; }
+.field-input:focus { border-color: var(--sea); background: #fff; }
+
+.operator-select { display: flex; gap: 8px; margin-bottom: 16px; }
 .op-btn {
-  flex: 1; padding: 10px; border-radius: 10px; border: 1px solid rgba(196,178,138,0.18);
-  background: var(--bg); color: var(--muted); font-family: var(--fu); font-size: 0.8rem;
-  cursor: pointer; text-align: center; transition: all 0.2s;
+  flex: 1; padding: 11px 6px; border-radius: 10px; border: 2px solid var(--border);
+  background: var(--bg); color: var(--muted); font-family: var(--fu); font-size: 0.82rem;
+  font-weight: 600; cursor: pointer; text-align: center; transition: all 0.15s;
 }
-.op-btn.selected { background: rgba(196,178,138,0.12); color: var(--stone); border-color: rgba(196,178,138,0.4); }
+.op-btn.selected { background: var(--sea-bg); color: var(--sea); border-color: var(--sea); }
 
-/* ===== MAIN APP ===== */
-#appScreen { min-height: 100vh; }
+.btn-login {
+  width: 100%; padding: 15px; border-radius: 12px; border: none; cursor: pointer;
+  font-family: var(--fu); font-size: 1rem; font-weight: 700; letter-spacing: 0.04em;
+  background: var(--text); color: #fff; transition: all 0.15s;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+.btn-login:active { transform: scale(0.97); background: #333; }
+
+.login-success-msg {
+  text-align: center; color: var(--green); font-size: 0.9rem; font-weight: 700;
+  padding: 10px; background: var(--green-bg); border-radius: 10px;
+  border: 2px solid var(--green-border); margin-bottom: 10px; display: none;
+}
+.login-success-msg.visible { display: block; }
+.login-error { font-size: 0.78rem; color: var(--red); text-align: center; margin-top: 10px; min-height: 18px; font-weight: 600; }
+
+/* ===== TOP BAR ===== */
+#appScreen { min-height: 100vh; background: var(--bg); }
 .topbar {
-  background: var(--s1); border-bottom: 1px solid rgba(196,178,138,0.1);
-  padding: 12px 20px; display: flex; align-items: center; justify-content: space-between;
+  background: var(--white); border-bottom: 2px solid var(--border);
+  padding: 10px 16px; display: flex; align-items: center; justify-content: space-between;
   position: sticky; top: 0; z-index: 50;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
 }
-.topbar-left h1 { font-family: var(--fd); font-weight: normal; font-size: 1.1rem; color: var(--stone); }
-.topbar-left p { font-size: 0.62rem; color: var(--muted); letter-spacing: 0.12em; text-transform: uppercase; margin-top: 1px; }
-.topbar-right { display: flex; align-items: center; gap: 10px; }
-.operator-badge {
-  background: rgba(201,168,76,0.12); border: 1px solid rgba(201,168,76,0.25);
-  border-radius: 20px; padding: 4px 12px; font-size: 0.72rem; color: var(--gold); letter-spacing: 0.06em;
+.topbar-brand h1 { font-family: var(--fd); font-weight: normal; font-size: 1rem; color: var(--text); }
+.topbar-brand p { font-size: 0.58rem; color: var(--muted); letter-spacing: 0.12em; text-transform: uppercase; }
+.topbar-right { display: flex; align-items: center; gap: 8px; }
+.op-badge {
+  background: var(--gold-bg); border: 2px solid var(--gold-border);
+  border-radius: 20px; padding: 4px 12px; font-size: 0.75rem; font-weight: 700; color: var(--gold);
 }
-.topbar-time { font-size: 1.1rem; font-weight: 200; color: var(--stone); font-variant-numeric: tabular-nums; }
-.btn-icon-sm {
-  width: 34px; height: 34px; border-radius: 8px; border: 1px solid rgba(196,178,138,0.15);
-  background: var(--s2); color: var(--muted); cursor: pointer; display: flex; align-items: center; justify-content: center;
-  font-size: 1rem; transition: all 0.15s;
+.top-clock { font-size: 1.2rem; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; }
+.btn-logout {
+  width: 36px; height: 36px; border-radius: 8px; border: 2px solid var(--border);
+  background: var(--bg); color: var(--text2); cursor: pointer;
+  display: flex; align-items: center; justify-content: center; font-size: 1rem;
+  transition: all 0.15s;
 }
-.btn-icon-sm:active { background: rgba(196,178,138,0.15); transform: scale(0.92); }
+.btn-logout:active { background: var(--red-bg); border-color: var(--red); color: var(--red); }
 
-/* TABS */
-.tabs { display: flex; background: var(--s1); border-bottom: 1px solid rgba(196,178,138,0.1); }
+/* ===== TABS ===== */
+.tabs {
+  display: flex; background: var(--white); border-bottom: 2px solid var(--border);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+}
 .tab-btn {
-  flex: 1; padding: 12px 8px; border: none; background: none; cursor: pointer;
-  font-family: var(--fu); font-size: 0.72rem; font-weight: 500; letter-spacing: 0.08em;
-  text-transform: uppercase; color: var(--muted); border-bottom: 2px solid transparent;
-  transition: all 0.2s;
+  flex: 1; padding: 13px 4px; border: none; background: none; cursor: pointer;
+  font-family: var(--fu); font-size: 0.7rem; font-weight: 700; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--muted); border-bottom: 3px solid transparent;
+  transition: all 0.15s; margin-bottom: -2px;
 }
-.tab-btn.active { color: var(--gold); border-bottom-color: var(--gold); }
+.tab-btn.active { color: var(--sea); border-bottom-color: var(--sea); background: var(--sea-bg); }
 
-/* TAB CONTENT */
-.tab-content { display: none; padding: 20px; }
+.tab-content { display: none; padding: 16px; }
 .tab-content.active { display: block; }
 
-/* ===== TAB VENDITA ===== */
-.sell-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 20px; }
+.sec-label {
+  font-size: 0.66rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em;
+  color: var(--muted); margin-bottom: 10px; margin-top: 4px;
+}
 
-/* Turno selector */
-.section-label { font-size: 0.64rem; text-transform: uppercase; letter-spacing: 0.16em; color: var(--muted); margin-bottom: 10px; }
-.turni-scroll { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; margin-bottom: 20px; }
+/* ===== TURNI SCROLL ===== */
+.turni-scroll { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 6px; margin-bottom: 16px; }
 .turni-scroll::-webkit-scrollbar { height: 3px; }
-.turni-scroll::-webkit-scrollbar-thumb { background: rgba(196,178,138,0.2); border-radius: 3px; }
+.turni-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
 .turno-chip {
-  flex-shrink: 0; padding: 8px 14px; border-radius: 10px; border: 1px solid rgba(196,178,138,0.15);
-  background: var(--s2); cursor: pointer; text-align: center; transition: all 0.2s; min-width: 72px;
+  flex-shrink: 0; min-width: 76px; padding: 10px 12px; border-radius: 12px;
+  border: 2px solid var(--border); background: var(--white); cursor: pointer;
+  text-align: center; transition: all 0.15s;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.05);
 }
-.turno-chip .t-ora { font-size: 0.88rem; font-weight: 600; color: var(--text); }
-.turno-chip .t-free { font-size: 0.62rem; color: var(--muted); margin-top: 2px; }
-.turno-chip.selected { background: rgba(201,168,76,0.15); border-color: rgba(201,168,76,0.45); }
-.turno-chip.selected .t-ora { color: var(--gold); }
-.turno-chip.full { opacity: 0.45; cursor: not-allowed; }
-.turno-chip.full .t-free { color: var(--red2); }
+.turno-chip .t-ora { font-size: 1rem; font-weight: 800; color: var(--text); }
+.turno-chip .t-free { font-size: 0.65rem; font-weight: 600; color: var(--muted); margin-top: 2px; }
+.turno-chip.selected { background: var(--sea-bg); border-color: var(--sea); }
+.turno-chip.selected .t-ora { color: var(--sea); }
+.turno-chip.selected .t-free { color: var(--sea); }
+.turno-chip.full { opacity: 0.5; cursor: not-allowed; background: var(--s1); }
+.turno-chip.full .t-free { color: var(--red); }
 
-/* Ticket type */
-.ticket-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
+/* ===== TICKET CARDS ===== */
+.ticket-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
 .ticket-card {
-  background: var(--s2); border: 1px solid rgba(196,178,138,0.12); border-radius: 14px;
-  padding: 18px 14px; cursor: pointer; transition: all 0.2s; text-align: center;
+  background: var(--white); border: 3px solid var(--border); border-radius: 16px;
+  padding: 20px 12px; cursor: pointer; text-align: center; transition: all 0.15s;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.05);
 }
-.ticket-card.selected-base { background: rgba(46,125,140,0.18); border-color: rgba(77,168,184,0.5); }
-.ticket-card.selected-premium { background: rgba(201,168,76,0.18); border-color: rgba(201,168,76,0.5); }
-.ticket-card .tc-icon { font-size: 1.6rem; margin-bottom: 6px; }
-.ticket-card .tc-name { font-size: 0.78rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; }
-.ticket-card.selected-base .tc-name { color: var(--sea2); }
+.ticket-card:active { transform: scale(0.97); }
+.ticket-card .tc-icon { font-size: 2rem; margin-bottom: 6px; }
+.ticket-card .tc-name { font-size: 0.85rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text2); }
+.ticket-card .tc-price { font-family: var(--fd); font-size: 2rem; color: var(--text); margin-top: 4px; font-weight: normal; }
+.ticket-card .tc-desc { font-size: 0.65rem; color: var(--muted); margin-top: 3px; font-weight: 600; }
+.ticket-card.selected-base { background: var(--sea-bg); border-color: var(--sea); }
+.ticket-card.selected-base .tc-name { color: var(--sea); }
+.ticket-card.selected-base .tc-price { color: var(--sea); }
+.ticket-card.selected-premium { background: var(--gold-bg); border-color: var(--gold); }
 .ticket-card.selected-premium .tc-name { color: var(--gold); }
-.ticket-card .tc-price { font-family: var(--fd); font-size: 1.5rem; margin-top: 4px; color: var(--stone); }
-.ticket-card .tc-desc { font-size: 0.62rem; color: var(--muted); margin-top: 3px; }
+.ticket-card.selected-premium .tc-price { color: var(--gold); }
 
-/* Qty */
-.qty-row { display: flex; align-items: center; justify-content: space-between; background: var(--s2); border-radius: 14px; padding: 14px 18px; margin-bottom: 16px; }
-.qty-label { font-size: 0.8rem; color: var(--muted); }
+/* ===== QTY ===== */
+.qty-row {
+  display: flex; align-items: center; justify-content: space-between;
+  background: var(--white); border: 2px solid var(--border); border-radius: 14px;
+  padding: 14px 18px; margin-bottom: 14px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+}
+.qty-label { font-size: 0.9rem; font-weight: 700; color: var(--text2); }
 .qty-ctrl { display: flex; align-items: center; gap: 14px; }
 .qty-btn {
-  width: 36px; height: 36px; border-radius: 10px; border: 1px solid rgba(196,178,138,0.2);
-  background: var(--s3); color: var(--stone); font-size: 1.4rem; cursor: pointer;
-  display: flex; align-items: center; justify-content: center; transition: all 0.15s; line-height: 1;
+  width: 44px; height: 44px; border-radius: 12px; border: 2px solid var(--border);
+  background: var(--bg); color: var(--text); font-size: 1.6rem; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; font-weight: 700;
+  transition: all 0.12s; line-height: 1;
 }
-.qty-btn:active { transform: scale(0.88); background: rgba(196,178,138,0.15); }
-.qty-val { font-family: var(--fd); font-size: 1.6rem; color: var(--text); min-width: 32px; text-align: center; font-variant-numeric: tabular-nums; }
+.qty-btn:active { background: var(--sea-bg); border-color: var(--sea); color: var(--sea); transform: scale(0.9); }
+.qty-val { font-family: var(--fd); font-size: 2.2rem; color: var(--text); min-width: 44px; text-align: center; font-variant-numeric: tabular-nums; font-weight: normal; }
 
-/* Payment */
-.pay-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+/* ===== PAGAMENTO ===== */
+.pay-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 14px; }
 .pay-btn {
-  padding: 14px; border-radius: 12px; border: none; cursor: pointer;
-  font-family: var(--fu); font-size: 0.8rem; font-weight: 600; letter-spacing: 0.06em;
-  text-transform: uppercase; transition: all 0.2s; display: flex; flex-direction: column; align-items: center; gap: 4px;
+  padding: 16px 8px; border-radius: 14px; border: 3px solid var(--border); cursor: pointer;
+  font-family: var(--fu); font-size: 0.8rem; font-weight: 800; letter-spacing: 0.04em;
+  text-transform: uppercase; transition: all 0.15s;
+  display: flex; flex-direction: column; align-items: center; gap: 5px;
+  background: var(--white); color: var(--text2);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.05);
 }
-.pay-btn .pay-icon { font-size: 1.4rem; }
-.pay-cash { background: rgba(39,174,96,0.15); color: var(--green2); border: 1px solid rgba(39,174,96,0.35); }
-.pay-cash.selected { background: rgba(39,174,96,0.28); border-color: var(--green2); }
-.pay-pos { background: rgba(46,125,140,0.15); color: var(--sea2); border: 1px solid rgba(46,125,140,0.35); }
-.pay-pos.selected { background: rgba(46,125,140,0.28); border-color: var(--sea2); }
+.pay-btn:active { transform: scale(0.95); }
+.pay-btn .pay-icon { font-size: 1.6rem; }
+.pay-cash.selected { background: var(--green-bg); border-color: var(--green); color: var(--green); }
+.pay-pos.selected { background: var(--sea-bg); border-color: var(--sea); color: var(--sea); }
+.pay-posplus.selected { background: var(--gold-bg); border-color: var(--gold); color: var(--gold); }
 
-/* Summary & confirm */
-.sell-summary { background: var(--s1); border: 1px solid rgba(196,178,138,0.12); border-radius: 14px; padding: 16px 18px; margin-bottom: 16px; }
-.sum-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 0.82rem; color: var(--muted); }
-.sum-row:last-child { margin-bottom: 0; padding-top: 10px; border-top: 1px solid rgba(196,178,138,0.1); }
-.sum-total { font-family: var(--fd); font-size: 1.5rem; color: var(--gold2); font-variant-numeric: tabular-nums; }
+/* ===== SUMMARY ===== */
+.sell-summary {
+  background: var(--white); border: 2px solid var(--border); border-radius: 14px;
+  padding: 14px 16px; margin-bottom: 14px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+}
+.sum-row { display: flex; justify-content: space-between; align-items: center; padding: 5px 0; font-size: 0.86rem; color: var(--text2); border-bottom: 1px solid var(--s1); }
+.sum-row:last-child { border-bottom: none; padding-top: 10px; margin-top: 4px; border-top: 2px solid var(--border); }
+.sum-total { font-family: var(--fd); font-size: 1.8rem; color: var(--text); font-weight: normal; font-variant-numeric: tabular-nums; }
+
+/* ===== CONFERMA BTN ===== */
 .btn-confirm {
-  width: 100%; padding: 18px; border-radius: 14px; border: none; cursor: pointer;
-  font-family: var(--fu); font-size: 1rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
-  background: linear-gradient(135deg, rgba(201,168,76,0.35), rgba(201,168,76,0.2));
-  color: var(--gold2); border: 1px solid rgba(201,168,76,0.5);
-  transition: all 0.2s;
+  width: 100%; padding: 20px; border-radius: 16px; border: none; cursor: pointer;
+  font-family: var(--fu); font-size: 1.1rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase;
+  background: var(--green); color: #fff;
+  box-shadow: 0 4px 12px rgba(26,140,78,0.3);
+  transition: all 0.15s;
 }
-.btn-confirm:active { transform: scale(0.97); }
-.btn-confirm:disabled { opacity: 0.35; cursor: not-allowed; transform: none; }
+.btn-confirm:active { transform: scale(0.98); box-shadow: none; }
+.btn-confirm:disabled { background: var(--s2); color: var(--muted); box-shadow: none; cursor: not-allowed; transform: none; }
 
-/* ===== TAB TURNI ===== */
-.turni-grid { display: grid; gap: 10px; }
-.turno-card { background: var(--s1); border: 1px solid rgba(196,178,138,0.1); border-radius: 14px; padding: 16px 18px; }
+/* ===== TURNI TAB ===== */
+.turni-grid { display: grid; gap: 8px; }
+.turno-card {
+  background: var(--white); border: 2px solid var(--border); border-radius: 14px;
+  padding: 14px 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+}
 .turno-card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
-.turno-ora { font-family: var(--fd); font-size: 1.3rem; color: var(--stone); }
-.turno-badge { font-size: 0.66rem; letter-spacing: 0.1em; text-transform: uppercase; padding: 3px 10px; border-radius: 20px; }
-.badge-ok { background: rgba(39,174,96,0.15); color: var(--green2); border: 1px solid rgba(39,174,96,0.3); }
-.badge-warn { background: rgba(230,126,34,0.15); color: var(--orange); border: 1px solid rgba(230,126,34,0.3); }
-.badge-full { background: rgba(192,57,43,0.15); color: var(--red2); border: 1px solid rgba(192,57,43,0.3); }
-.turno-bar-wrap { background: rgba(255,255,255,0.05); border-radius: 99px; height: 5px; margin-bottom: 8px; overflow: hidden; }
-.turno-bar { height: 100%; border-radius: 99px; transition: width 0.4s ease, background 0.4s; }
-.turno-stats { display: flex; justify-content: space-between; font-size: 0.72rem; color: var(--muted); }
-.turno-stats span { display: flex; flex-direction: column; align-items: center; gap: 1px; }
-.turno-stats strong { font-size: 0.9rem; color: var(--text); font-weight: 500; }
+.turno-ora { font-family: var(--fd); font-size: 1.4rem; color: var(--text); font-weight: normal; }
+.t-badge { font-size: 0.68rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; padding: 4px 12px; border-radius: 20px; }
+.badge-ok { background: var(--green-bg); color: var(--green); border: 2px solid var(--green-border); }
+.badge-warn { background: #fff3e0; color: var(--orange); border: 2px solid #ffcc80; }
+.badge-full { background: var(--red-bg); color: var(--red); border: 2px solid var(--red-border); }
+.t-bar-wrap { background: var(--s1); border-radius: 99px; height: 6px; margin-bottom: 10px; overflow: hidden; }
+.t-bar { height: 100%; border-radius: 99px; transition: width 0.4s, background 0.4s; }
+.t-stats { display: flex; justify-content: space-between; }
+.t-stat { text-align: center; }
+.t-stat .ts-val { font-size: 1.1rem; font-weight: 800; color: var(--text); display: block; }
+.t-stat .ts-lab { font-size: 0.6rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
 
-/* ===== TAB STORICO ===== */
+/* ===== STORICO ===== */
 .storico-list { display: flex; flex-direction: column; gap: 6px; }
-.storico-item { background: var(--s1); border: 1px solid rgba(196,178,138,0.08); border-radius: 12px; padding: 12px 16px; display: flex; align-items: center; gap: 12px; animation: slide-in 0.25s ease; }
+.storico-item {
+  background: var(--white); border: 2px solid var(--border); border-radius: 12px;
+  padding: 12px 14px; display: flex; align-items: center; gap: 10px;
+  animation: slide-in 0.2s ease;
+}
 @keyframes slide-in { from { opacity:0; transform:translateY(-5px); } to { opacity:1; transform:translateY(0); } }
-.si-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-.si-dot.base { background: var(--sea2); }
+.si-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.si-dot.base { background: var(--sea); }
 .si-dot.premium { background: var(--gold); }
 .si-info { flex: 1; }
-.si-main { font-size: 0.82rem; color: var(--text); }
-.si-sub { font-size: 0.68rem; color: var(--muted); margin-top: 2px; }
-.si-amount { font-family: var(--fd); font-size: 1rem; color: var(--stone2); }
-.si-pay { font-size: 0.64rem; color: var(--muted); text-align: right; margin-top: 1px; }
-.storico-empty { text-align: center; padding: 40px; color: var(--muted); font-size: 0.78rem; }
+.si-main { font-size: 0.86rem; font-weight: 700; color: var(--text); }
+.si-sub { font-size: 0.7rem; color: var(--muted); margin-top: 2px; font-weight: 600; }
+.si-right { text-align: right; }
+.si-amount { font-family: var(--fd); font-size: 1.1rem; color: var(--text); font-weight: normal; }
+.si-pay {
+  font-size: 0.62rem; font-weight: 700; text-transform: uppercase; padding: 2px 7px;
+  border-radius: 6px; margin-top: 2px; display: inline-block;
+}
+.si-pay.cash { background: var(--green-bg); color: var(--green); }
+.si-pay.pos { background: var(--sea-bg); color: var(--sea); }
+.si-pay.posplus { background: var(--gold-bg); color: var(--gold); }
+.storico-empty { text-align: center; padding: 40px; color: var(--muted); font-size: 0.82rem; font-weight: 600; }
 
-/* ===== TAB CASSA ===== */
-.cassa-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
-.cassa-card { background: var(--s1); border: 1px solid rgba(196,178,138,0.1); border-radius: 14px; padding: 18px 14px; text-align: center; }
-.cc-label { font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--muted); margin-bottom: 6px; }
-.cc-val { font-family: var(--fd); font-size: 1.7rem; color: var(--stone); font-variant-numeric: tabular-nums; }
-.cc-sub { font-size: 0.68rem; color: var(--muted); margin-top: 3px; }
-.cc-cash { border-color: rgba(39,174,96,0.2); }
-.cc-cash .cc-val { color: var(--green2); }
-.cc-pos { border-color: rgba(46,125,140,0.2); }
-.cc-pos .cc-val { color: var(--sea2); }
-.cc-total { grid-column: 1/-1; border-color: rgba(201,168,76,0.25); }
-.cc-total .cc-val { font-size: 2.2rem; color: var(--gold2); }
+/* ===== CASSA ===== */
+.cassa-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+.cassa-card {
+  background: var(--white); border: 2px solid var(--border); border-radius: 14px;
+  padding: 16px 12px; text-align: center;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+}
+.cc-label { font-size: 0.62rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); margin-bottom: 6px; }
+.cc-val { font-family: var(--fd); font-size: 1.6rem; color: var(--text); font-variant-numeric: tabular-nums; }
+.cc-sub { font-size: 0.66rem; color: var(--muted); margin-top: 3px; font-weight: 600; }
+.cc-cash { border-color: var(--green-border); }
+.cc-cash .cc-val { color: var(--green); }
+.cc-pos { border-color: var(--sea-border); }
+.cc-pos .cc-val { color: var(--sea); }
+.cc-posplus { border-color: var(--gold-border); }
+.cc-posplus .cc-val { color: var(--gold); }
+.cc-total { border-color: var(--text); border-width: 3px; }
+.cc-total .cc-val { font-size: 2rem; color: var(--text); }
 
-.op-resoconto { background: var(--s1); border: 1px solid rgba(196,178,138,0.1); border-radius: 14px; padding: 16px 18px; margin-bottom: 12px; }
-.op-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
-.op-name { font-size: 0.88rem; font-weight: 600; color: var(--text); }
-.op-rows { display: flex; flex-direction: column; gap: 6px; }
-.op-row { display: flex; justify-content: space-between; font-size: 0.78rem; }
-.op-row-label { color: var(--muted); }
-.op-row-val { color: var(--stone2); font-variant-numeric: tabular-nums; }
+.op-resoconto {
+  background: var(--white); border: 2px solid var(--border); border-radius: 14px;
+  padding: 14px 16px; margin-bottom: 10px;
+}
+.op-name { font-size: 0.9rem; font-weight: 800; color: var(--text); margin-bottom: 10px; }
+.op-row { display: flex; justify-content: space-between; padding: 5px 0; font-size: 0.82rem; border-bottom: 1px solid var(--s1); }
+.op-row:last-child { border-bottom: none; }
+.op-row-label { color: var(--muted); font-weight: 600; }
+.op-row-val { color: var(--text); font-weight: 700; font-variant-numeric: tabular-nums; }
 
 .btn-export {
-  width: 100%; padding: 14px; border-radius: 12px; border: none; cursor: pointer;
-  font-family: var(--fu); font-size: 0.82rem; font-weight: 600; letter-spacing: 0.06em;
-  background: var(--s2); color: var(--muted); border: 1px solid rgba(196,178,138,0.15);
-  margin-bottom: 8px; transition: all 0.15s; display: flex; align-items: center; justify-content: center; gap: 8px;
+  width: 100%; padding: 13px; border-radius: 12px; border: 2px solid var(--border); cursor: pointer;
+  font-family: var(--fu); font-size: 0.82rem; font-weight: 700;
+  background: var(--white); color: var(--text2); margin-bottom: 8px;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  transition: all 0.15s;
 }
-.btn-export:active { background: rgba(196,178,138,0.12); }
+.btn-export:active { background: var(--s1); }
+
+.settings-section {
+  background: var(--white); border: 2px solid var(--border); border-radius: 14px;
+  padding: 14px 16px; margin-bottom: 10px;
+}
+.settings-row-item { display: flex; align-items: center; justify-content: space-between; padding: 9px 0; border-bottom: 1px solid var(--s1); }
+.settings-row-item:last-child { border-bottom: none; }
+.settings-row-label { font-size: 0.82rem; font-weight: 600; color: var(--text2); }
+.settings-val-row { display: flex; align-items: center; gap: 10px; }
+.s-btn {
+  width: 32px; height: 32px; border-radius: 8px; background: var(--bg); border: 2px solid var(--border);
+  color: var(--text); font-size: 1.2rem; font-weight: 700; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; transition: all 0.12s;
+}
+.s-btn:active { background: var(--sea-bg); border-color: var(--sea); color: var(--sea); transform: scale(0.88); }
+.s-val { font-size: 1rem; font-weight: 700; color: var(--text); min-width: 44px; text-align: center; font-variant-numeric: tabular-nums; }
 
 /* ===== MODAL ===== */
 .modal-overlay {
-  position: fixed; inset: 0; background: rgba(0,0,0,0.8);
-  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+  backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
   z-index: 200; display: none; align-items: center; justify-content: center; padding: 20px;
 }
 .modal-overlay.visible { display: flex; }
 .modal {
-  background: var(--s1); border: 1px solid rgba(196,178,138,0.2);
-  border-radius: 20px; padding: 28px 22px; max-width: 380px; width: 100%;
-  animation: modal-in 0.25s cubic-bezier(0.34,1.56,0.64,1);
+  background: var(--white); border: 2px solid var(--border);
+  border-radius: 20px; padding: 26px 22px; max-width: 380px; width: 100%;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+  animation: modal-in 0.22s cubic-bezier(0.34,1.56,0.64,1);
 }
-@keyframes modal-in { from { opacity:0; transform:scale(0.88) translateY(20px); } to { opacity:1; transform:scale(1) translateY(0); } }
-.modal h2 { font-family: var(--fd); font-weight: normal; font-size: 1.3rem; color: var(--stone); margin-bottom: 8px; }
-.modal p { font-size: 0.8rem; color: var(--muted); margin-bottom: 20px; line-height: 1.6; }
+@keyframes modal-in { from { opacity:0; transform:scale(0.9) translateY(16px); } to { opacity:1; transform:scale(1) translateY(0); } }
+.modal h2 { font-family: var(--fd); font-weight: normal; font-size: 1.3rem; color: var(--text); margin-bottom: 8px; }
+.modal p { font-size: 0.84rem; color: var(--text2); margin-bottom: 18px; line-height: 1.6; }
 .modal-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.btn-m { padding: 13px; border-radius: 10px; font-family: var(--fu); font-size: 0.82rem; font-weight: 500; cursor: pointer; border: none; transition: all 0.15s; }
-.btn-m-cancel { background: rgba(255,255,255,0.05); color: var(--muted); border: 1px solid rgba(255,255,255,0.1); }
-.btn-m-ok { background: rgba(39,174,96,0.2); color: var(--green2); border: 1px solid rgba(39,174,96,0.35); }
-.btn-m-ok:active { background: rgba(39,174,96,0.32); }
+.btn-m { padding: 13px; border-radius: 12px; font-family: var(--fu); font-size: 0.88rem; font-weight: 700; cursor: pointer; border: 2px solid var(--border); transition: all 0.12s; }
+.btn-m-cancel { background: var(--bg); color: var(--text2); }
+.btn-m-cancel:active { background: var(--s1); }
+.btn-m-ok { background: var(--green); color: #fff; border-color: var(--green); box-shadow: 0 2px 8px rgba(26,140,78,0.25); }
+.btn-m-ok:active { background: #157a42; }
 
-/* SUCCESS FLASH */
+.pw-input {
+  width: 100%; background: var(--bg); border: 2px solid var(--border); border-radius: 10px;
+  padding: 13px 14px; font-family: var(--fu); font-size: 1.1rem; color: var(--text);
+  outline: none; -webkit-appearance: none; margin-bottom: 10px;
+  text-align: center; letter-spacing: 0.2em;
+}
+.pw-input:focus { border-color: var(--sea); }
+.pw-error { font-size: 0.76rem; color: var(--red); text-align: center; margin-bottom: 10px; min-height: 18px; font-weight: 700; }
+
+/* ===== SUCCESS FLASH ===== */
 .success-flash {
   position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%) scale(0);
-  background: rgba(39,174,96,0.95); color: white; border-radius: 20px; padding: 24px 36px;
-  text-align: center; z-index: 300; font-size: 1.1rem; font-weight: 600;
+  background: var(--green); color: #fff; border-radius: 20px; padding: 24px 40px;
+  text-align: center; z-index: 300; font-size: 1.1rem; font-weight: 800;
+  box-shadow: 0 8px 32px rgba(26,140,78,0.4);
   transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1), opacity 0.3s;
   pointer-events: none; opacity: 0;
 }
 .success-flash.show { transform: translate(-50%,-50%) scale(1); opacity: 1; }
-.success-flash .sf-amount { font-family: var(--fd); font-size: 2rem; display: block; margin-top: 4px; }
+.success-flash .sf-amount { font-family: var(--fd); font-size: 2.4rem; display: block; margin-top: 4px; font-weight: normal; }
 
-/* Director PW modal */
-.pw-input {
-  width: 100%; background: var(--bg); border: 1px solid rgba(196,178,138,0.2); border-radius: 10px;
-  padding: 12px 14px; font-family: var(--fu); font-size: 1rem; color: var(--text);
-  outline: none; -webkit-appearance: none; margin-bottom: 14px; letter-spacing: 0.2em;
-  text-align: center;
+/* ===== CAPACITY ALERT ===== */
+.cap-alert {
+  background: var(--red-bg); border: 2px solid var(--red); border-radius: 12px;
+  padding: 12px 16px; margin-bottom: 14px; display: none; align-items: center; gap: 10px;
 }
-.pw-error { font-size: 0.74rem; color: var(--red2); text-align: center; margin-bottom: 10px; min-height: 18px; }
-
-/* SETTINGS in cassa */
-.settings-section { background: var(--s1); border: 1px solid rgba(196,178,138,0.1); border-radius: 14px; padding: 16px 18px; margin-bottom: 12px; }
-.settings-row-item { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid rgba(196,178,138,0.07); }
-.settings-row-item:last-child { border-bottom: none; }
-.settings-row-label { font-size: 0.8rem; color: var(--muted); }
-.settings-val-row { display: flex; align-items: center; gap: 8px; }
-.s-btn { width: 28px; height: 28px; border-radius: 6px; background: var(--s2); border: 1px solid rgba(196,178,138,0.15); color: var(--stone); font-size: 1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
-.s-btn:active { background: rgba(196,178,138,0.15); transform: scale(0.88); }
-.s-val { font-size: 0.9rem; color: var(--text); min-width: 48px; text-align: center; font-variant-numeric: tabular-nums; }
-
-/* Responsive helpers */
-.full-col { grid-column: 1 / -1; }
+.cap-alert.visible { display: flex; }
+.cap-alert-text { font-size: 0.86rem; font-weight: 700; color: var(--red); }
 </style>
 </head>
 <body>
 
-<!-- ===== LOGIN SCREEN ===== -->
+<!-- LOGIN -->
 <div id="loginScreen" class="screen active">
   <div class="login-logo">
     <h1>Torre di Scopello</h1>
-    <div class="divider"></div>
-    <p>Percorso Storico Naturalistico</p>
+    <div class="line"></div>
+    <p class="sub">Percorso Storico Naturalistico</p>
   </div>
   <div class="login-box">
     <h2>Accesso operatore</h2>
-    <p>Seleziona il tuo ruolo e inserisci la password.</p>
+    <p class="desc">Seleziona ruolo e inserisci la password.</p>
     <div class="field-label">Ruolo</div>
     <div class="operator-select">
       <button class="op-btn selected" id="opBtn1" onclick="selectOp(1)">Cassa 1</button>
@@ -323,28 +409,28 @@ body::before { content:''; position:fixed; inset:0; background: radial-gradient(
     </div>
     <div class="field-label">Password</div>
     <input class="field-input" type="password" id="loginPw" placeholder="••••••" onkeydown="if(event.key==='Enter')doLogin()">
-    <button class="btn-login" onclick="doLogin()">Entra</button>
+    <button class="btn-login" onclick="doLogin()">ENTRA</button>
+    <div class="login-success-msg" id="loginSuccess">✓ Accesso effettuato!</div>
     <div class="login-error" id="loginError"></div>
   </div>
 </div>
 
-<!-- ===== MAIN APP ===== -->
+<!-- APP -->
 <div id="appScreen" class="screen">
 
-  <!-- TOP BAR -->
   <div class="topbar">
-    <div class="topbar-left">
+    <div class="topbar-brand">
       <h1>Torre di Scopello</h1>
       <p>Percorso Storico Naturalistico</p>
     </div>
     <div class="topbar-right">
-      <span class="operator-badge" id="opBadge">Cassa 1</span>
-      <span class="topbar-time" id="topClock">--:--</span>
-      <button class="btn-icon-sm" onclick="doLogout()" title="Esci">⏏</button>
+      <span class="op-badge" id="syncBadge" style="font-size:0.65rem;">✓ Online</span>
+      <span class="op-badge" id="opBadge">Cassa 1</span>
+      <span class="top-clock" id="topClock">--:--</span>
+      <button class="btn-logout" onclick="doLogout()" title="Esci">⏏</button>
     </div>
   </div>
 
-  <!-- TABS -->
   <div class="tabs">
     <button class="tab-btn active" onclick="switchTab('vendita')">🎫 Vendita</button>
     <button class="tab-btn" onclick="switchTab('turni')">🕐 Turni</button>
@@ -352,30 +438,30 @@ body::before { content:''; position:fixed; inset:0; background: radial-gradient(
     <button class="tab-btn" onclick="switchTab('cassa')">💰 Cassa</button>
   </div>
 
-  <!-- TAB: VENDITA -->
+  <!-- TAB VENDITA -->
   <div id="tab-vendita" class="tab-content active">
 
-    <div class="section-label">Seleziona turno</div>
+    <div class="sec-label">Seleziona turno</div>
     <div class="turni-scroll" id="turniScrollVendita"></div>
 
-    <div class="section-label">Tipo biglietto</div>
+    <div class="sec-label">Tipo biglietto</div>
     <div class="ticket-cards">
       <div class="ticket-card" id="cardBase" onclick="selectTicket('base')">
         <div class="tc-icon">🌿</div>
         <div class="tc-name">Base</div>
-        <div class="tc-price" id="priceBaseDisplay">€0</div>
-        <div class="tc-desc">Percorso libero</div>
+        <div class="tc-price" id="priceBaseDisplay">€10</div>
+        <div class="tc-desc">Visita al percorso</div>
       </div>
       <div class="ticket-card" id="cardPremium" onclick="selectTicket('premium')">
         <div class="tc-icon">⭐</div>
         <div class="tc-name">Premium</div>
-        <div class="tc-price" id="pricePremiumDisplay">€0</div>
-        <div class="tc-desc">Con guida + degustazione</div>
+        <div class="tc-price" id="pricePremiumDisplay">€18</div>
+        <div class="tc-desc">Visita al percorso</div>
       </div>
     </div>
 
     <div class="qty-row">
-      <span class="qty-label">Numero biglietti</span>
+      <span class="qty-label">N° biglietti</span>
       <div class="qty-ctrl">
         <button class="qty-btn" onclick="changeQty(-1)">−</button>
         <span class="qty-val" id="qtyVal">1</span>
@@ -383,15 +469,16 @@ body::before { content:''; position:fixed; inset:0; background: radial-gradient(
       </div>
     </div>
 
-    <div class="section-label">Modalità di pagamento</div>
+    <div class="sec-label">Pagamento</div>
     <div class="pay-row">
       <button class="pay-btn pay-cash" id="payCash" onclick="selectPay('cash')">
-        <span class="pay-icon">💵</span>
-        <span>Contanti</span>
+        <span class="pay-icon">💵</span><span>Contanti</span>
       </button>
       <button class="pay-btn pay-pos" id="payPos" onclick="selectPay('pos')">
-        <span class="pay-icon">💳</span>
-        <span>POS</span>
+        <span class="pay-icon">💳</span><span>POS</span>
+      </button>
+      <button class="pay-btn pay-posplus" id="payPosPlus" onclick="selectPay('posplus')">
+        <span class="pay-icon">💳</span><span>POS+</span>
       </button>
     </div>
 
@@ -402,32 +489,31 @@ body::before { content:''; position:fixed; inset:0; background: radial-gradient(
       <div class="sum-row"><span>Totale</span><span class="sum-total" id="sumTotal">€ 0,00</span></div>
     </div>
 
-    <button class="btn-confirm" id="btnConferma" onclick="confirmSale()" disabled>CONFERMA VENDITA</button>
+    <button class="btn-confirm" id="btnConferma" onclick="confirmSale()" disabled>✓ CONFERMA VENDITA</button>
   </div>
 
-  <!-- TAB: TURNI -->
+  <!-- TAB TURNI -->
   <div id="tab-turni" class="tab-content">
-    <div class="section-label" style="margin-bottom:14px;">Disponibilità turni — oggi</div>
+    <div class="sec-label" style="margin-bottom:12px;">Disponibilità turni — oggi</div>
     <div class="turni-grid" id="turniGrid"></div>
   </div>
 
-  <!-- TAB: STORICO -->
+  <!-- TAB STORICO -->
   <div id="tab-storico" class="tab-content">
-    <div class="section-label" style="margin-bottom:14px;" id="storicoTitle">Vendite di oggi</div>
+    <div class="sec-label" style="margin-bottom:12px;">Vendite di oggi</div>
     <div class="storico-list" id="storicoList"></div>
   </div>
 
-  <!-- TAB: CASSA -->
+  <!-- TAB CASSA -->
   <div id="tab-cassa" class="tab-content">
-    <div class="section-label" style="margin-bottom:12px;">Riepilogo incassi</div>
+    <div class="sec-label" style="margin-bottom:10px;">Riepilogo incassi</div>
     <div class="cassa-grid" id="cassaGrid"></div>
 
-    <div class="section-label" style="margin-bottom:10px; margin-top:4px;">Resoconto per operatore</div>
+    <div class="sec-label" style="margin-bottom:10px;">Resoconto operatori</div>
     <div id="opResoconti"></div>
 
-    <!-- Prezzi (solo per direttore o sempre visibile?) -->
     <div id="settingsSection" style="display:none;">
-      <div class="section-label" style="margin-bottom:10px; margin-top:4px;">Impostazioni prezzi</div>
+      <div class="sec-label" style="margin-bottom:10px;">Prezzi & Impostazioni</div>
       <div class="settings-section">
         <div class="settings-row-item">
           <span class="settings-row-label">Biglietto Base (€)</span>
@@ -454,20 +540,19 @@ body::before { content:''; position:fixed; inset:0; background: radial-gradient(
           </div>
         </div>
       </div>
-
-      <div class="section-label" style="margin-bottom:10px;">Esporta</div>
+      <div class="sec-label" style="margin-bottom:8px;">Esporta</div>
       <button class="btn-export" onclick="exportCSV()">📥 Esporta CSV giornata</button>
-      <button class="btn-export" onclick="resetDay()" style="color: var(--red2); border-color: rgba(192,57,43,0.3);">🗑 Reset giornata</button>
+      <button class="btn-export" onclick="resetDay()" style="color:var(--red);border-color:var(--red-border);">🗑 Reset giornata</button>
     </div>
   </div>
 
 </div>
 
-<!-- MODAL: Conferma vendita -->
+<!-- MODAL CONFERMA -->
 <div class="modal-overlay" id="modalConferma">
   <div class="modal">
     <h2>Conferma vendita</h2>
-    <p id="modalConfermaText">Riepilogo vendita...</p>
+    <p id="modalConfermaText"></p>
     <div class="modal-btns">
       <button class="btn-m btn-m-cancel" onclick="closeModal('modalConferma')">Annulla</button>
       <button class="btn-m btn-m-ok" onclick="executeSale()">✓ Conferma</button>
@@ -475,11 +560,11 @@ body::before { content:''; position:fixed; inset:0; background: radial-gradient(
   </div>
 </div>
 
-<!-- MODAL: PW Direttore (richiesta da cassa) -->
+<!-- MODAL PW DIRETTORE -->
 <div class="modal-overlay" id="modalPwDir">
   <div class="modal">
     <h2>Accesso Direttore</h2>
-    <p>Inserisci la password direttore per vedere le impostazioni e i resoconti completi.</p>
+    <p>Inserisci la password direttore per i resoconti completi e le impostazioni.</p>
     <input class="pw-input" type="password" id="pwDirInput" placeholder="••••••" onkeydown="if(event.key==='Enter')checkDirPw()">
     <div class="pw-error" id="pwDirError"></div>
     <div class="modal-btns">
@@ -497,8 +582,107 @@ body::before { content:''; position:fixed; inset:0; background: radial-gradient(
 
 <script>
 // ============================================================
-// CONFIG & STATE
+// SUPABASE CONFIG
 // ============================================================
+const SUPABASE_URL = 'https://jhvuucvzhtuvybcsoxts.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpodnV1Y3Z6aHR1dnliY3NveHRzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2NDM2NTMsImV4cCI6MjA4ODIxOTY1M30.2at0j_pKSw3AbbEO0nfNKpHay43FW32tiBDmszaNInI';
+const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// Coda per vendite offline
+let pendingSync = JSON.parse(localStorage.getItem('pendingSync') || '[]');
+let isOnline = navigator.onLine;
+
+window.addEventListener('online', () => { isOnline = true; syncPending(); updateSyncBadge(); });
+window.addEventListener('offline', () => { isOnline = false; updateSyncBadge(); });
+
+function updateSyncBadge() {
+  const badge = document.getElementById('syncBadge');
+  if (!badge) return;
+  if (!isOnline) {
+    badge.textContent = '📵 Offline';
+    badge.style.background = 'var(--red-bg)';
+    badge.style.color = 'var(--red)';
+    badge.style.borderColor = 'var(--red-border)';
+  } else if (pendingSync.length > 0) {
+    badge.textContent = `⏳ Sync (${pendingSync.length})`;
+    badge.style.background = '#fff3e0';
+    badge.style.color = 'var(--orange)';
+    badge.style.borderColor = '#ffcc80';
+  } else {
+    badge.textContent = '✓ Online';
+    badge.style.background = 'var(--green-bg)';
+    badge.style.color = 'var(--green)';
+    badge.style.borderColor = 'var(--green-border)';
+  }
+}
+
+async function saveVendita(vendita) {
+  const row = {
+    turno: vendita.turno,
+    tipo: vendita.tipo,
+    qty: vendita.qty,
+    prezzo: vendita.prezzo,
+    totale: vendita.totale,
+    pagamento: vendita.pagamento,
+    operatore: vendita.operatore,
+    ora: vendita.ora,
+    data: new Date().toISOString().split('T')[0]
+  };
+  if (isOnline) {
+    const { error } = await db.from('vendite').insert(row);
+    if (error) { pendingSync.push({...row, localId: vendita.id}); savePending(); }
+  } else {
+    pendingSync.push({...row, localId: vendita.id});
+    savePending();
+  }
+  updateSyncBadge();
+}
+
+async function syncPending() {
+  if (!pendingSync.length || !isOnline) return;
+  const toSync = [...pendingSync];
+  pendingSync = [];
+  savePending();
+  for (const row of toSync) {
+    const { localId, ...data } = row;
+    const { error } = await db.from('vendite').insert(data);
+    if (error) { pendingSync.push(row); savePending(); }
+  }
+  updateSyncBadge();
+}
+
+function savePending() {
+  localStorage.setItem('pendingSync', JSON.stringify(pendingSync));
+}
+
+// Carica vendite di oggi dal DB al login
+async function loadTodayVendite() {
+  if (!isOnline) return;
+  const today = new Date().toISOString().split('T')[0];
+  const { data, error } = await db.from('vendite').select('*').eq('data', today);
+  if (error || !data) return;
+  // Ricostruisce stato turni da dati DB
+  data.forEach(v => {
+    if (state.turni[v.turno]) state.turni[v.turno].prenotati += v.qty;
+    state.vendite.push({
+      id: v.id,
+      ora: v.ora,
+      turno: v.turno,
+      tipo: v.tipo,
+      qty: v.qty,
+      prezzo: Number(v.prezzo),
+      totale: Number(v.totale),
+      pagamento: v.pagamento,
+      operatore: v.operatore,
+      timestamp: new Date(v.created_at)
+    });
+  });
+  renderAll();
+  if (document.getElementById('tab-storico').classList.contains('active')) renderStorico();
+  if (document.getElementById('tab-cassa').classList.contains('active')) renderCassa();
+  if (document.getElementById('tab-turni').classList.contains('active')) renderTurni();
+}
+
 const CONFIG = {
   passwords: { op1: '1234', op2: '5678', dir: 'scopello2024' },
   prezzi: { base: 10, premium: 18 },
@@ -507,24 +691,12 @@ const CONFIG = {
 };
 
 let state = {
-  operatore: null,   // 'op1' | 'op2' | 'dir'
-  isDir: false,
-  // vendita corrente
-  turnoSel: null,
-  ticketSel: null,
-  qty: 1,
-  paySel: null,
-  // dati globali giornata
-  vendite: [],       // { id, ora, turno, tipo, qty, prezzo, totale, pagamento, operatore, timestamp }
-  turni: {}          // { '11:00': { prenotati: 0 }, ... }
+  operatore: null, isDir: false,
+  turnoSel: null, ticketSel: null, qty: 1, paySel: null,
+  vendite: [], turni: {}
 };
-
-// Inizializza turni
 CONFIG.orari.forEach(o => { state.turni[o] = { prenotati: 0 }; });
 
-// ============================================================
-// LOGIN
-// ============================================================
 let selectedOp = 1;
 function selectOp(op) {
   selectedOp = op;
@@ -538,45 +710,50 @@ function doLogin() {
   const err = document.getElementById('loginError');
   const key = selectedOp === 1 ? 'op1' : selectedOp === 2 ? 'op2' : 'dir';
   if (pw === CONFIG.passwords[key]) {
-    state.operatore = key;
-    state.isDir = (key === 'dir');
+    state.operatore = key; state.isDir = (key === 'dir');
     document.getElementById('loginPw').value = '';
     err.textContent = '';
+    const box = document.querySelector('.login-box');
+    const successMsg = document.getElementById('loginSuccess');
+    const opName = key === 'op1' ? 'Cassa 1' : key === 'op2' ? 'Cassa 2' : 'Direttore';
+    successMsg.textContent = `✓ Benvenuto — ${opName}`;
+    successMsg.classList.add('visible');
+    box.classList.add('success');
     document.getElementById('opBadge').textContent = key === 'op1' ? 'Cassa 1' : key === 'op2' ? 'Cassa 2' : '👑 Direttore';
-    showScreen('appScreen');
-    renderAll();
+    setTimeout(() => {
+      successMsg.classList.remove('visible');
+      box.classList.remove('success');
+      showScreen('appScreen');
+      renderAll();
+      updateSyncBadge();
+      syncPending();
+      loadTodayVendite();
+    }, 900);
   } else {
     err.textContent = 'Password non corretta.';
+    const box = document.querySelector('.login-box');
+    box.style.borderColor = 'var(--red)';
+    setTimeout(() => { box.style.borderColor = ''; }, 800);
   }
 }
 
 function doLogout() {
   state.operatore = null; state.isDir = false;
+  state.vendite = [];
+  CONFIG.orari.forEach(o => { state.turni[o] = { prenotati: 0 }; });
+  const u = document.getElementById('undoBtn'); if (u) u.remove();
   resetSellForm();
   showScreen('loginScreen');
 }
+function showScreen(id) { document.querySelectorAll('.screen').forEach(s => s.classList.remove('active')); document.getElementById(id).classList.add('active'); }
 
-function showScreen(id) {
-  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-  document.getElementById(id).classList.add('active');
-}
-
-// ============================================================
-// CLOCK
-// ============================================================
 function updateClock() {
-  const n = new Date();
-  document.getElementById('topClock').textContent = n.toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'});
+  document.getElementById('topClock').textContent = new Date().toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'});
 }
 setInterval(updateClock, 1000); updateClock();
 
-// ============================================================
-// TABS
-// ============================================================
 function switchTab(name) {
-  document.querySelectorAll('.tab-btn').forEach((b,i) => {
-    b.classList.toggle('active', ['vendita','turni','storico','cassa'][i] === name);
-  });
+  document.querySelectorAll('.tab-btn').forEach((b,i) => b.classList.toggle('active', ['vendita','turni','storico','cassa'][i] === name));
   document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
   document.getElementById('tab-'+name).classList.add('active');
   if (name === 'turni') renderTurni();
@@ -584,17 +761,13 @@ function switchTab(name) {
   if (name === 'cassa') renderCassa();
 }
 
-// ============================================================
-// VENDITA
-// ============================================================
 function renderTurniVendita() {
-  const el = document.getElementById('turniScrollVendita');
-  el.innerHTML = CONFIG.orari.map(ora => {
+  document.getElementById('turniScrollVendita').innerHTML = CONFIG.orari.map(ora => {
     const t = state.turni[ora];
     const liberi = CONFIG.capMax - t.prenotati;
     const full = liberi <= 0;
     const sel = state.turnoSel === ora;
-    return `<div class="turno-chip ${full?'full':''} ${sel?'selected':''}" onclick="${full?'':'selectTurno(\''+ora+'\')'}" >
+    return `<div class="turno-chip ${full?'full':''} ${sel?'selected':''}" onclick="${full?'':'selectTurno(\''+ora+'\')'}">
       <div class="t-ora">${ora}</div>
       <div class="t-free">${full ? 'Esaurito' : liberi+' posti'}</div>
     </div>`;
@@ -603,12 +776,10 @@ function renderTurniVendita() {
 
 function selectTurno(ora) {
   state.turnoSel = ora;
-  // ricalibra qty rispetto ai posti liberi del nuovo turno
   const liberi = CONFIG.capMax - state.turni[ora].prenotati;
   state.qty = Math.max(1, Math.min(state.qty, liberi));
   document.getElementById('qtyVal').textContent = state.qty;
-  renderTurniVendita();
-  updateSummary();
+  renderTurniVendita(); updateSummary();
 }
 
 function selectTicket(tipo) {
@@ -619,7 +790,7 @@ function selectTicket(tipo) {
 }
 
 function changeQty(d) {
-  if (!state.turnoSel) return; // blocca qty senza turno
+  if (!state.turnoSel) return;
   const liberi = CONFIG.capMax - state.turni[state.turnoSel].prenotati;
   state.qty = Math.max(1, Math.min(liberi, state.qty + d));
   document.getElementById('qtyVal').textContent = state.qty;
@@ -630,70 +801,56 @@ function selectPay(tipo) {
   state.paySel = tipo;
   document.getElementById('payCash').classList.toggle('selected', tipo==='cash');
   document.getElementById('payPos').classList.toggle('selected', tipo==='pos');
+  document.getElementById('payPosPlus').classList.toggle('selected', tipo==='posplus');
   updateSummary();
 }
 
 function updateSummary() {
-  const t = state.ticketSel;
-  const q = state.qty;
+  const t = state.ticketSel, q = state.qty;
   const p = t ? CONFIG.prezzi[t] : 0;
   const tot = p * q;
-
   document.getElementById('sumTicket').textContent = t ? (t==='base'?'Base':'Premium') : '—';
   document.getElementById('sumQty').textContent = q;
-  document.getElementById('sumPay').textContent = state.paySel ? (state.paySel==='cash'?'Contanti':'POS') : '—';
+  document.getElementById('sumPay').textContent = state.paySel ? (state.paySel==='cash'?'Contanti':state.paySel==='pos'?'POS':'POS+') : '—';
   document.getElementById('sumTotal').textContent = '€ ' + tot.toFixed(2).replace('.',',');
-
-  const ok = state.turnoSel && state.ticketSel && state.paySel;
-  document.getElementById('btnConferma').disabled = !ok;
+  document.getElementById('btnConferma').disabled = !(state.turnoSel && state.ticketSel && state.paySel);
 }
 
 function confirmSale() {
-  const t = state.ticketSel;
-  const p = CONFIG.prezzi[t];
-  const tot = p * state.qty;
+  const t = state.ticketSel, p = CONFIG.prezzi[t], tot = p * state.qty;
   document.getElementById('modalConfermaText').innerHTML =
-    `<strong>${state.qty}x ${t==='base'?'Base':'Premium'}</strong> — turno <strong>${state.turnoSel}</strong><br>
-     Pagamento: <strong>${state.paySel==='cash'?'Contanti':'POS'}</strong><br><br>
-     Totale: <strong style="color:var(--gold2);font-size:1.2rem">€ ${tot.toFixed(2).replace('.',',')}</strong>`;
+    `<strong>${state.qty}× ${t==='base'?'Base':'Premium'}</strong> — turno <strong>${state.turnoSel}</strong><br>
+     Pagamento: <strong>${state.paySel==='cash'?'Contanti':state.paySel==='pos'?'POS':'POS+'}</strong><br><br>
+     Totale: <strong style="font-size:1.4rem;color:var(--text)">€ ${tot.toFixed(2).replace('.',',')}</strong>`;
   document.getElementById('modalConferma').classList.add('visible');
 }
 
 function executeSale() {
-  const t = state.ticketSel;
-  const p = CONFIG.prezzi[t];
-  const tot = p * state.qty;
+  const t = state.ticketSel, p = CONFIG.prezzi[t], tot = p * state.qty;
   const now = new Date();
-  const vendita = {
+  state.vendite.push({
     id: Date.now(),
     ora: now.toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'}),
-    turno: state.turnoSel,
-    tipo: t,
-    qty: state.qty,
-    prezzo: p,
-    totale: tot,
-    pagamento: state.paySel,
-    operatore: state.operatore,
-    timestamp: now
-  };
-  state.vendite.push(vendita);
+    turno: state.turnoSel, tipo: t, qty: state.qty,
+    prezzo: p, totale: tot, pagamento: state.paySel,
+    operatore: state.operatore, timestamp: now
+  });
   state.turni[state.turnoSel].prenotati += state.qty;
   closeModal('modalConferma');
   showFlash(tot);
+  saveVendita(state.vendite[state.vendite.length - 1]);
   resetSellForm();
   renderTurniVendita();
   renderUndoBtn();
 }
 
 function undoLastSale() {
-  // trova l'ultima vendita di questo operatore
   const myLast = [...state.vendite].reverse().find(v => v.operatore === state.operatore);
   if (!myLast) return;
-  if (!confirm(`Annullare: ${myLast.qty}x ${myLast.tipo} turno ${myLast.turno} — € ${myLast.totale.toFixed(2)}?`)) return;
+  if (!confirm(`Annullare: ${myLast.qty}× ${myLast.tipo} turno ${myLast.turno} — € ${myLast.totale.toFixed(2)}?`)) return;
   state.vendite = state.vendite.filter(v => v.id !== myLast.id);
   state.turni[myLast.turno].prenotati = Math.max(0, state.turni[myLast.turno].prenotati - myLast.qty);
-  renderTurniVendita();
-  renderUndoBtn();
+  renderTurniVendita(); renderUndoBtn();
 }
 
 function renderUndoBtn() {
@@ -704,8 +861,8 @@ function renderUndoBtn() {
   const btn = document.createElement('button');
   btn.id = 'undoBtn';
   btn.className = 'btn-export';
-  btn.style.cssText = 'color:var(--red2);border-color:rgba(192,57,43,0.3);margin-bottom:20px;';
-  btn.innerHTML = `↩ Annulla ultima vendita (${myLast.qty}x ${myLast.tipo} ${myLast.turno})`;
+  btn.style.cssText = 'color:var(--red);border-color:var(--red-border);margin-top:10px;';
+  btn.innerHTML = `↩ Annulla ultima (${myLast.qty}× ${myLast.tipo} ${myLast.turno})`;
   btn.onclick = undoLastSale;
   document.getElementById('btnConferma').insertAdjacentElement('afterend', btn);
 }
@@ -714,11 +871,9 @@ function resetSellForm() {
   state.turnoSel = null; state.ticketSel = null; state.qty = 1; state.paySel = null;
   document.getElementById('cardBase').className = 'ticket-card';
   document.getElementById('cardPremium').className = 'ticket-card';
-  document.getElementById('payCash').classList.remove('selected');
-  document.getElementById('payPos').classList.remove('selected');
+  ['payCash','payPos','payPosPlus'].forEach(id => document.getElementById(id).classList.remove('selected'));
   document.getElementById('qtyVal').textContent = '1';
-  updateSummary();
-  renderTurniVendita();
+  updateSummary(); renderTurniVendita();
 }
 
 function showFlash(tot) {
@@ -728,138 +883,115 @@ function showFlash(tot) {
   setTimeout(() => f.classList.remove('show'), 1800);
 }
 
-// ============================================================
-// TURNI TAB
-// ============================================================
 function renderTurni() {
-  const grid = document.getElementById('turniGrid');
-  grid.innerHTML = CONFIG.orari.map(ora => {
+  document.getElementById('turniGrid').innerHTML = CONFIG.orari.map(ora => {
     const t = state.turni[ora];
     const pct = Math.min(100, (t.prenotati / CONFIG.capMax) * 100);
     const liberi = CONFIG.capMax - t.prenotati;
     let badgeClass = 'badge-ok', badgeLabel = 'Disponibile';
     if (pct >= 100) { badgeClass = 'badge-full'; badgeLabel = 'Esaurito'; }
     else if (pct >= 75) { badgeClass = 'badge-warn'; badgeLabel = 'Quasi pieno'; }
-    const barColor = pct >= 100 ? 'var(--red2)' : pct >= 75 ? 'var(--orange)' : 'var(--sea2)';
-    // calcola base/premium per questo turno
+    const barColor = pct >= 100 ? 'var(--red)' : pct >= 75 ? 'var(--orange)' : 'var(--green)';
     const vBase = state.vendite.filter(v=>v.turno===ora&&v.tipo==='base').reduce((a,v)=>a+v.qty,0);
     const vPrem = state.vendite.filter(v=>v.turno===ora&&v.tipo==='premium').reduce((a,v)=>a+v.qty,0);
     return `<div class="turno-card">
       <div class="turno-card-header">
         <span class="turno-ora">${ora}</span>
-        <span class="turno-badge ${badgeClass}">${badgeLabel}</span>
+        <span class="t-badge ${badgeClass}">${badgeLabel}</span>
       </div>
-      <div class="turno-bar-wrap"><div class="turno-bar" style="width:${pct}%;background:${barColor}"></div></div>
-      <div class="turno-stats">
-        <span><strong>${t.prenotati}</strong>prenotati</span>
-        <span><strong>${liberi}</strong>liberi</span>
-        <span><strong>${vBase}</strong>base</span>
-        <span><strong>${vPrem}</strong>premium</span>
+      <div class="t-bar-wrap"><div class="t-bar" style="width:${pct}%;background:${barColor}"></div></div>
+      <div class="t-stats">
+        <div class="t-stat"><span class="ts-val">${t.prenotati}</span><span class="ts-lab">prenotati</span></div>
+        <div class="t-stat"><span class="ts-val">${liberi}</span><span class="ts-lab">liberi</span></div>
+        <div class="t-stat"><span class="ts-val">${vBase}</span><span class="ts-lab">base</span></div>
+        <div class="t-stat"><span class="ts-val">${vPrem}</span><span class="ts-lab">premium</span></div>
       </div>
     </div>`;
   }).join('');
 }
 
-// ============================================================
-// STORICO TAB
-// ============================================================
 function renderStorico() {
   const list = document.getElementById('storicoList');
-  // operatori normali vedono solo le proprie vendite
   const vendite = state.isDir ? [...state.vendite] : state.vendite.filter(v => v.operatore === state.operatore);
   if (!vendite.length) { list.innerHTML = '<div class="storico-empty">Nessuna vendita registrata</div>'; return; }
-  const sorted = [...vendite].reverse();
-  list.innerHTML = sorted.map(v => {
-    const opLabel = v.operatore === 'op1' ? 'Cassa 1' : v.operatore === 'op2' ? 'Cassa 2' : 'Direttore';
+  list.innerHTML = [...vendite].reverse().map(v => {
+    const opLabel = v.operatore==='op1'?'Cassa 1':v.operatore==='op2'?'Cassa 2':'Direttore';
+    const payClass = v.pagamento==='cash'?'cash':v.pagamento==='pos'?'pos':'posplus';
+    const payLabel = v.pagamento==='cash'?'Cash':v.pagamento==='pos'?'POS':'POS+';
     return `<div class="storico-item">
       <div class="si-dot ${v.tipo}"></div>
       <div class="si-info">
-        <div class="si-main">${v.qty}x ${v.tipo==='base'?'Base':'Premium'} — turno ${v.turno}</div>
-        <div class="si-sub">${v.ora} · ${opLabel} · ${v.pagamento==='cash'?'Contanti':'POS'}</div>
+        <div class="si-main">${v.qty}× ${v.tipo==='base'?'Base':'Premium'} — turno ${v.turno}</div>
+        <div class="si-sub">${v.ora} · ${opLabel}</div>
       </div>
-      <div>
+      <div class="si-right">
         <div class="si-amount">€ ${v.totale.toFixed(2).replace('.',',')}</div>
-        <div class="si-pay">${v.pagamento.toUpperCase()}</div>
+        <span class="si-pay ${payClass}">${payLabel}</span>
       </div>
     </div>`;
   }).join('');
 }
 
-// ============================================================
-// CASSA TAB
-// ============================================================
 function renderCassa() {
-  // Se operatore normale: mostra solo bottone per accesso direttore + propri dati
   const isDir = state.isDir;
-
-  // Totali globali
   const totCash = state.vendite.filter(v=>v.pagamento==='cash').reduce((a,v)=>a+v.totale,0);
   const totPos = state.vendite.filter(v=>v.pagamento==='pos').reduce((a,v)=>a+v.totale,0);
-  const totAll = totCash + totPos;
+  const totPosPlus = state.vendite.filter(v=>v.pagamento==='posplus').reduce((a,v)=>a+v.totale,0);
+  const totAll = totCash + totPos + totPosPlus;
   const totVisit = state.vendite.reduce((a,v)=>a+v.qty,0);
-
-  // Se non è direttore, mostro solo i suoi dati
   const myVendite = state.vendite.filter(v=>v.operatore===state.operatore);
   const myCash = myVendite.filter(v=>v.pagamento==='cash').reduce((a,v)=>a+v.totale,0);
   const myPos = myVendite.filter(v=>v.pagamento==='pos').reduce((a,v)=>a+v.totale,0);
-  const myTot = myCash + myPos;
+  const myPosPlus = myVendite.filter(v=>v.pagamento==='posplus').reduce((a,v)=>a+v.totale,0);
+  const myTot = myCash + myPos + myPosPlus;
 
-  const showFull = isDir;
-
-  // Cassa grid
   const cassaGrid = document.getElementById('cassaGrid');
-  if (showFull) {
+  if (isDir) {
     cassaGrid.innerHTML = `
-      <div class="cassa-card cc-cash"><div class="cc-label">Totale Contanti</div><div class="cc-val">€ ${totCash.toFixed(2).replace('.',',')}</div><div class="cc-sub">tutte le casse</div></div>
-      <div class="cassa-card cc-pos"><div class="cc-label">Totale POS</div><div class="cc-val">€ ${totPos.toFixed(2).replace('.',',')}</div><div class="cc-sub">tutte le casse</div></div>
+      <div class="cassa-card cc-cash"><div class="cc-label">Contanti</div><div class="cc-val">€ ${totCash.toFixed(2).replace('.',',')}</div><div class="cc-sub">tutte le casse</div></div>
+      <div class="cassa-card cc-pos"><div class="cc-label">POS</div><div class="cc-val">€ ${totPos.toFixed(2).replace('.',',')}</div><div class="cc-sub">tutte le casse</div></div>
+      <div class="cassa-card cc-posplus"><div class="cc-label">POS+</div><div class="cc-val">€ ${totPosPlus.toFixed(2).replace('.',',')}</div><div class="cc-sub">tutte le casse</div></div>
       <div class="cassa-card cc-total" style="grid-column:1/-1"><div class="cc-label">Incasso Totale Giornata</div><div class="cc-val">€ ${totAll.toFixed(2).replace('.',',')}</div><div class="cc-sub">${totVisit} visitatori totali</div></div>`;
   } else {
     cassaGrid.innerHTML = `
-      <div class="cassa-card cc-cash"><div class="cc-label">Mia cassa — Contanti</div><div class="cc-val">€ ${myCash.toFixed(2).replace('.',',')}</div></div>
-      <div class="cassa-card cc-pos"><div class="cc-label">Mia cassa — POS</div><div class="cc-val">€ ${myPos.toFixed(2).replace('.',',')}</div></div>
+      <div class="cassa-card cc-cash"><div class="cc-label">Contanti</div><div class="cc-val">€ ${myCash.toFixed(2).replace('.',',')}</div></div>
+      <div class="cassa-card cc-pos"><div class="cc-label">POS</div><div class="cc-val">€ ${myPos.toFixed(2).replace('.',',')}</div></div>
+      <div class="cassa-card cc-posplus"><div class="cc-label">POS+</div><div class="cc-val">€ ${myPosPlus.toFixed(2).replace('.',',')}</div></div>
       <div class="cassa-card cc-total" style="grid-column:1/-1"><div class="cc-label">Mio totale</div><div class="cc-val">€ ${myTot.toFixed(2).replace('.',',')}</div><div class="cc-sub">${myVendite.reduce((a,v)=>a+v.qty,0)} biglietti venduti</div></div>`;
   }
 
-  // Resoconti per operatore
   const opRes = document.getElementById('opResoconti');
-  if (showFull) {
-    const ops = ['op1','op2'];
-    opRes.innerHTML = ops.map(op => {
+  if (isDir) {
+    opRes.innerHTML = ['op1','op2'].map(op => {
       const vv = state.vendite.filter(v=>v.operatore===op);
       const cash = vv.filter(v=>v.pagamento==='cash').reduce((a,v)=>a+v.totale,0);
       const pos = vv.filter(v=>v.pagamento==='pos').reduce((a,v)=>a+v.totale,0);
+      const posplus = vv.filter(v=>v.pagamento==='posplus').reduce((a,v)=>a+v.totale,0);
       const base = vv.filter(v=>v.tipo==='base').reduce((a,v)=>a+v.qty,0);
       const prem = vv.filter(v=>v.tipo==='premium').reduce((a,v)=>a+v.qty,0);
-      const label = op==='op1'?'Cassa 1':'Cassa 2';
       return `<div class="op-resoconto">
-        <div class="op-header"><span class="op-name">${label}</span></div>
-        <div class="op-rows">
-          <div class="op-row"><span class="op-row-label">Contanti</span><span class="op-row-val">€ ${cash.toFixed(2).replace('.',',')}</span></div>
-          <div class="op-row"><span class="op-row-label">POS</span><span class="op-row-val">€ ${pos.toFixed(2).replace('.',',')}</span></div>
-          <div class="op-row"><span class="op-row-label">Totale</span><span class="op-row-val" style="color:var(--gold)">€ ${(cash+pos).toFixed(2).replace('.',',')}</span></div>
-          <div class="op-row"><span class="op-row-label">Biglietti Base</span><span class="op-row-val">${base}</span></div>
-          <div class="op-row"><span class="op-row-label">Biglietti Premium</span><span class="op-row-val">${prem}</span></div>
-          <div class="op-row"><span class="op-row-label">Totale biglietti</span><span class="op-row-val">${base+prem}</span></div>
-        </div>
+        <div class="op-name">${op==='op1'?'Cassa 1':'Cassa 2'}</div>
+        <div class="op-row"><span class="op-row-label">Contanti</span><span class="op-row-val">€ ${cash.toFixed(2).replace('.',',')}</span></div>
+        <div class="op-row"><span class="op-row-label">POS</span><span class="op-row-val">€ ${pos.toFixed(2).replace('.',',')}</span></div>
+        <div class="op-row"><span class="op-row-label">POS+</span><span class="op-row-val">€ ${posplus.toFixed(2).replace('.',',')}</span></div>
+        <div class="op-row"><span class="op-row-label">Totale</span><span class="op-row-val">€ ${(cash+pos+posplus).toFixed(2).replace('.',',')}</span></div>
+        <div class="op-row"><span class="op-row-label">Biglietti Base</span><span class="op-row-val">${base}</span></div>
+        <div class="op-row"><span class="op-row-label">Biglietti Premium</span><span class="op-row-val">${prem}</span></div>
+        <div class="op-row"><span class="op-row-label">Totale biglietti</span><span class="op-row-val">${base+prem}</span></div>
       </div>`;
     }).join('');
   } else {
-    // Bottone per accedere come direttore
-    opRes.innerHTML = `<button class="btn-export" onclick="openDirPw()" style="color:var(--gold);border-color:rgba(201,168,76,0.3)">🔐 Accedi come Direttore per resoconti completi</button>`;
+    opRes.innerHTML = `<button class="btn-export" onclick="openDirPw()" style="color:var(--gold);border-color:var(--gold-border)">🔐 Accedi come Direttore per resoconti completi</button>`;
   }
 
-  // Sezione impostazioni
-  document.getElementById('settingsSection').style.display = showFull ? 'block' : 'none';
-  if (showFull) {
+  document.getElementById('settingsSection').style.display = isDir ? 'block' : 'none';
+  if (isDir) {
     document.getElementById('priceBaseSet').textContent = CONFIG.prezzi.base;
     document.getElementById('pricePremiumSet').textContent = CONFIG.prezzi.premium;
     document.getElementById('capSet').textContent = CONFIG.capMax;
   }
 }
 
-// ============================================================
-// SETTINGS (direttore)
-// ============================================================
 function changePrice(tipo, d) {
   CONFIG.prezzi[tipo] = Math.max(1, CONFIG.prezzi[tipo] + d);
   document.getElementById('priceBaseSet').textContent = CONFIG.prezzi.base;
@@ -872,9 +1004,6 @@ function changeCap(d) {
   document.getElementById('capSet').textContent = CONFIG.capMax;
 }
 
-// ============================================================
-// DIRECTOR PW (da cassa operatore)
-// ============================================================
 function openDirPw() {
   document.getElementById('pwDirInput').value = '';
   document.getElementById('pwDirError').textContent = '';
@@ -883,66 +1012,41 @@ function openDirPw() {
 }
 function checkDirPw() {
   const pw = document.getElementById('pwDirInput').value;
-  if (pw === CONFIG.passwords.dir) {
-    state.isDir = true;
-    closeModal('modalPwDir');
-    renderCassa();
-  } else {
-    document.getElementById('pwDirError').textContent = 'Password non corretta.';
-  }
+  if (pw === CONFIG.passwords.dir) { state.isDir = true; closeModal('modalPwDir'); renderCassa(); }
+  else document.getElementById('pwDirError').textContent = 'Password non corretta.';
 }
 
-// ============================================================
-// EXPORT CSV
-// ============================================================
 function exportCSV() {
   const rows = [['ID','Ora','Turno','Tipo','Qty','Prezzo Unit.','Totale','Pagamento','Operatore']];
   state.vendite.forEach(v => {
-    const op = v.operatore==='op1'?'Cassa 1':v.operatore==='op2'?'Cassa 2':'Direttore';
-    rows.push([v.id, v.ora, v.turno, v.tipo, v.qty, v.prezzo, v.totale, v.pagamento, op]);
+    rows.push([v.id, v.ora, v.turno, v.tipo, v.qty, v.prezzo, v.totale, v.pagamento,
+      v.operatore==='op1'?'Cassa 1':v.operatore==='op2'?'Cassa 2':'Direttore']);
   });
   const csv = rows.map(r => r.join(';')).join('\n');
-  const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
-  const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  a.href = url;
-  const today = new Date().toLocaleDateString('it-IT').replace(/\//g,'-');
-  a.download = `scopello-${today}.csv`;
+  a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv;charset=utf-8;'}));
+  a.download = `scopello-${new Date().toLocaleDateString('it-IT').replace(/\//g,'-')}.csv`;
   a.click();
-  URL.revokeObjectURL(url);
 }
 
 function resetDay() {
   if (!confirm('Sei sicuro di voler resettare tutti i dati della giornata?')) return;
   state.vendite = [];
   CONFIG.orari.forEach(o => { state.turni[o] = { prenotati: 0 }; });
-  const undoBtn = document.getElementById('undoBtn');
-  if (undoBtn) undoBtn.remove();
-  renderCassa();
-  renderTurniVendita();
+  const u = document.getElementById('undoBtn'); if (u) u.remove();
+  renderCassa(); renderTurniVendita();
 }
 
-// ============================================================
-// MODAL
-// ============================================================
 function closeModal(id) { document.getElementById(id).classList.remove('visible'); }
 
-// ============================================================
-// RENDER ALL
-// ============================================================
 function renderAll() {
   document.getElementById('priceBaseDisplay').textContent = '€' + CONFIG.prezzi.base;
   document.getElementById('pricePremiumDisplay').textContent = '€' + CONFIG.prezzi.premium;
-  renderTurniVendita();
-  updateSummary();
-  renderUndoBtn();
+  renderTurniVendita(); updateSummary(); renderUndoBtn();
 }
 
-// keyboard shortcuts
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') {
-    document.querySelectorAll('.modal-overlay.visible').forEach(m => m.classList.remove('visible'));
-  }
+  if (e.key === 'Escape') document.querySelectorAll('.modal-overlay.visible').forEach(m => m.classList.remove('visible'));
 });
 </script>
 </body>
