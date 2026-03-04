@@ -12,7 +12,6 @@
 :root {
   --fd: Georgia, 'Times New Roman', serif;
   --fu: -apple-system, 'SF Pro Text', 'Helvetica Neue', sans-serif;
-  /* TEMA CHIARO — leggibile in pieno sole */
   --bg: #f5f2ed;
   --white: #ffffff;
   --s1: #ede9e2;
@@ -21,7 +20,6 @@
   --text: #1a1714;
   --text2: #4a4540;
   --muted: #8a8278;
-  /* Colori funzionali — saturati per visibilità solare */
   --green: #1a8c4e;
   --green-bg: #e8f7ef;
   --green-border: #a8dfc0;
@@ -37,6 +35,9 @@
   --orange: #d35400;
   --stone: #8B6914;
   --stone-bg: #faf3e8;
+  --purple: #7b3fa0;
+  --purple-bg: #f3eafa;
+  --purple-border: #d4a8e8;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
@@ -45,60 +46,60 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); min-he
 .screen { display: none; }
 .screen.active { display: block; }
 
-/* ===== LOGIN ===== */
+/* ===== LOGIN — compatto ===== */
 #loginScreen {
   min-height: 100vh; display: flex; flex-direction: column;
-  align-items: center; justify-content: center; padding: 32px 20px;
+  align-items: center; justify-content: center; padding: 20px 16px;
   background: linear-gradient(160deg, #f5f2ed 0%, #ede5d8 100%);
 }
 #loginScreen.active { display: flex; }
 
-.login-logo { text-align: center; margin-bottom: 36px; }
-.login-logo h1 { font-family: var(--fd); font-weight: normal; font-size: 2rem; color: var(--text); letter-spacing: 0.04em; }
-.login-logo .sub { font-size: 0.7rem; color: var(--muted); letter-spacing: 0.2em; text-transform: uppercase; margin-top: 5px; }
-.login-logo .line { width: 48px; height: 2px; background: var(--stone); margin: 12px auto; opacity: 0.4; }
+.login-logo { text-align: center; margin-bottom: 16px; }
+.login-logo h1 { font-family: var(--fd); font-weight: normal; font-size: 1.4rem; color: var(--text); letter-spacing: 0.04em; }
+.login-logo .sub { font-size: 0.62rem; color: var(--muted); letter-spacing: 0.18em; text-transform: uppercase; margin-top: 3px; }
+.login-logo .line { width: 36px; height: 1.5px; background: var(--stone); margin: 8px auto; opacity: 0.4; }
 
 .login-box {
-  background: var(--white); border: 2px solid var(--border); border-radius: 20px;
-  padding: 28px 24px; width: 100%; max-width: 360px;
-  box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+  background: var(--white); border: 2px solid var(--border); border-radius: 16px;
+  padding: 18px 18px; width: 100%; max-width: 320px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.07);
   transition: border-color 0.3s;
 }
 .login-box.success { border-color: var(--green); }
-.login-box h2 { font-family: var(--fd); font-weight: normal; font-size: 1.2rem; color: var(--text); margin-bottom: 4px; }
-.login-box .desc { font-size: 0.78rem; color: var(--muted); margin-bottom: 20px; }
+.login-box h2 { font-family: var(--fd); font-weight: normal; font-size: 1rem; color: var(--text); margin-bottom: 3px; }
+.login-box .desc { font-size: 0.72rem; color: var(--muted); margin-bottom: 14px; }
 
-.field-label { font-size: 0.68rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text2); margin-bottom: 7px; }
+.field-label { font-size: 0.64rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text2); margin-bottom: 6px; }
 .field-input {
-  width: 100%; background: var(--bg); border: 2px solid var(--border); border-radius: 12px;
-  padding: 13px 14px; font-family: var(--fu); font-size: 1.1rem; color: var(--text);
-  outline: none; -webkit-appearance: none; margin-bottom: 16px; transition: border-color 0.2s;
+  width: 100%; background: var(--bg); border: 2px solid var(--border); border-radius: 10px;
+  padding: 11px 12px; font-family: var(--fu); font-size: 1rem; color: var(--text);
+  outline: none; -webkit-appearance: none; margin-bottom: 12px; transition: border-color 0.2s;
 }
 .field-input:focus { border-color: var(--sea); background: #fff; }
 
-.operator-select { display: flex; gap: 8px; margin-bottom: 16px; }
+.operator-select { display: flex; gap: 6px; margin-bottom: 12px; }
 .op-btn {
-  flex: 1; padding: 11px 6px; border-radius: 10px; border: 2px solid var(--border);
-  background: var(--bg); color: var(--muted); font-family: var(--fu); font-size: 0.82rem;
+  flex: 1; padding: 9px 4px; border-radius: 8px; border: 2px solid var(--border);
+  background: var(--bg); color: var(--muted); font-family: var(--fu); font-size: 0.76rem;
   font-weight: 600; cursor: pointer; text-align: center; transition: all 0.15s;
 }
 .op-btn.selected { background: var(--sea-bg); color: var(--sea); border-color: var(--sea); }
 
 .btn-login {
-  width: 100%; padding: 15px; border-radius: 12px; border: none; cursor: pointer;
-  font-family: var(--fu); font-size: 1rem; font-weight: 700; letter-spacing: 0.04em;
+  width: 100%; padding: 13px; border-radius: 10px; border: none; cursor: pointer;
+  font-family: var(--fu); font-size: 0.92rem; font-weight: 700; letter-spacing: 0.04em;
   background: var(--text); color: #fff; transition: all 0.15s;
   box-shadow: 0 2px 8px rgba(0,0,0,0.15);
 }
 .btn-login:active { transform: scale(0.97); background: #333; }
 
 .login-success-msg {
-  text-align: center; color: var(--green); font-size: 0.9rem; font-weight: 700;
-  padding: 10px; background: var(--green-bg); border-radius: 10px;
-  border: 2px solid var(--green-border); margin-bottom: 10px; display: none;
+  text-align: center; color: var(--green); font-size: 0.86rem; font-weight: 700;
+  padding: 8px; background: var(--green-bg); border-radius: 8px;
+  border: 2px solid var(--green-border); margin-bottom: 8px; display: none;
 }
 .login-success-msg.visible { display: block; }
-.login-error { font-size: 0.78rem; color: var(--red); text-align: center; margin-top: 10px; min-height: 18px; font-weight: 600; }
+.login-error { font-size: 0.76rem; color: var(--red); text-align: center; margin-top: 8px; min-height: 16px; font-weight: 600; }
 
 /* ===== TOP BAR ===== */
 #appScreen { min-height: 100vh; background: var(--bg); }
@@ -164,24 +165,30 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); min-he
 .turno-chip.full { opacity: 0.5; cursor: not-allowed; background: var(--s1); }
 .turno-chip.full .t-free { color: var(--red); }
 
-/* ===== TICKET CARDS ===== */
+/* ===== TICKET CARDS — griglia 2x2 ===== */
 .ticket-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
 .ticket-card {
   background: var(--white); border: 3px solid var(--border); border-radius: 16px;
-  padding: 20px 12px; cursor: pointer; text-align: center; transition: all 0.15s;
+  padding: 16px 10px; cursor: pointer; text-align: center; transition: all 0.15s;
   box-shadow: 0 1px 4px rgba(0,0,0,0.05);
 }
 .ticket-card:active { transform: scale(0.97); }
-.ticket-card .tc-icon { font-size: 2rem; margin-bottom: 6px; }
-.ticket-card .tc-name { font-size: 0.85rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text2); }
-.ticket-card .tc-price { font-family: var(--fd); font-size: 2rem; color: var(--text); margin-top: 4px; font-weight: normal; }
-.ticket-card .tc-desc { font-size: 0.65rem; color: var(--muted); margin-top: 3px; font-weight: 600; }
+.ticket-card .tc-icon { font-size: 1.6rem; margin-bottom: 4px; }
+.ticket-card .tc-name { font-size: 0.78rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text2); }
+.ticket-card .tc-price { font-family: var(--fd); font-size: 1.7rem; color: var(--text); margin-top: 2px; font-weight: normal; }
+.ticket-card .tc-desc { font-size: 0.6rem; color: var(--muted); margin-top: 2px; font-weight: 600; }
 .ticket-card.selected-base { background: var(--sea-bg); border-color: var(--sea); }
 .ticket-card.selected-base .tc-name { color: var(--sea); }
 .ticket-card.selected-base .tc-price { color: var(--sea); }
 .ticket-card.selected-premium { background: var(--gold-bg); border-color: var(--gold); }
 .ticket-card.selected-premium .tc-name { color: var(--gold); }
 .ticket-card.selected-premium .tc-price { color: var(--gold); }
+.ticket-card.selected-ridotto { background: var(--green-bg); border-color: var(--green); }
+.ticket-card.selected-ridotto .tc-name { color: var(--green); }
+.ticket-card.selected-ridotto .tc-price { color: var(--green); }
+.ticket-card.selected-nopay { background: var(--purple-bg); border-color: var(--purple); }
+.ticket-card.selected-nopay .tc-name { color: var(--purple); }
+.ticket-card.selected-nopay .tc-price { color: var(--purple); }
 
 /* ===== QTY ===== */
 .qty-row {
@@ -226,6 +233,7 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); min-he
 .sum-row { display: flex; justify-content: space-between; align-items: center; padding: 5px 0; font-size: 0.86rem; color: var(--text2); border-bottom: 1px solid var(--s1); }
 .sum-row:last-child { border-bottom: none; padding-top: 10px; margin-top: 4px; border-top: 2px solid var(--border); }
 .sum-total { font-family: var(--fd); font-size: 1.8rem; color: var(--text); font-weight: normal; font-variant-numeric: tabular-nums; }
+.sum-ticket-num { font-size: 0.72rem; color: var(--muted); font-weight: 600; }
 
 /* ===== CONFERMA BTN ===== */
 .btn-confirm {
@@ -268,6 +276,8 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); min-he
 .si-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
 .si-dot.base { background: var(--sea); }
 .si-dot.premium { background: var(--gold); }
+.si-dot.ridotto { background: var(--green); }
+.si-dot.nopay { background: var(--purple); }
 .si-info { flex: 1; }
 .si-main { font-size: 0.86rem; font-weight: 700; color: var(--text); }
 .si-sub { font-size: 0.7rem; color: var(--muted); margin-top: 2px; font-weight: 600; }
@@ -280,7 +290,37 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); min-he
 .si-pay.cash { background: var(--green-bg); color: var(--green); }
 .si-pay.pos { background: var(--sea-bg); color: var(--sea); }
 .si-pay.posplus { background: var(--gold-bg); color: var(--gold); }
+.si-pay.gratis { background: var(--purple-bg); color: var(--purple); }
+.si-ticket-num { font-size: 0.62rem; color: var(--muted); margin-top: 1px; font-weight: 600; }
 .storico-empty { text-align: center; padding: 40px; color: var(--muted); font-size: 0.82rem; font-weight: 600; }
+
+/* Annulla btn nel storico (direttore) */
+.btn-annulla-dir {
+  background: none; border: none; color: var(--red); font-size: 0.7rem; font-weight: 700;
+  cursor: pointer; padding: 2px 6px; border-radius: 6px; transition: background 0.1s;
+}
+.btn-annulla-dir:active { background: var(--red-bg); }
+
+/* ===== NOTE OPERATORE ===== */
+.note-section {
+  background: var(--white); border: 2px solid var(--border); border-radius: 14px;
+  padding: 14px 16px; margin-bottom: 14px;
+}
+.note-textarea {
+  width: 100%; border: 1.5px solid var(--border); border-radius: 10px;
+  padding: 10px 12px; font-family: var(--fu); font-size: 0.86rem; color: var(--text);
+  background: var(--bg); outline: none; resize: none; height: 80px; line-height: 1.5;
+  transition: border-color 0.2s;
+}
+.note-textarea:focus { border-color: var(--sea); background: #fff; }
+.note-save-btn {
+  margin-top: 8px; padding: 8px 18px; border-radius: 8px; border: 2px solid var(--border);
+  background: var(--bg); font-family: var(--fu); font-size: 0.76rem; font-weight: 700;
+  color: var(--text2); cursor: pointer; transition: all 0.15s;
+}
+.note-save-btn:active { background: var(--green-bg); border-color: var(--green); color: var(--green); }
+.note-saved-msg { font-size: 0.72rem; color: var(--green); margin-left: 8px; font-weight: 600; display: none; }
+.note-saved-msg.show { display: inline; }
 
 /* ===== CASSA ===== */
 .cassa-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
@@ -306,6 +346,12 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); min-he
   padding: 14px 16px; margin-bottom: 10px;
 }
 .op-name { font-size: 0.9rem; font-weight: 800; color: var(--text); margin-bottom: 10px; }
+.op-note-display {
+  font-size: 0.76rem; color: var(--text2); background: var(--bg); border-radius: 8px;
+  padding: 8px 10px; margin-bottom: 10px; border: 1px solid var(--border); font-style: italic;
+  display: none;
+}
+.op-note-display.visible { display: block; }
 .op-row { display: flex; justify-content: space-between; padding: 5px 0; font-size: 0.82rem; border-bottom: 1px solid var(--s1); }
 .op-row:last-child { border-bottom: none; }
 .op-row-label { color: var(--muted); font-weight: 600; }
@@ -335,6 +381,14 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); min-he
 }
 .s-btn:active { background: var(--sea-bg); border-color: var(--sea); color: var(--sea); transform: scale(0.88); }
 .s-val { font-size: 1rem; font-weight: 700; color: var(--text); min-width: 44px; text-align: center; font-variant-numeric: tabular-nums; }
+
+/* Nome casse — input inline */
+.name-input {
+  border: 1.5px solid var(--border); border-radius: 8px; padding: 6px 10px;
+  font-family: var(--fu); font-size: 0.86rem; color: var(--text); background: var(--bg);
+  outline: none; width: 130px; transition: border-color 0.2s;
+}
+.name-input:focus { border-color: var(--sea); background: #fff; }
 
 /* ===== MODAL ===== */
 .modal-overlay {
@@ -379,14 +433,7 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); min-he
 }
 .success-flash.show { transform: translate(-50%,-50%) scale(1); opacity: 1; }
 .success-flash .sf-amount { font-family: var(--fd); font-size: 2.4rem; display: block; margin-top: 4px; font-weight: normal; }
-
-/* ===== CAPACITY ALERT ===== */
-.cap-alert {
-  background: var(--red-bg); border: 2px solid var(--red); border-radius: 12px;
-  padding: 12px 16px; margin-bottom: 14px; display: none; align-items: center; gap: 10px;
-}
-.cap-alert.visible { display: flex; }
-.cap-alert-text { font-size: 0.86rem; font-weight: 700; color: var(--red); }
+.success-flash .sf-num { font-size: 0.82rem; opacity: 0.85; margin-top: 4px; display: block; }
 </style>
 </head>
 <body>
@@ -458,6 +505,18 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); min-he
         <div class="tc-price" id="pricePremiumDisplay">€18</div>
         <div class="tc-desc">Visita al percorso</div>
       </div>
+      <div class="ticket-card" id="cardRidotto" onclick="selectTicket('ridotto')">
+        <div class="tc-icon">🎟️</div>
+        <div class="tc-name">Ridotto</div>
+        <div class="tc-price" id="priceRidottoDisplay">€5</div>
+        <div class="tc-desc">Tariffa ridotta</div>
+      </div>
+      <div class="ticket-card" id="cardNopay" onclick="selectTicket('nopay')">
+        <div class="tc-icon">🆓</div>
+        <div class="tc-name">Non pag.</div>
+        <div class="tc-price">€0</div>
+        <div class="tc-desc">Ingresso gratuito</div>
+      </div>
     </div>
 
     <div class="qty-row">
@@ -483,6 +542,7 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); min-he
     </div>
 
     <div class="sell-summary">
+      <div class="sum-row"><span>N° Ticket</span><span class="sum-ticket-num" id="sumTicketNum">#—</span></div>
       <div class="sum-row"><span>Biglietto</span><span id="sumTicket">—</span></div>
       <div class="sum-row"><span>Quantità</span><span id="sumQty">—</span></div>
       <div class="sum-row"><span>Pagamento</span><span id="sumPay">—</span></div>
@@ -506,6 +566,17 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); min-he
 
   <!-- TAB CASSA -->
   <div id="tab-cassa" class="tab-content">
+
+    <!-- NOTE OPERATORE (solo cassa, non direttore) -->
+    <div id="noteSection" class="note-section" style="display:none;">
+      <div class="sec-label" style="margin-bottom:8px;">📝 Note turno</div>
+      <textarea class="note-textarea" id="noteText" placeholder="Annotazioni, comunicazioni, eventi particolari..."></textarea>
+      <div>
+        <button class="note-save-btn" onclick="saveNote()">Salva nota</button>
+        <span class="note-saved-msg" id="noteSavedMsg">✓ Salvata</span>
+      </div>
+    </div>
+
     <div class="sec-label" style="margin-bottom:10px;">Riepilogo incassi</div>
     <div class="cassa-grid" id="cassaGrid"></div>
 
@@ -532,12 +603,28 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); min-he
           </div>
         </div>
         <div class="settings-row-item">
+          <span class="settings-row-label">Biglietto Ridotto (€)</span>
+          <div class="settings-val-row">
+            <button class="s-btn" onclick="changePrice('ridotto',-1)">−</button>
+            <span class="s-val" id="priceRidottoSet">5</span>
+            <button class="s-btn" onclick="changePrice('ridotto',+1)">+</button>
+          </div>
+        </div>
+        <div class="settings-row-item">
           <span class="settings-row-label">Capienza max per turno</span>
           <div class="settings-val-row">
             <button class="s-btn" onclick="changeCap(-1)">−</button>
             <span class="s-val" id="capSet">22</span>
             <button class="s-btn" onclick="changeCap(+1)">+</button>
           </div>
+        </div>
+        <div class="settings-row-item">
+          <span class="settings-row-label">Nome Cassa 1</span>
+          <input class="name-input" id="nameCassa1" value="Cassa 1" onchange="updateCassaNames()">
+        </div>
+        <div class="settings-row-item">
+          <span class="settings-row-label">Nome Cassa 2</span>
+          <input class="name-input" id="nameCassa2" value="Cassa 2" onchange="updateCassaNames()">
         </div>
       </div>
       <div class="sec-label" style="margin-bottom:8px;">Esporta</div>
@@ -578,6 +665,7 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); min-he
 <div class="success-flash" id="successFlash">
   <span>✓ Vendita registrata</span>
   <span class="sf-amount" id="flashAmount">€ 0,00</span>
+  <span class="sf-num" id="flashNum">#0001</span>
 </div>
 
 <script>
@@ -588,7 +676,7 @@ const SUPABASE_URL = 'https://jhvuucvzhtuvybcsoxts.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpodnV1Y3Z6aHR1dnliY3NveHRzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2NDM2NTMsImV4cCI6MjA4ODIxOTY1M30.2at0j_pKSw3AbbEO0nfNKpHay43FW32tiBDmszaNInI';
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// Coda per vendite offline
+// Coda offline
 let pendingSync = JSON.parse(localStorage.getItem('pendingSync') || '[]');
 let isOnline = navigator.onLine;
 
@@ -626,16 +714,37 @@ async function saveVendita(vendita) {
     pagamento: vendita.pagamento,
     operatore: vendita.operatore,
     ora: vendita.ora,
-    data: new Date().toISOString().split('T')[0]
+    data: new Date().toISOString().split('T')[0],
+    ticket_num: vendita.ticketNum || null
   };
   if (isOnline) {
-    const { error } = await db.from('vendite').insert(row);
-    if (error) { pendingSync.push({...row, localId: vendita.id}); savePending(); }
+    const { data: inserted, error } = await db.from('vendite').insert(row).select('id').single();
+    if (error) {
+      // Se la colonna ticket_num non esiste ancora, riprova senza
+      if (error.message && error.message.includes('ticket_num')) {
+        const { ticket_num, ...rowNoTicket } = row;
+        const { error: e2 } = await db.from('vendite').insert(rowNoTicket);
+        if (e2) { pendingSync.push({...rowNoTicket, localId: vendita.id}); savePending(); }
+      } else {
+        pendingSync.push({...row, localId: vendita.id}); savePending();
+      }
+    } else if (inserted) {
+      // Aggiorna dbId sulla vendita in memoria
+      const v = state.vendite.find(x => x.id === vendita.id);
+      if (v) v.dbId = inserted.id;
+    }
   } else {
     pendingSync.push({...row, localId: vendita.id});
     savePending();
   }
   updateSyncBadge();
+}
+
+async function deleteVendita(vendita) {
+  if (!vendita.dbId) return;
+  if (isOnline) {
+    await db.from('vendite').delete().eq('id', vendita.dbId);
+  }
 }
 
 async function syncPending() {
@@ -655,17 +764,25 @@ function savePending() {
   localStorage.setItem('pendingSync', JSON.stringify(pendingSync));
 }
 
-// Carica vendite di oggi dal DB al login
+// Progressivo giornaliero
+let ticketCounter = 0;
+function nextTicketNum() {
+  ticketCounter++;
+  return '#' + String(ticketCounter).padStart(4, '0');
+}
+
 async function loadTodayVendite() {
   if (!isOnline) return;
   const today = new Date().toISOString().split('T')[0];
-  const { data, error } = await db.from('vendite').select('*').eq('data', today);
+  const { data, error } = await db.from('vendite').select('*').eq('data', today).order('created_at', { ascending: true });
   if (error || !data) return;
-  // Ricostruisce stato turni da dati DB
+  ticketCounter = 0;
   data.forEach(v => {
+    ticketCounter++;
     if (state.turni[v.turno]) state.turni[v.turno].prenotati += v.qty;
     state.vendite.push({
-      id: v.id,
+      id: Date.now() + Math.random(),
+      dbId: v.id,
       ora: v.ora,
       turno: v.turno,
       tipo: v.tipo,
@@ -674,7 +791,8 @@ async function loadTodayVendite() {
       totale: Number(v.totale),
       pagamento: v.pagamento,
       operatore: v.operatore,
-      timestamp: new Date(v.created_at)
+      timestamp: new Date(v.created_at),
+      ticketNum: v.ticket_num || ('#' + String(ticketCounter).padStart(4,'0'))
     });
   });
   renderAll();
@@ -683,20 +801,28 @@ async function loadTodayVendite() {
   if (document.getElementById('tab-turni').classList.contains('active')) renderTurni();
 }
 
+// ============================================================
+// CONFIG & STATE
+// ============================================================
 const CONFIG = {
   passwords: { op1: '1234', op2: '5678', dir: 'scopello2024' },
-  prezzi: { base: 10, premium: 18 },
+  prezzi: { base: 10, premium: 18, ridotto: 5, nopay: 0 },
   capMax: 22,
-  orari: ['11:00','11:30','12:00','12:30','13:00','13:30','14:00','14:30','15:00','15:30','16:00','16:30','17:00','17:30','18:00']
+  orari: ['11:00','11:30','12:00','12:30','13:00','13:30','14:00','14:30','15:00','15:30','16:00','16:30','17:00','17:30','18:00'],
+  nomiCasse: { op1: 'Cassa 1', op2: 'Cassa 2' }
 };
 
 let state = {
   operatore: null, isDir: false,
   turnoSel: null, ticketSel: null, qty: 1, paySel: null,
-  vendite: [], turni: {}
+  vendite: [], turni: {},
+  note: { op1: '', op2: '' }
 };
 CONFIG.orari.forEach(o => { state.turni[o] = { prenotati: 0 }; });
 
+// ============================================================
+// LOGIN / LOGOUT
+// ============================================================
 let selectedOp = 1;
 function selectOp(op) {
   selectedOp = op;
@@ -715,11 +841,14 @@ function doLogin() {
     err.textContent = '';
     const box = document.querySelector('.login-box');
     const successMsg = document.getElementById('loginSuccess');
-    const opName = key === 'op1' ? 'Cassa 1' : key === 'op2' ? 'Cassa 2' : 'Direttore';
+    const opName = key === 'dir' ? 'Direttore' : CONFIG.nomiCasse[key];
     successMsg.textContent = `✓ Benvenuto — ${opName}`;
     successMsg.classList.add('visible');
     box.classList.add('success');
-    document.getElementById('opBadge').textContent = key === 'op1' ? 'Cassa 1' : key === 'op2' ? 'Cassa 2' : '👑 Direttore';
+    document.getElementById('opBadge').textContent = key === 'dir' ? '👑 Direttore' : CONFIG.nomiCasse[key];
+    // aggiorna bottoni login con nomi personalizzati
+    document.getElementById('opBtn1').textContent = CONFIG.nomiCasse.op1;
+    document.getElementById('opBtn2').textContent = CONFIG.nomiCasse.op2;
     setTimeout(() => {
       successMsg.classList.remove('visible');
       box.classList.remove('success');
@@ -740,13 +869,21 @@ function doLogin() {
 function doLogout() {
   state.operatore = null; state.isDir = false;
   state.vendite = [];
+  ticketCounter = 0;
   CONFIG.orari.forEach(o => { state.turni[o] = { prenotati: 0 }; });
   const u = document.getElementById('undoBtn'); if (u) u.remove();
   resetSellForm();
   showScreen('loginScreen');
 }
-function showScreen(id) { document.querySelectorAll('.screen').forEach(s => s.classList.remove('active')); document.getElementById(id).classList.add('active'); }
 
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+// ============================================================
+// CLOCK & TABS
+// ============================================================
 function updateClock() {
   document.getElementById('topClock').textContent = new Date().toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'});
 }
@@ -761,6 +898,9 @@ function switchTab(name) {
   if (name === 'cassa') renderCassa();
 }
 
+// ============================================================
+// VENDITA
+// ============================================================
 function renderTurniVendita() {
   document.getElementById('turniScrollVendita').innerHTML = CONFIG.orari.map(ora => {
     const t = state.turni[ora];
@@ -784,8 +924,17 @@ function selectTurno(ora) {
 
 function selectTicket(tipo) {
   state.ticketSel = tipo;
-  document.getElementById('cardBase').className = 'ticket-card' + (tipo==='base'?' selected-base':'');
-  document.getElementById('cardPremium').className = 'ticket-card' + (tipo==='premium'?' selected-premium':'');
+  ['base','premium','ridotto','nopay'].forEach(t => {
+    const card = document.getElementById('card' + t.charAt(0).toUpperCase() + t.slice(1));
+    if (card) card.className = 'ticket-card' + (tipo===t ? ` selected-${t}` : '');
+  });
+  // Non pagante: forza pagamento "gratis"
+  if (tipo === 'nopay') {
+    selectPay('gratis');
+  } else if (state.paySel === 'gratis') {
+    state.paySel = null;
+    ['payCash','payPos','payPosPlus'].forEach(id => document.getElementById(id).classList.remove('selected'));
+  }
   updateSummary();
 }
 
@@ -809,18 +958,29 @@ function updateSummary() {
   const t = state.ticketSel, q = state.qty;
   const p = t ? CONFIG.prezzi[t] : 0;
   const tot = p * q;
-  document.getElementById('sumTicket').textContent = t ? (t==='base'?'Base':'Premium') : '—';
+  const nextNum = '#' + String(ticketCounter + 1).padStart(4, '0');
+  document.getElementById('sumTicketNum').textContent = nextNum;
+  document.getElementById('sumTicket').textContent = t ? tipoLabel(t) : '—';
   document.getElementById('sumQty').textContent = q;
-  document.getElementById('sumPay').textContent = state.paySel ? (state.paySel==='cash'?'Contanti':state.paySel==='pos'?'POS':'POS+') : '—';
+  document.getElementById('sumPay').textContent = state.paySel ? payLabel(state.paySel) : '—';
   document.getElementById('sumTotal').textContent = '€ ' + tot.toFixed(2).replace('.',',');
-  document.getElementById('btnConferma').disabled = !(state.turnoSel && state.ticketSel && state.paySel);
+  const canConfirm = state.turnoSel && state.ticketSel && (state.paySel || state.ticketSel === 'nopay');
+  document.getElementById('btnConferma').disabled = !canConfirm;
+}
+
+function tipoLabel(t) {
+  return t === 'base' ? 'Base' : t === 'premium' ? 'Premium' : t === 'ridotto' ? 'Ridotto' : 'Non pagante';
+}
+function payLabel(p) {
+  return p === 'cash' ? 'Contanti' : p === 'pos' ? 'POS' : p === 'posplus' ? 'POS+' : 'Gratuito';
 }
 
 function confirmSale() {
   const t = state.ticketSel, p = CONFIG.prezzi[t], tot = p * state.qty;
+  const nextNum = '#' + String(ticketCounter + 1).padStart(4, '0');
   document.getElementById('modalConfermaText').innerHTML =
-    `<strong>${state.qty}× ${t==='base'?'Base':'Premium'}</strong> — turno <strong>${state.turnoSel}</strong><br>
-     Pagamento: <strong>${state.paySel==='cash'?'Contanti':state.paySel==='pos'?'POS':'POS+'}</strong><br><br>
+    `Ticket <strong>${nextNum}</strong> — <strong>${state.qty}× ${tipoLabel(t)}</strong><br>
+     Turno: <strong>${state.turnoSel}</strong> · Pagamento: <strong>${payLabel(state.paySel||'gratis')}</strong><br><br>
      Totale: <strong style="font-size:1.4rem;color:var(--text)">€ ${tot.toFixed(2).replace('.',',')}</strong>`;
   document.getElementById('modalConferma').classList.add('visible');
 }
@@ -828,16 +988,19 @@ function confirmSale() {
 function executeSale() {
   const t = state.ticketSel, p = CONFIG.prezzi[t], tot = p * state.qty;
   const now = new Date();
+  const tNum = nextTicketNum();
+  const pago = state.paySel || 'gratis';
   state.vendite.push({
     id: Date.now(),
+    dbId: null,
     ora: now.toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'}),
     turno: state.turnoSel, tipo: t, qty: state.qty,
-    prezzo: p, totale: tot, pagamento: state.paySel,
-    operatore: state.operatore, timestamp: now
+    prezzo: p, totale: tot, pagamento: pago,
+    operatore: state.operatore, timestamp: now, ticketNum: tNum
   });
   state.turni[state.turnoSel].prenotati += state.qty;
   closeModal('modalConferma');
-  showFlash(tot);
+  showFlash(tot, tNum);
   saveVendita(state.vendite[state.vendite.length - 1]);
   resetSellForm();
   renderTurniVendita();
@@ -847,10 +1010,17 @@ function executeSale() {
 function undoLastSale() {
   const myLast = [...state.vendite].reverse().find(v => v.operatore === state.operatore);
   if (!myLast) return;
-  if (!confirm(`Annullare: ${myLast.qty}× ${myLast.tipo} turno ${myLast.turno} — € ${myLast.totale.toFixed(2)}?`)) return;
-  state.vendite = state.vendite.filter(v => v.id !== myLast.id);
-  state.turni[myLast.turno].prenotati = Math.max(0, state.turni[myLast.turno].prenotati - myLast.qty);
+  if (!confirm(`Annullare: ${myLast.qty}× ${tipoLabel(myLast.tipo)} turno ${myLast.turno} ${myLast.ticketNum}?`)) return;
+  doAnnullaVendita(myLast);
+}
+
+function doAnnullaVendita(vendita) {
+  state.vendite = state.vendite.filter(v => v.id !== vendita.id);
+  state.turni[vendita.turno].prenotati = Math.max(0, state.turni[vendita.turno].prenotati - vendita.qty);
+  deleteVendita(vendita);
   renderTurniVendita(); renderUndoBtn();
+  if (document.getElementById('tab-storico').classList.contains('active')) renderStorico();
+  if (document.getElementById('tab-cassa').classList.contains('active')) renderCassa();
 }
 
 function renderUndoBtn() {
@@ -862,27 +1032,33 @@ function renderUndoBtn() {
   btn.id = 'undoBtn';
   btn.className = 'btn-export';
   btn.style.cssText = 'color:var(--red);border-color:var(--red-border);margin-top:10px;';
-  btn.innerHTML = `↩ Annulla ultima (${myLast.qty}× ${myLast.tipo} ${myLast.turno})`;
+  btn.innerHTML = `↩ Annulla ultima (${myLast.qty}× ${tipoLabel(myLast.tipo)} ${myLast.turno} ${myLast.ticketNum})`;
   btn.onclick = undoLastSale;
   document.getElementById('btnConferma').insertAdjacentElement('afterend', btn);
 }
 
 function resetSellForm() {
   state.turnoSel = null; state.ticketSel = null; state.qty = 1; state.paySel = null;
-  document.getElementById('cardBase').className = 'ticket-card';
-  document.getElementById('cardPremium').className = 'ticket-card';
+  ['cardBase','cardPremium','cardRidotto','cardNopay'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.className = 'ticket-card';
+  });
   ['payCash','payPos','payPosPlus'].forEach(id => document.getElementById(id).classList.remove('selected'));
   document.getElementById('qtyVal').textContent = '1';
   updateSummary(); renderTurniVendita();
 }
 
-function showFlash(tot) {
+function showFlash(tot, tNum) {
   const f = document.getElementById('successFlash');
   document.getElementById('flashAmount').textContent = '€ ' + tot.toFixed(2).replace('.',',');
+  document.getElementById('flashNum').textContent = tNum;
   f.classList.add('show');
-  setTimeout(() => f.classList.remove('show'), 1800);
+  setTimeout(() => f.classList.remove('show'), 2000);
 }
 
+// ============================================================
+// TURNI TAB
+// ============================================================
 function renderTurni() {
   document.getElementById('turniGrid').innerHTML = CONFIG.orari.map(ora => {
     const t = state.turni[ora];
@@ -910,30 +1086,67 @@ function renderTurni() {
   }).join('');
 }
 
+// ============================================================
+// STORICO
+// ============================================================
 function renderStorico() {
   const list = document.getElementById('storicoList');
   const vendite = state.isDir ? [...state.vendite] : state.vendite.filter(v => v.operatore === state.operatore);
   if (!vendite.length) { list.innerHTML = '<div class="storico-empty">Nessuna vendita registrata</div>'; return; }
   list.innerHTML = [...vendite].reverse().map(v => {
-    const opLabel = v.operatore==='op1'?'Cassa 1':v.operatore==='op2'?'Cassa 2':'Direttore';
-    const payClass = v.pagamento==='cash'?'cash':v.pagamento==='pos'?'pos':'posplus';
-    const payLabel = v.pagamento==='cash'?'Cash':v.pagamento==='pos'?'POS':'POS+';
+    const opLabel = v.operatore==='dir' ? 'Direttore' : CONFIG.nomiCasse[v.operatore] || v.operatore;
+    const payClass = v.pagamento==='cash'?'cash':v.pagamento==='pos'?'pos':v.pagamento==='posplus'?'posplus':'gratis';
+    const pLabel = payLabel(v.pagamento);
+    const annullaBtn = state.isDir ? `<button class="btn-annulla-dir" onclick="annullaDir(${JSON.stringify(v.id)})">✕ Annulla</button>` : '';
     return `<div class="storico-item">
       <div class="si-dot ${v.tipo}"></div>
       <div class="si-info">
-        <div class="si-main">${v.qty}× ${v.tipo==='base'?'Base':'Premium'} — turno ${v.turno}</div>
+        <div class="si-main">${v.qty}× ${tipoLabel(v.tipo)} — turno ${v.turno}</div>
         <div class="si-sub">${v.ora} · ${opLabel}</div>
+        <div class="si-ticket-num">${v.ticketNum || ''}</div>
       </div>
       <div class="si-right">
         <div class="si-amount">€ ${v.totale.toFixed(2).replace('.',',')}</div>
-        <span class="si-pay ${payClass}">${payLabel}</span>
+        <span class="si-pay ${payClass}">${pLabel}</span>
+        ${annullaBtn}
       </div>
     </div>`;
   }).join('');
 }
 
+function annullaDir(id) {
+  const vendita = state.vendite.find(v => v.id === id);
+  if (!vendita) return;
+  if (!confirm(`Annullare: ${vendita.qty}× ${tipoLabel(vendita.tipo)} turno ${vendita.turno} ${vendita.ticketNum}?`)) return;
+  doAnnullaVendita(vendita);
+}
+
+// ============================================================
+// NOTE
+// ============================================================
+function saveNote() {
+  if (!state.operatore || state.operatore === 'dir') return;
+  state.note[state.operatore] = document.getElementById('noteText').value;
+  const msg = document.getElementById('noteSavedMsg');
+  msg.classList.add('show');
+  setTimeout(() => msg.classList.remove('show'), 2000);
+}
+
+// ============================================================
+// CASSA
+// ============================================================
 function renderCassa() {
   const isDir = state.isDir;
+
+  // Mostra/nasconde sezione note
+  const noteSection = document.getElementById('noteSection');
+  if (!isDir && state.operatore && state.operatore !== 'dir') {
+    noteSection.style.display = 'block';
+    document.getElementById('noteText').value = state.note[state.operatore] || '';
+  } else {
+    noteSection.style.display = 'none';
+  }
+
   const totCash = state.vendite.filter(v=>v.pagamento==='cash').reduce((a,v)=>a+v.totale,0);
   const totPos = state.vendite.filter(v=>v.pagamento==='pos').reduce((a,v)=>a+v.totale,0);
   const totPosPlus = state.vendite.filter(v=>v.pagamento==='posplus').reduce((a,v)=>a+v.totale,0);
@@ -969,15 +1182,21 @@ function renderCassa() {
       const posplus = vv.filter(v=>v.pagamento==='posplus').reduce((a,v)=>a+v.totale,0);
       const base = vv.filter(v=>v.tipo==='base').reduce((a,v)=>a+v.qty,0);
       const prem = vv.filter(v=>v.tipo==='premium').reduce((a,v)=>a+v.qty,0);
+      const ridotto = vv.filter(v=>v.tipo==='ridotto').reduce((a,v)=>a+v.qty,0);
+      const nopay = vv.filter(v=>v.tipo==='nopay').reduce((a,v)=>a+v.qty,0);
+      const nota = state.note[op];
       return `<div class="op-resoconto">
-        <div class="op-name">${op==='op1'?'Cassa 1':'Cassa 2'}</div>
+        <div class="op-name">${CONFIG.nomiCasse[op]}</div>
+        ${nota ? `<div class="op-note-display visible">📝 ${nota}</div>` : ''}
         <div class="op-row"><span class="op-row-label">Contanti</span><span class="op-row-val">€ ${cash.toFixed(2).replace('.',',')}</span></div>
         <div class="op-row"><span class="op-row-label">POS</span><span class="op-row-val">€ ${pos.toFixed(2).replace('.',',')}</span></div>
         <div class="op-row"><span class="op-row-label">POS+</span><span class="op-row-val">€ ${posplus.toFixed(2).replace('.',',')}</span></div>
         <div class="op-row"><span class="op-row-label">Totale</span><span class="op-row-val">€ ${(cash+pos+posplus).toFixed(2).replace('.',',')}</span></div>
-        <div class="op-row"><span class="op-row-label">Biglietti Base</span><span class="op-row-val">${base}</span></div>
-        <div class="op-row"><span class="op-row-label">Biglietti Premium</span><span class="op-row-val">${prem}</span></div>
-        <div class="op-row"><span class="op-row-label">Totale biglietti</span><span class="op-row-val">${base+prem}</span></div>
+        <div class="op-row"><span class="op-row-label">Base</span><span class="op-row-val">${base}</span></div>
+        <div class="op-row"><span class="op-row-label">Premium</span><span class="op-row-val">${prem}</span></div>
+        <div class="op-row"><span class="op-row-label">Ridotto</span><span class="op-row-val">${ridotto}</span></div>
+        <div class="op-row"><span class="op-row-label">Non paganti</span><span class="op-row-val">${nopay}</span></div>
+        <div class="op-row"><span class="op-row-label">Tot. biglietti</span><span class="op-row-val">${base+prem+ridotto+nopay}</span></div>
       </div>`;
     }).join('');
   } else {
@@ -988,20 +1207,41 @@ function renderCassa() {
   if (isDir) {
     document.getElementById('priceBaseSet').textContent = CONFIG.prezzi.base;
     document.getElementById('pricePremiumSet').textContent = CONFIG.prezzi.premium;
+    document.getElementById('priceRidottoSet').textContent = CONFIG.prezzi.ridotto;
     document.getElementById('capSet').textContent = CONFIG.capMax;
+    document.getElementById('nameCassa1').value = CONFIG.nomiCasse.op1;
+    document.getElementById('nameCassa2').value = CONFIG.nomiCasse.op2;
   }
 }
 
+// ============================================================
+// SETTINGS
+// ============================================================
 function changePrice(tipo, d) {
-  CONFIG.prezzi[tipo] = Math.max(1, CONFIG.prezzi[tipo] + d);
+  if (tipo === 'nopay') return;
+  CONFIG.prezzi[tipo] = Math.max(0, CONFIG.prezzi[tipo] + d);
   document.getElementById('priceBaseSet').textContent = CONFIG.prezzi.base;
   document.getElementById('pricePremiumSet').textContent = CONFIG.prezzi.premium;
+  document.getElementById('priceRidottoSet').textContent = CONFIG.prezzi.ridotto;
   document.getElementById('priceBaseDisplay').textContent = '€'+CONFIG.prezzi.base;
   document.getElementById('pricePremiumDisplay').textContent = '€'+CONFIG.prezzi.premium;
+  document.getElementById('priceRidottoDisplay').textContent = '€'+CONFIG.prezzi.ridotto;
 }
+
 function changeCap(d) {
   CONFIG.capMax = Math.max(1, Math.min(100, CONFIG.capMax + d));
   document.getElementById('capSet').textContent = CONFIG.capMax;
+}
+
+function updateCassaNames() {
+  CONFIG.nomiCasse.op1 = document.getElementById('nameCassa1').value || 'Cassa 1';
+  CONFIG.nomiCasse.op2 = document.getElementById('nameCassa2').value || 'Cassa 2';
+  // Aggiorna badge se operatore corrente
+  if (state.operatore === 'op1') document.getElementById('opBadge').textContent = CONFIG.nomiCasse.op1;
+  if (state.operatore === 'op2') document.getElementById('opBadge').textContent = CONFIG.nomiCasse.op2;
+  // Aggiorna bottoni login
+  document.getElementById('opBtn1').textContent = CONFIG.nomiCasse.op1;
+  document.getElementById('opBtn2').textContent = CONFIG.nomiCasse.op2;
 }
 
 function openDirPw() {
@@ -1016,11 +1256,14 @@ function checkDirPw() {
   else document.getElementById('pwDirError').textContent = 'Password non corretta.';
 }
 
+// ============================================================
+// EXPORT CSV
+// ============================================================
 function exportCSV() {
-  const rows = [['ID','Ora','Turno','Tipo','Qty','Prezzo Unit.','Totale','Pagamento','Operatore']];
+  const rows = [['Ticket','Ora','Turno','Tipo','Qty','Prezzo Unit.','Totale','Pagamento','Operatore']];
   state.vendite.forEach(v => {
-    rows.push([v.id, v.ora, v.turno, v.tipo, v.qty, v.prezzo, v.totale, v.pagamento,
-      v.operatore==='op1'?'Cassa 1':v.operatore==='op2'?'Cassa 2':'Direttore']);
+    const op = v.operatore==='dir'?'Direttore':CONFIG.nomiCasse[v.operatore]||v.operatore;
+    rows.push([v.ticketNum||'', v.ora, v.turno, tipoLabel(v.tipo), v.qty, v.prezzo, v.totale, payLabel(v.pagamento), op]);
   });
   const csv = rows.map(r => r.join(';')).join('\n');
   const a = document.createElement('a');
@@ -1032,6 +1275,7 @@ function exportCSV() {
 function resetDay() {
   if (!confirm('Sei sicuro di voler resettare tutti i dati della giornata?')) return;
   state.vendite = [];
+  ticketCounter = 0;
   CONFIG.orari.forEach(o => { state.turni[o] = { prenotati: 0 }; });
   const u = document.getElementById('undoBtn'); if (u) u.remove();
   renderCassa(); renderTurniVendita();
@@ -1042,6 +1286,7 @@ function closeModal(id) { document.getElementById(id).classList.remove('visible'
 function renderAll() {
   document.getElementById('priceBaseDisplay').textContent = '€' + CONFIG.prezzi.base;
   document.getElementById('pricePremiumDisplay').textContent = '€' + CONFIG.prezzi.premium;
+  document.getElementById('priceRidottoDisplay').textContent = '€' + CONFIG.prezzi.ridotto;
   renderTurniVendita(); updateSummary(); renderUndoBtn();
 }
 
