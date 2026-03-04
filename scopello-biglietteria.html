@@ -230,15 +230,43 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); min-he
 .sum-row { display: flex; justify-content: space-between; align-items: center; padding: 5px 0; font-size: 0.86rem; color: var(--text2); border-bottom: 1px solid var(--s1); }
 .sum-row:last-child { border-bottom: none; padding-top: 10px; margin-top: 4px; border-top: 2px solid var(--border); }
 .sum-total { font-family: var(--fd); font-size: 1.8rem; color: var(--text); font-weight: normal; font-variant-numeric: tabular-nums; }
-.sum-ticket-num { font-size: 0.72rem; color: var(--muted); font-weight: 600; }
-.ticket-num-input {
-  width: 100px; border: 2px solid var(--border); border-radius: 8px;
-  padding: 5px 10px; font-family: var(--fu); font-size: 1rem; font-weight: 700;
-  color: var(--sea); background: var(--sea-bg); outline: none; text-align: center;
-  -webkit-appearance: none; transition: border-color 0.2s;
+.sum-ticket-auto { font-family: var(--fd); font-size: 1.2rem; color: var(--sea); font-weight: 700; }
+
+/* Badge quantità sulle card */
+.tc-badge { min-height: 20px; margin-top: 4px; }
+.tc-badge-val {
+  display: inline-block; background: var(--sea); color: #fff;
+  border-radius: 20px; padding: 2px 10px; font-size: 0.8rem; font-weight: 800;
 }
-.ticket-num-input:focus { border-color: var(--sea); }
-.ticket-num-input::placeholder { color: var(--muted); font-weight: 400; font-size: 0.8rem; }
+.ticket-card.selected-base .tc-badge-val { background: var(--sea); }
+.ticket-card.selected-premium .tc-badge-val { background: var(--gold); }
+.ticket-card.selected-ridotto .tc-badge-val { background: var(--green); }
+.ticket-card.selected-nopay .tc-badge-val { background: var(--purple); }
+
+/* Carrello */
+.cart-box {
+  background: var(--white); border: 2px solid var(--border); border-radius: 14px;
+  padding: 12px 14px; margin-bottom: 14px;
+}
+.cart-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+.cart-clear-btn {
+  font-size: 0.72rem; font-weight: 700; color: var(--red); background: none;
+  border: none; cursor: pointer; padding: 4px 8px;
+}
+.cart-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 6px 0; border-bottom: 1px solid var(--s1); font-size: 0.86rem;
+}
+.cart-row:last-child { border-bottom: none; }
+.cart-row-label { color: var(--text2); font-weight: 600; }
+.cart-row-right { display: flex; align-items: center; gap: 10px; }
+.cart-row-price { color: var(--text); font-weight: 700; }
+.cart-qty-btn {
+  width: 28px; height: 28px; border-radius: 8px; border: 2px solid var(--border);
+  background: var(--bg); font-size: 1rem; font-weight: 700; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+}
+.cart-qty-btn:active { background: var(--sea-bg); border-color: var(--sea); }
 
 /* ===== CONFERMA BTN ===== */
 .btn-confirm {
@@ -471,7 +499,7 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); min-he
 <div id="appScreen" class="screen">
 
   <div class="topbar">
-    <div class="topbar-brand">
+    <div class="topbar-brand" onclick="openSwitchOp()" style="cursor:pointer;" title="Cambia operatore">
       <h1>Torre di Scopello</h1>
       <p>Percorso Storico Naturalistico</p>
     </div>
@@ -479,7 +507,6 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); min-he
       <span class="op-badge" id="syncBadge" style="font-size:0.65rem;">✓ Online</span>
       <span class="op-badge" id="opBadge">Cassa 1</span>
       <span class="top-clock" id="topClock">--:--</span>
-      <button class="btn-logout" onclick="doLogout()" title="Esci">⏏</button>
     </div>
   </div>
 
@@ -496,41 +523,41 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); min-he
     <div class="sec-label">Seleziona turno</div>
     <div class="turni-scroll" id="turniScrollVendita"></div>
 
-    <div class="sec-label">Tipo biglietto</div>
+    <div class="sec-label">Aggiungi biglietti</div>
     <div class="ticket-cards">
-      <div class="ticket-card" id="cardBase" onclick="selectTicket('base')">
+      <div class="ticket-card" id="cardBase" onclick="addToCart('base')">
         <div class="tc-icon">🌿</div>
         <div class="tc-name">Base</div>
         <div class="tc-price" id="priceBaseDisplay">€10</div>
-        <div class="tc-desc">Visita al percorso</div>
+        <div class="tc-badge" id="badgeBase"></div>
       </div>
-      <div class="ticket-card" id="cardPremium" onclick="selectTicket('premium')">
+      <div class="ticket-card" id="cardPremium" onclick="addToCart('premium')">
         <div class="tc-icon">⭐</div>
         <div class="tc-name">Premium</div>
         <div class="tc-price" id="pricePremiumDisplay">€18</div>
-        <div class="tc-desc">Visita al percorso</div>
+        <div class="tc-badge" id="badgePremium"></div>
       </div>
-      <div class="ticket-card" id="cardRidotto" onclick="selectTicket('ridotto')">
+      <div class="ticket-card" id="cardRidotto" onclick="addToCart('ridotto')">
         <div class="tc-icon">🎟️</div>
         <div class="tc-name">Ridotto</div>
         <div class="tc-price" id="priceRidottoDisplay">€5</div>
-        <div class="tc-desc">Tariffa ridotta</div>
+        <div class="tc-badge" id="badgeRidotto"></div>
       </div>
-      <div class="ticket-card" id="cardNopay" onclick="selectTicket('nopay')">
+      <div class="ticket-card" id="cardNopay" onclick="addToCart('nopay')">
         <div class="tc-icon">🆓</div>
         <div class="tc-name">Non pag.</div>
         <div class="tc-price">€0</div>
-        <div class="tc-desc">Ingresso gratuito</div>
+        <div class="tc-badge" id="badgeNopay"></div>
       </div>
     </div>
 
-    <div class="qty-row">
-      <span class="qty-label">N° biglietti</span>
-      <div class="qty-ctrl">
-        <button class="qty-btn" onclick="changeQty(-1)">−</button>
-        <span class="qty-val" id="qtyVal">1</span>
-        <button class="qty-btn" onclick="changeQty(+1)">+</button>
+    <!-- CARRELLO -->
+    <div class="cart-box" id="cartBox" style="display:none;">
+      <div class="cart-header">
+        <span class="sec-label" style="margin:0;">🛒 Carrello</span>
+        <button class="cart-clear-btn" onclick="clearCart()">✕ Svuota</button>
       </div>
+      <div id="cartRows"></div>
     </div>
 
     <div class="sec-label">Pagamento</div>
@@ -549,10 +576,8 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); min-he
     <div class="sell-summary">
       <div class="sum-row">
         <span>N° Ticket</span>
-        <input type="number" id="ticketNumInput" class="ticket-num-input" placeholder="es. 42" min="1" oninput="updateSummary()">
+        <span class="sum-ticket-auto" id="sumTicketNum">—</span>
       </div>
-      <div class="sum-row"><span>Biglietto</span><span id="sumTicket">—</span></div>
-      <div class="sum-row"><span>Quantità</span><span id="sumQty">—</span></div>
       <div class="sum-row"><span>Pagamento</span><span id="sumPay">—</span></div>
       <div class="sum-row"><span>Totale</span><span class="sum-total" id="sumTotal">€ 0,00</span></div>
     </div>
@@ -634,6 +659,15 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); min-he
           <span class="settings-row-label">Nome Cassa 2</span>
           <input class="name-input" id="nameCassa2" value="Cassa 2" onchange="updateCassaNames()">
         </div>
+        <div class="settings-row-item">
+          <span class="settings-row-label">Primo ticket del giorno</span>
+          <div class="settings-val-row">
+            <button class="s-btn" onclick="changeTicketStart(-1)">−</button>
+            <span class="s-val" id="ticketStartSet">1</span>
+            <button class="s-btn" onclick="changeTicketStart(+1)">+</button>
+            <button class="note-save-btn" onclick="applyTicketStart()" style="margin-left:4px;">Imposta</button>
+          </div>
+        </div>
       </div>
       <div class="sec-label" style="margin-bottom:8px;margin-top:14px;">🔑 Modifica password</div>
       <div class="settings-section">
@@ -693,11 +727,29 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); min-he
   </div>
 </div>
 
-<!-- SUCCESS FLASH -->
+<!-- MODAL SWITCH OPERATORE -->
+<div class="modal-overlay" id="modalSwitchOp">
+  <div class="modal">
+    <h2>Cambio operatore</h2>
+    <p>Seleziona il ruolo e inserisci la password.</p>
+    <div class="operator-select" style="margin-bottom:12px;">
+      <button class="op-btn" id="swBtn1" onclick="switchSelectOp(1)">Cassa 1</button>
+      <button class="op-btn" id="swBtn2" onclick="switchSelectOp(2)">Cassa 2</button>
+      <button class="op-btn" id="swBtnDir" onclick="switchSelectOp('dir')">Direttore</button>
+    </div>
+    <input class="pw-input" type="password" id="swPwInput" placeholder="••••••" onkeydown="if(event.key==='Enter')doSwitchOp()">
+    <div class="pw-error" id="swPwError"></div>
+    <div class="modal-btns">
+      <button class="btn-m btn-m-cancel" onclick="doLogout()" style="color:var(--red);">⏏ Esci</button>
+      <button class="btn-m btn-m-ok" onclick="doSwitchOp()">Accedi</button>
+    </div>
+  </div>
+</div>
+
 <div class="success-flash" id="successFlash">
   <span>✓ Vendita registrata</span>
   <span class="sf-amount" id="flashAmount">€ 0,00</span>
-  <span class="sf-num" id="flashNum">#0001</span>
+  <span class="sf-num" id="flashNum">#001</span>
 </div>
 
 <script>
@@ -736,7 +788,7 @@ function updateSyncBadge() {
   }
 }
 
-async function saveVendita(vendita) {
+async async function saveVendita(vendita) {
   const row = {
     turno: vendita.turno,
     tipo: vendita.tipo,
@@ -746,7 +798,7 @@ async function saveVendita(vendita) {
     pagamento: vendita.pagamento,
     operatore: vendita.operatore,
     ora: vendita.ora,
-    data: new Date().toISOString().split('T')[0],
+    data: new Date().toLocaleDateString('it-IT', {year:'numeric',month:'2-digit',day:'2-digit'}).split('/').reverse().join('-'),
     ticket_num: vendita.ticketNum || null
   };
   if (isOnline) {
@@ -800,9 +852,12 @@ function savePending() {
 
 async function loadTodayVendite() {
   if (!isOnline) return;
-  const today = new Date().toISOString().split('T')[0];
+  const today = new Date().toLocaleDateString('it-IT', {year:'numeric',month:'2-digit',day:'2-digit'}).split('/').reverse().join('-');
   const { data, error } = await db.from('vendite').select('*').eq('data', today).order('created_at', { ascending: true });
   if (error || !data) return;
+
+  // Trova il massimo numero ticket già emesso oggi per evitare duplicati
+  let maxTicketNum = ticketCounter;
   data.forEach(v => {
     if (state.turni[v.turno]) state.turni[v.turno].prenotati += v.qty;
     state.vendite.push({
@@ -819,7 +874,19 @@ async function loadTodayVendite() {
       timestamp: new Date(v.created_at),
       ticketNum: v.ticket_num || '—'
     });
+    // Estrai numero da ticket_num (es. '#042' -> 42)
+    if (v.ticket_num) {
+      const n = parseInt(v.ticket_num.replace('#',''));
+      if (!isNaN(n) && n > maxTicketNum) maxTicketNum = n;
+    }
   });
+
+  // Aggiorna counter solo se il DB ha ticket più avanzati
+  if (maxTicketNum > ticketCounter) {
+    ticketCounter = maxTicketNum;
+    localStorage.setItem('scopello_ticket_counter', ticketCounter);
+  }
+
   renderAll();
   if (document.getElementById('tab-storico').classList.contains('active')) renderStorico();
   if (document.getElementById('tab-cassa').classList.contains('active')) renderCassa();
@@ -852,10 +919,11 @@ const CONFIG = {
 
 let state = {
   operatore: null, isDir: false,
-  turnoSel: null, ticketSel: null, qty: 1, paySel: null,
+  turnoSel: null, paySel: null,
   vendite: [], turni: {},
   note: { op1: '', op2: '' }
 };
+let cart = {};
 CONFIG.orari.forEach(o => { state.turni[o] = { prenotati: 0 }; });
 
 // ============================================================
@@ -891,6 +959,7 @@ function doLogin() {
       successMsg.classList.remove('visible');
       box.classList.remove('success');
       showScreen('appScreen');
+      loadTicketCounter();
       renderAll();
       updateSyncBadge();
       syncPending();
@@ -901,6 +970,48 @@ function doLogin() {
     const box = document.querySelector('.login-box');
     box.style.borderColor = 'var(--red)';
     setTimeout(() => { box.style.borderColor = ''; }, 800);
+  }
+}
+
+// ============================================================
+// SWITCH OPERATORE (logo cliccabile)
+// ============================================================
+let switchSelectedOp = 1;
+
+function openSwitchOp() {
+  switchSelectedOp = 1;
+  document.getElementById('swBtn1').textContent = CONFIG.nomiCasse.op1;
+  document.getElementById('swBtn2').textContent = CONFIG.nomiCasse.op2;
+  ['swBtn1','swBtn2','swBtnDir'].forEach(id => document.getElementById(id).classList.remove('selected'));
+  document.getElementById('swBtn1').classList.add('selected');
+  document.getElementById('swPwInput').value = '';
+  document.getElementById('swPwError').textContent = '';
+  document.getElementById('modalSwitchOp').classList.add('visible');
+  setTimeout(() => document.getElementById('swPwInput').focus(), 150);
+}
+
+function switchSelectOp(op) {
+  switchSelectedOp = op;
+  document.getElementById('swBtn1').classList.toggle('selected', op === 1);
+  document.getElementById('swBtn2').classList.toggle('selected', op === 2);
+  document.getElementById('swBtnDir').classList.toggle('selected', op === 'dir');
+}
+
+function doSwitchOp() {
+  const pw = document.getElementById('swPwInput').value;
+  const key = switchSelectedOp === 1 ? 'op1' : switchSelectedOp === 2 ? 'op2' : 'dir';
+  if (pw === CONFIG.passwords[key]) {
+    state.operatore = key;
+    state.isDir = (key === 'dir');
+    const nome = key === 'dir' ? '👑 Direttore' : CONFIG.nomiCasse[key];
+    document.getElementById('opBadge').textContent = nome;
+    closeModal('modalSwitchOp');
+    resetSellForm();
+    renderUndoBtn();
+    if (document.getElementById('tab-cassa').classList.contains('active')) renderCassa();
+    if (document.getElementById('tab-storico').classList.contains('active')) renderStorico();
+  } else {
+    document.getElementById('swPwError').textContent = 'Password non corretta.';
   }
 }
 
@@ -936,6 +1047,124 @@ function switchTab(name) {
 }
 
 // ============================================================
+// TICKET COUNTER
+// ============================================================
+let ticketCounter = 0;
+
+function getNextTicketNum() {
+  ticketCounter++;
+  if (ticketCounter > 100) ticketCounter = 1;
+  localStorage.setItem('scopello_ticket_counter', ticketCounter);
+  return '#' + String(ticketCounter).padStart(3, '0');
+}
+
+function peekNextTicketNum() {
+  const next = ticketCounter >= 100 ? 1 : ticketCounter + 1;
+  return '#' + String(next).padStart(3, '0');
+}
+
+// Nota: il counter viene sincronizzato col massimo dal DB ad ogni login
+// tramite loadTodayVendite. Con 2 casse su dispositivi diversi, fare sempre
+// login prima di iniziare il turno garantisce che entrambe partano dal numero corretto.
+
+function loadTicketCounter() {
+  // Legge da localStorage come base, poi loadTodayVendite sovrascriverà col max dal DB
+  const saved = parseInt(localStorage.getItem('scopello_ticket_counter') || '0');
+  ticketCounter = isNaN(saved) ? 0 : saved;
+}
+
+function changeTicketStart(d) {
+  const el = document.getElementById('ticketStartSet');
+  let val = parseInt(el.textContent) + d;
+  val = Math.max(1, Math.min(100, val));
+  el.textContent = val;
+}
+
+function applyTicketStart() {
+  const el = document.getElementById('ticketStartSet');
+  ticketCounter = parseInt(el.textContent) - 1;
+  localStorage.setItem('scopello_ticket_counter', ticketCounter);
+  updateSummary();
+}
+
+// ============================================================
+// CARRELLO
+// ============================================================
+
+function addToCart(tipo) {
+  if (!state.turnoSel) { alert('Seleziona prima un turno!'); return; }
+  // Controlla capienza
+  const liberi = CONFIG.capMax - state.turni[state.turnoSel].prenotati;
+  if (cartTotalQty() >= liberi) { alert(`Turno ${state.turnoSel}: solo ${liberi} posti disponibili.`); return; }
+  cart[tipo] = (cart[tipo] || 0) + 1;
+  // Fix: se aggiungo biglietto a pagamento dopo nopay, reset paySel 'gratis'
+  if (tipo !== 'nopay' && state.paySel === 'gratis') {
+    state.paySel = null;
+    ['payCash','payPos','payPosPlus'].forEach(id => document.getElementById(id).classList.remove('selected'));
+  }
+  updateCartUI();
+  updateSummary();
+}
+
+function changeCartQty(tipo, d) {
+  cart[tipo] = Math.max(0, (cart[tipo] || 0) + d);
+  if (cart[tipo] === 0) delete cart[tipo];
+  updateCartUI();
+  updateSummary();
+}
+
+function clearCart() {
+  cart = {};
+  updateCartUI();
+  updateSummary();
+}
+
+function cartTotalQty() {
+  return Object.values(cart).reduce((a, v) => a + v, 0);
+}
+
+function cartHasOnlyNopay() {
+  return Object.keys(cart).every(t => t === 'nopay') && (cart['nopay'] || 0) > 0;
+}
+
+function cartTotal() {
+  return Object.entries(cart).reduce((a, [tipo, qty]) => a + CONFIG.prezzi[tipo] * qty, 0);
+}
+
+function updateCartUI() {
+  const box = document.getElementById('cartBox');
+  const rows = document.getElementById('cartRows');
+  const types = ['base','premium','ridotto','nopay'];
+  const labels = { base:'Base', premium:'Premium', ridotto:'Ridotto', nopay:'Non pagante' };
+
+  // Badge sulle card
+  types.forEach(t => {
+    const badge = document.getElementById('badge' + t.charAt(0).toUpperCase() + t.slice(1));
+    const qty = cart[t] || 0;
+    badge.innerHTML = qty > 0 ? `<span class="tc-badge-val">${qty}</span>` : '';
+    const card = document.getElementById('card' + t.charAt(0).toUpperCase() + t.slice(1));
+    card.className = 'ticket-card' + (qty > 0 ? ` selected-${t}` : '');
+  });
+
+  if (cartTotalQty() === 0) {
+    box.style.display = 'none';
+    return;
+  }
+  box.style.display = 'block';
+
+  rows.innerHTML = types.filter(t => cart[t] > 0).map(t => `
+    <div class="cart-row">
+      <span class="cart-row-label">${labels[t]}</span>
+      <div class="cart-row-right">
+        <button class="cart-qty-btn" onclick="changeCartQty('${t}',-1)">−</button>
+        <span style="font-weight:800;min-width:20px;text-align:center;">${cart[t]}</span>
+        <button class="cart-qty-btn" onclick="changeCartQty('${t}',+1)">+</button>
+        <span class="cart-row-price">€ ${(CONFIG.prezzi[t]*cart[t]).toFixed(2).replace('.',',')}</span>
+      </div>
+    </div>`).join('');
+}
+
+// ============================================================
 // VENDITA
 // ============================================================
 function renderTurniVendita() {
@@ -953,34 +1182,7 @@ function renderTurniVendita() {
 
 function selectTurno(ora) {
   state.turnoSel = ora;
-  const liberi = CONFIG.capMax - state.turni[ora].prenotati;
-  state.qty = Math.max(1, Math.min(state.qty, liberi));
-  document.getElementById('qtyVal').textContent = state.qty;
   renderTurniVendita(); updateSummary();
-}
-
-function selectTicket(tipo) {
-  state.ticketSel = tipo;
-  ['base','premium','ridotto','nopay'].forEach(t => {
-    const card = document.getElementById('card' + t.charAt(0).toUpperCase() + t.slice(1));
-    if (card) card.className = 'ticket-card' + (tipo===t ? ` selected-${t}` : '');
-  });
-  // Non pagante: forza pagamento "gratis"
-  if (tipo === 'nopay') {
-    selectPay('gratis');
-  } else if (state.paySel === 'gratis') {
-    state.paySel = null;
-    ['payCash','payPos','payPosPlus'].forEach(id => document.getElementById(id).classList.remove('selected'));
-  }
-  updateSummary();
-}
-
-function changeQty(d) {
-  if (!state.turnoSel) return;
-  const liberi = CONFIG.capMax - state.turni[state.turnoSel].prenotati;
-  state.qty = Math.max(1, Math.min(liberi, state.qty + d));
-  document.getElementById('qtyVal').textContent = state.qty;
-  updateSummary();
 }
 
 function selectPay(tipo) {
@@ -988,25 +1190,28 @@ function selectPay(tipo) {
   document.getElementById('payCash').classList.toggle('selected', tipo==='cash');
   document.getElementById('payPos').classList.toggle('selected', tipo==='pos');
   document.getElementById('payPosPlus').classList.toggle('selected', tipo==='posplus');
-  // 'gratis' deseleziona tutti i pulsanti visivamente
-  if (tipo === 'gratis') {
-    ['payCash','payPos','payPosPlus'].forEach(id => document.getElementById(id).classList.remove('selected'));
-  }
   updateSummary();
 }
 
 function updateSummary() {
-  const t = state.ticketSel, q = state.qty;
-  const p = t ? CONFIG.prezzi[t] : 0;
-  const tot = p * q;
-  const sumTicket = document.getElementById('sumTicket');
-  if (!sumTicket) return; // schermata non ancora visibile
-  sumTicket.textContent = t ? tipoLabel(t) : '—';
-  document.getElementById('sumQty').textContent = q;
-  document.getElementById('sumPay').textContent = state.paySel ? payLabel(state.paySel) : '—';
+  const el = document.getElementById('sumTicketNum');
+  if (!el) return;
+  const tot = cartTotal();
+  const nextNum = peekNextTicketNum();
+  document.getElementById('sumTicketNum').textContent = cartTotalQty() > 0 ? nextNum : '—';
   document.getElementById('sumTotal').textContent = '€ ' + tot.toFixed(2).replace('.',',');
-  const ticketVal = document.getElementById('ticketNumInput').value;
-  const canConfirm = state.turnoSel && state.ticketSel && (state.paySel || state.ticketSel === 'nopay') && ticketVal;
+
+  // Se carrello ha solo non paganti -> forza gratis e deseleziona btn visivamente
+  const onlyNopay = cartHasOnlyNopay();
+  if (onlyNopay && state.paySel !== 'gratis') {
+    state.paySel = 'gratis';
+    ['payCash','payPos','payPosPlus'].forEach(id => document.getElementById(id).classList.remove('selected'));
+  }
+
+  document.getElementById('sumPay').textContent = state.paySel ? payLabel(state.paySel) : '—';
+
+  const hasItems = cartTotalQty() > 0;
+  const canConfirm = state.turnoSel && hasItems && (state.paySel || tot === 0);
   document.getElementById('btnConferma').disabled = !canConfirm;
 }
 
@@ -1018,32 +1223,43 @@ function payLabel(p) {
 }
 
 function confirmSale() {
-  const t = state.ticketSel, p = CONFIG.prezzi[t], tot = p * state.qty;
-  const tNum = '#' + document.getElementById('ticketNumInput').value;
+  const tot = cartTotal();
+  const nextNum = peekNextTicketNum();
+  const righe = Object.entries(cart).filter(([,q])=>q>0)
+    .map(([t,q]) => `${q}× ${tipoLabel(t)}`).join(', ');
   document.getElementById('modalConfermaText').innerHTML =
-    `Ticket <strong>${tNum}</strong> — <strong>${state.qty}× ${tipoLabel(t)}</strong><br>
+    `Ticket <strong>${nextNum}</strong> — <strong>${righe}</strong><br>
      Turno: <strong>${state.turnoSel}</strong> · Pagamento: <strong>${payLabel(state.paySel||'gratis')}</strong><br><br>
      Totale: <strong style="font-size:1.4rem;color:var(--text)">€ ${tot.toFixed(2).replace('.',',')}</strong>`;
   document.getElementById('modalConferma').classList.add('visible');
 }
 
 function executeSale() {
-  const t = state.ticketSel, p = CONFIG.prezzi[t], tot = p * state.qty;
   const now = new Date();
-  const tNum = '#' + document.getElementById('ticketNumInput').value;
+  const tNum = getNextTicketNum();
   const pago = state.paySel || 'gratis';
-  state.vendite.push({
-    id: Date.now(),
-    dbId: null,
-    ora: now.toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'}),
-    turno: state.turnoSel, tipo: t, qty: state.qty,
-    prezzo: p, totale: tot, pagamento: pago,
-    operatore: state.operatore, timestamp: now, ticketNum: tNum
+  const tot = cartTotal();
+  const totalQty = cartTotalQty();
+
+  // Salva una riga per ogni tipo nel carrello
+  Object.entries(cart).filter(([,q])=>q>0).forEach(([tipo, qty]) => {
+    const prezzo = CONFIG.prezzi[tipo];
+    const subtot = prezzo * qty;
+    const vendita = {
+      id: Date.now() + Math.random(),
+      dbId: null,
+      ora: now.toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'}),
+      turno: state.turnoSel, tipo, qty,
+      prezzo, totale: subtot, pagamento: pago,
+      operatore: state.operatore, timestamp: now, ticketNum: tNum
+    };
+    state.vendite.push(vendita);
+    saveVendita(vendita);
   });
-  state.turni[state.turnoSel].prenotati += state.qty;
+
+  state.turni[state.turnoSel].prenotati += totalQty;
   closeModal('modalConferma');
   showFlash(tot, tNum);
-  saveVendita(state.vendite[state.vendite.length - 1]);
   resetSellForm();
   renderTurniVendita();
   renderUndoBtn();
@@ -1052,8 +1268,10 @@ function executeSale() {
 function undoLastSale() {
   const myLast = [...state.vendite].reverse().find(v => v.operatore === state.operatore);
   if (!myLast) return;
-  if (!confirm(`Annullare: ${myLast.qty}× ${tipoLabel(myLast.tipo)} turno ${myLast.turno} ${myLast.ticketNum}?`)) return;
-  doAnnullaVendita(myLast);
+  const sameTicket = state.vendite.filter(v => v.ticketNum === myLast.ticketNum);
+  const righe = sameTicket.map(v => `${v.qty}× ${tipoLabel(v.tipo)}`).join(', ');
+  if (!confirm(`Annullare ticket ${myLast.ticketNum}: ${righe} turno ${myLast.turno}?`)) return;
+  sameTicket.forEach(v => doAnnullaVendita(v));
 }
 
 function doAnnullaVendita(vendita) {
@@ -1068,7 +1286,6 @@ function doAnnullaVendita(vendita) {
 function renderUndoBtn() {
   const existing = document.getElementById('undoBtn');
   if (existing) existing.remove();
-  // Il direttore annulla dallo Storico, non serve qui
   if (!state.operatore || state.operatore === 'dir') return;
   const myLast = [...state.vendite].reverse().find(v => v.operatore === state.operatore);
   if (!myLast) return;
@@ -1076,20 +1293,16 @@ function renderUndoBtn() {
   btn.id = 'undoBtn';
   btn.className = 'btn-export';
   btn.style.cssText = 'color:var(--red);border-color:var(--red-border);margin-top:10px;';
-  btn.innerHTML = `↩ Annulla ultima (${myLast.qty}× ${tipoLabel(myLast.tipo)} ${myLast.turno} ${myLast.ticketNum})`;
+  btn.innerHTML = `↩ Annulla ultima (${myLast.ticketNum} turno ${myLast.turno})`;
   btn.onclick = undoLastSale;
   document.getElementById('btnConferma').insertAdjacentElement('afterend', btn);
 }
 
 function resetSellForm() {
-  state.turnoSel = null; state.ticketSel = null; state.qty = 1; state.paySel = null;
-  ['cardBase','cardPremium','cardRidotto','cardNopay'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.className = 'ticket-card';
-  });
+  state.turnoSel = null; state.paySel = null;
+  cart = {};
+  updateCartUI();
   ['payCash','payPos','payPosPlus'].forEach(id => document.getElementById(id).classList.remove('selected'));
-  document.getElementById('qtyVal').textContent = '1';
-  document.getElementById('ticketNumInput').value = '';
   updateSummary(); renderTurniVendita();
 }
 
@@ -1162,8 +1375,11 @@ function renderStorico() {
 function annullaDir(id) {
   const vendita = state.vendite.find(v => v.id === id);
   if (!vendita) return;
-  if (!confirm(`Annullare: ${vendita.qty}× ${tipoLabel(vendita.tipo)} turno ${vendita.turno} ${vendita.ticketNum}?`)) return;
-  doAnnullaVendita(vendita);
+  // Annulla tutte le righe dello stesso ticket
+  const sameTicket = state.vendite.filter(v => v.ticketNum === vendita.ticketNum);
+  const righe = sameTicket.map(v => `${v.qty}× ${tipoLabel(v.tipo)}`).join(', ');
+  if (!confirm(`Annullare ticket ${vendita.ticketNum}: ${righe} turno ${vendita.turno}?`)) return;
+  sameTicket.forEach(v => doAnnullaVendita(v));
 }
 
 // ============================================================
@@ -1258,6 +1474,7 @@ function renderCassa() {
     document.getElementById('nameCassa2').value = CONFIG.nomiCasse.op2;
     document.getElementById('pwLabel1').textContent = 'Password ' + CONFIG.nomiCasse.op1;
     document.getElementById('pwLabel2').textContent = 'Password ' + CONFIG.nomiCasse.op2;
+    document.getElementById('ticketStartSet').textContent = ticketCounter + 1 > 100 ? 1 : ticketCounter + 1;
   }
 }
 
@@ -1329,7 +1546,8 @@ function exportCSV() {
     const op = v.operatore==='dir'?'Direttore':CONFIG.nomiCasse[v.operatore]||v.operatore;
     rows.push([v.ticketNum||'', v.ora, v.turno, tipoLabel(v.tipo), v.qty, v.prezzo, v.totale, payLabel(v.pagamento), op]);
   });
-  const csv = rows.map(r => r.join(';')).join('\n');
+  const bom = '\uFEFF';
+  const csv = bom + rows.map(r => r.join(';')).join('\n');
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv;charset=utf-8;'}));
   a.download = `scopello-${new Date().toLocaleDateString('it-IT').replace(/\//g,'-')}.csv`;
@@ -1340,8 +1558,10 @@ function resetDay() {
   if (!confirm('Sei sicuro di voler resettare tutti i dati della giornata?')) return;
   state.vendite = [];
   CONFIG.orari.forEach(o => { state.turni[o] = { prenotati: 0 }; });
+  ticketCounter = 0;
+  localStorage.setItem('scopello_ticket_counter', 0);
   const u = document.getElementById('undoBtn'); if (u) u.remove();
-  renderCassa(); renderTurniVendita();
+  renderCassa(); renderTurniVendita(); updateSummary();
 }
 
 function closeModal(id) { document.getElementById(id).classList.remove('visible'); }
@@ -1350,6 +1570,8 @@ function renderAll() {
   document.getElementById('priceBaseDisplay').textContent = '€' + CONFIG.prezzi.base;
   document.getElementById('pricePremiumDisplay').textContent = '€' + CONFIG.prezzi.premium;
   document.getElementById('priceRidottoDisplay').textContent = '€' + CONFIG.prezzi.ridotto;
+  cart = {};
+  updateCartUI();
   renderTurniVendita(); updateSummary(); renderUndoBtn();
 }
 
