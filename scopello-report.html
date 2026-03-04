@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Report — Torre di Scopello</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600&family=DM+Sans:wght@300;400;500;600&display=swap');
+
+:root {
+  --bg: #faf8f5;
+  --white: #ffffff;
+  --border: #e8e2d9;
+  --text: #1c1814;
+  --text2: #5a5248;
+  --muted: #9a9088;
+  --green: #1a7a44;
+  --green-bg: #eaf5f0;
+  --sea: #1454a0;
+  --sea-bg: #e8f0fa;
+  --gold: #a87800;
+  --gold-bg: #fdf5e0;
+  --red: #b83020;
+  --red-bg: #fdecea;
+  --stone: #8B6914;
+  --fd: 'Playfair Display', Georgia, serif;
+  --fu: 'DM Sans', -apple-system, sans-serif;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: var(--fu); background: var(--bg); color: var(--text); min-height: 100vh; }
+
+/* ===== LOGIN ===== */
+#loginScreen {
+  min-height: 100vh; display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(135deg, #faf8f5 0%, #f0ebe0 100%);
+  padding: 24px;
+}
+.login-wrap { width: 100%; max-width: 380px; text-align: center; }
+.login-wrap h1 { font-family: var(--fd); font-size: 2rem; font-weight: 400; color: var(--text); margin-bottom: 6px; }
+.login-wrap .sub { font-size: 0.72rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); margin-bottom: 36px; }
+.login-card {
+  background: var(--white); border: 1.5px solid var(--border); border-radius: 20px;
+  padding: 32px 28px; box-shadow: 0 4px 32px rgba(0,0,0,0.07);
+}
+.login-card h2 { font-family: var(--fd); font-size: 1.2rem; font-weight: 400; margin-bottom: 20px; color: var(--text); }
+.l-input {
+  width: 100%; border: 1.5px solid var(--border); border-radius: 12px;
+  padding: 13px 16px; font-family: var(--fu); font-size: 1rem; color: var(--text);
+  background: var(--bg); outline: none; margin-bottom: 14px; letter-spacing: 0.1em;
+  transition: border-color 0.2s;
+}
+.l-input:focus { border-color: var(--sea); background: #fff; }
+.l-btn {
+  width: 100%; padding: 14px; border-radius: 12px; border: none; cursor: pointer;
+  font-family: var(--fu); font-size: 0.9rem; font-weight: 600; letter-spacing: 0.06em;
+  background: var(--text); color: #fff; transition: all 0.15s;
+}
+.l-btn:hover { background: #333; }
+.l-err { font-size: 0.78rem; color: var(--red); margin-top: 10px; min-height: 18px; }
+
+/* ===== APP ===== */
+#appScreen { display: none; }
+
+.header {
+  background: var(--white); border-bottom: 1.5px solid var(--border);
+  padding: 16px 28px; display: flex; align-items: center; justify-content: space-between;
+  position: sticky; top: 0; z-index: 50;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.05);
+}
+.header-brand h1 { font-family: var(--fd); font-size: 1.2rem; font-weight: 400; color: var(--text); }
+.header-brand p { font-size: 0.62rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
+.header-right { display: flex; align-items: center; gap: 12px; }
+.last-update { font-size: 0.72rem; color: var(--muted); }
+.btn-refresh {
+  padding: 8px 16px; border-radius: 8px; border: 1.5px solid var(--border);
+  background: var(--white); font-family: var(--fu); font-size: 0.78rem; font-weight: 600;
+  color: var(--text2); cursor: pointer; transition: all 0.15s; display: flex; align-items: center; gap: 6px;
+}
+.btn-refresh:hover { background: var(--bg); border-color: var(--sea); color: var(--sea); }
+.btn-logout-r {
+  padding: 8px 16px; border-radius: 8px; border: 1.5px solid var(--border);
+  background: var(--white); font-family: var(--fu); font-size: 0.78rem; font-weight: 600;
+  color: var(--muted); cursor: pointer; transition: all 0.15s;
+}
+.btn-logout-r:hover { border-color: var(--red); color: var(--red); }
+
+/* ===== PERIOD SELECTOR ===== */
+.period-bar {
+  background: var(--white); border-bottom: 1.5px solid var(--border);
+  padding: 12px 28px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+}
+.period-btn {
+  padding: 7px 18px; border-radius: 20px; border: 1.5px solid var(--border);
+  background: none; font-family: var(--fu); font-size: 0.78rem; font-weight: 600;
+  color: var(--text2); cursor: pointer; transition: all 0.15s;
+}
+.period-btn.active { background: var(--text); color: #fff; border-color: var(--text); }
+.period-btn:not(.active):hover { border-color: var(--sea); color: var(--sea); }
+.period-sep { width: 1px; height: 24px; background: var(--border); margin: 0 4px; }
+.date-inputs { display: flex; align-items: center; gap: 8px; }
+.date-input {
+  border: 1.5px solid var(--border); border-radius: 8px; padding: 6px 10px;
+  font-family: var(--fu); font-size: 0.78rem; color: var(--text); background: var(--bg);
+  outline: none; cursor: pointer;
+}
+.date-input:focus { border-color: var(--sea); }
+.btn-apply {
+  padding: 7px 16px; border-radius: 8px; border: none; background: var(--sea);
+  color: #fff; font-family: var(--fu); font-size: 0.78rem; font-weight: 600; cursor: pointer;
+  transition: all 0.15s;
+}
+.btn-apply:hover { background: #0e3870; }
+
+/* ===== CONTENT ===== */
+.content { padding: 28px; max-width: 1200px; margin: 0 auto; }
+
+/* ===== KPI CARDS ===== */
+.kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 28px; }
+.kpi-card {
+  background: var(--white); border: 1.5px solid var(--border); border-radius: 16px;
+  padding: 20px 22px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+.kpi-card:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(0,0,0,0.08); }
+.kpi-label { font-size: 0.62rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.12em; color: var(--muted); margin-bottom: 8px; }
+.kpi-val { font-family: var(--fd); font-size: 2.2rem; font-weight: 400; color: var(--text); line-height: 1; margin-bottom: 4px; font-variant-numeric: tabular-nums; }
+.kpi-sub { font-size: 0.72rem; color: var(--muted); font-weight: 500; }
+.kpi-card.k-green { border-color: #b8e0cc; }
+.kpi-card.k-green .kpi-val { color: var(--green); }
+.kpi-card.k-sea { border-color: #a8c8f0; }
+.kpi-card.k-sea .kpi-val { color: var(--sea); }
+.kpi-card.k-gold { border-color: #e8d080; }
+.kpi-card.k-gold .kpi-val { color: var(--gold); }
+
+/* ===== CHARTS ===== */
+.charts-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; margin-bottom: 28px; }
+.chart-card {
+  background: var(--white); border: 1.5px solid var(--border); border-radius: 16px;
+  padding: 22px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+}
+.chart-title { font-family: var(--fd); font-size: 1rem; font-weight: 400; color: var(--text); margin-bottom: 4px; }
+.chart-sub { font-size: 0.7rem; color: var(--muted); margin-bottom: 18px; }
+.chart-wrap { position: relative; height: 220px; }
+
+/* ===== BREAKDOWN GRID ===== */
+.breakdown-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin-bottom: 28px; }
+.breakdown-card {
+  background: var(--white); border: 1.5px solid var(--border); border-radius: 16px;
+  padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+}
+.breakdown-card h3 { font-family: var(--fd); font-size: 0.95rem; font-weight: 400; color: var(--text); margin-bottom: 16px; }
+.breakdown-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border); }
+.breakdown-row:last-child { border-bottom: none; }
+.br-label { display: flex; align-items: center; gap: 8px; font-size: 0.82rem; color: var(--text2); font-weight: 500; }
+.br-dot { width: 8px; height: 8px; border-radius: 50%; }
+.br-val { font-size: 0.86rem; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; }
+.br-bar-wrap { background: var(--bg); border-radius: 99px; height: 4px; margin-top: 4px; overflow: hidden; }
+.br-bar { height: 100%; border-radius: 99px; transition: width 0.6s ease; }
+
+/* ===== TABELLA GIORNALIERA ===== */
+.table-card {
+  background: var(--white); border: 1.5px solid var(--border); border-radius: 16px;
+  padding: 22px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); margin-bottom: 28px;
+}
+.table-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+.table-title { font-family: var(--fd); font-size: 1rem; font-weight: 400; color: var(--text); }
+.btn-csv {
+  padding: 7px 16px; border-radius: 8px; border: 1.5px solid var(--border);
+  background: var(--white); font-family: var(--fu); font-size: 0.75rem; font-weight: 600;
+  color: var(--text2); cursor: pointer; transition: all 0.15s; display: flex; align-items: center; gap: 6px;
+}
+.btn-csv:hover { border-color: var(--green); color: var(--green); }
+table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+thead tr { border-bottom: 2px solid var(--border); }
+th { text-align: left; padding: 8px 12px; font-size: 0.66rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); }
+tbody tr { border-bottom: 1px solid var(--border); transition: background 0.1s; }
+tbody tr:last-child { border-bottom: none; }
+tbody tr:hover { background: var(--bg); }
+td { padding: 10px 12px; color: var(--text2); font-weight: 500; font-variant-numeric: tabular-nums; }
+td.td-date { font-weight: 700; color: var(--text); }
+td.td-total { font-family: var(--fd); font-size: 1rem; color: var(--text); }
+.pay-pill {
+  display: inline-block; padding: 2px 8px; border-radius: 6px; font-size: 0.68rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.06em;
+}
+.pay-cash { background: var(--green-bg); color: var(--green); }
+.pay-pos { background: var(--sea-bg); color: var(--sea); }
+.pay-posplus { background: var(--gold-bg); color: var(--gold); }
+
+/* ===== LOADING ===== */
+.loading {
+  text-align: center; padding: 60px 20px; color: var(--muted);
+  font-size: 0.9rem; font-family: var(--fd); font-style: italic;
+}
+.loading-spinner {
+  width: 32px; height: 32px; border: 3px solid var(--border);
+  border-top-color: var(--sea); border-radius: 50%;
+  animation: spin 0.8s linear infinite; margin: 0 auto 16px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ===== EMPTY ===== */
+.empty { text-align: center; padding: 40px; color: var(--muted); font-size: 0.86rem; }
+
+/* ===== TURNI TABLE ===== */
+.turni-table { width: 100%; }
+.turni-row { display: flex; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); gap: 12px; }
+.turni-row:last-child { border-bottom: none; }
+.turni-ora { font-weight: 700; color: var(--text); min-width: 52px; font-size: 0.86rem; }
+.turni-bar-wrap { flex: 1; background: var(--bg); border-radius: 99px; height: 8px; overflow: hidden; }
+.turni-bar { height: 100%; border-radius: 99px; transition: width 0.6s ease; }
+.turni-count { font-size: 0.78rem; color: var(--muted); min-width: 60px; text-align: right; font-variant-numeric: tabular-nums; }
+
+@media (max-width: 768px) {
+  .charts-grid { grid-template-columns: 1fr; }
+  .breakdown-grid { grid-template-columns: 1fr; }
+  .content { padding: 16px; }
+  .period-bar { padding: 10px 16px; }
+  .header { padding: 12px 16px; }
+  .kpi-grid { grid-template-columns: 1fr 1fr; }
+}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="loginScreen">
+  <div class="login-wrap">
+    <h1>Torre di Scopello</h1>
+    <p class="sub">Report & Analytics</p>
+    <div class="login-card">
+      <h2>Accesso riservato</h2>
+      <input class="l-input" type="password" id="repPw" placeholder="Password direttore" onkeydown="if(event.key==='Enter')repLogin()">
+      <button class="l-btn" onclick="repLogin()">ACCEDI AI REPORT</button>
+      <div class="l-err" id="repErr"></div>
+    </div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="appScreen">
+
+  <div class="header">
+    <div class="header-brand">
+      <h1>Torre di Scopello — Report</h1>
+      <p>Percorso Storico Naturalistico · Dashboard Direttore</p>
+    </div>
+    <div class="header-right">
+      <span class="last-update" id="lastUpdate">—</span>
+      <button class="btn-refresh" onclick="loadData()">↻ Aggiorna</button>
+      <button class="btn-logout-r" onclick="repLogout()">Esci</button>
+    </div>
+  </div>
+
+  <div class="period-bar">
+    <button class="period-btn active" onclick="setPeriod('today')">Oggi</button>
+    <button class="period-btn" onclick="setPeriod('week')">Settimana</button>
+    <button class="period-btn" onclick="setPeriod('month')">Mese</button>
+    <button class="period-btn" onclick="setPeriod('season')">Stagione</button>
+    <div class="period-sep"></div>
+    <div class="date-inputs">
+      <input class="date-input" type="date" id="dateFrom">
+      <span style="color:var(--muted);font-size:0.78rem;">→</span>
+      <input class="date-input" type="date" id="dateTo">
+      <button class="btn-apply" onclick="setPeriod('custom')">Applica</button>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- KPI -->
+    <div class="kpi-grid">
+      <div class="kpi-card k-green">
+        <div class="kpi-label">Incasso totale</div>
+        <div class="kpi-val" id="kpiIncasso">—</div>
+        <div class="kpi-sub" id="kpiIncassoSub">nel periodo selezionato</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Visitatori</div>
+        <div class="kpi-val" id="kpiVisitatori">—</div>
+        <div class="kpi-sub">biglietti venduti</div>
+      </div>
+      <div class="kpi-card k-sea">
+        <div class="kpi-label">Scontrino medio</div>
+        <div class="kpi-val" id="kpiMedia">—</div>
+        <div class="kpi-sub">per transazione</div>
+      </div>
+      <div class="kpi-card k-gold">
+        <div class="kpi-label">Giorni attivi</div>
+        <div class="kpi-val" id="kpiGiorni">—</div>
+        <div class="kpi-sub">con almeno 1 vendita</div>
+      </div>
+    </div>
+
+    <!-- CHARTS -->
+    <div class="charts-grid">
+      <div class="chart-card">
+        <div class="chart-title">Incassi giornalieri</div>
+        <div class="chart-sub">Totale incassato per giorno nel periodo</div>
+        <div class="chart-wrap"><canvas id="chartGiorni"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Tipo biglietto</div>
+        <div class="chart-sub">Base vs Premium</div>
+        <div class="chart-wrap"><canvas id="chartTipi"></canvas></div>
+      </div>
+    </div>
+
+    <!-- BREAKDOWN -->
+    <div class="breakdown-grid">
+      <div class="breakdown-card">
+        <h3>Metodo di pagamento</h3>
+        <div id="bdPagamento"></div>
+      </div>
+      <div class="breakdown-card">
+        <h3>Operatori</h3>
+        <div id="bdOperatori"></div>
+      </div>
+      <div class="breakdown-card">
+        <h3>Turni più frequentati</h3>
+        <div id="bdTurni" class="turni-table"></div>
+      </div>
+    </div>
+
+    <!-- TABELLA -->
+    <div class="table-card">
+      <div class="table-header">
+        <div class="table-title">Riepilogo per giorno</div>
+        <button class="btn-csv" onclick="exportCSV()">📥 Esporta CSV</button>
+      </div>
+      <div id="tableWrap"><div class="loading"><div class="loading-spinner"></div>Caricamento dati...</div></div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://jhvuucvzhtuvybcsoxts.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpodnV1Y3Z6aHR1dnliY3NveHRzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2NDM2NTMsImV4cCI6MjA4ODIxOTY1M30.2at0j_pKSw3AbbEO0nfNKpHay43FW32tiBDmszaNInI';
+const DIR_PW = 'scopello2024';
+const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let currentPeriod = 'today';
+let allData = [];
+let chartGiorni = null, chartTipi = null;
+
+// ===== LOGIN =====
+function repLogin() {
+  const pw = document.getElementById('repPw').value;
+  if (pw === DIR_PW) {
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('appScreen').style.display = 'block';
+    initDates();
+    loadData();
+  } else {
+    document.getElementById('repErr').textContent = 'Password non corretta.';
+    document.getElementById('repPw').style.borderColor = 'var(--red)';
+    setTimeout(() => { document.getElementById('repPw').style.borderColor = ''; }, 800);
+  }
+}
+function repLogout() {
+  document.getElementById('loginScreen').style.display = 'flex';
+  document.getElementById('appScreen').style.display = 'none';
+  document.getElementById('repPw').value = '';
+}
+
+// ===== PERIOD =====
+function initDates() {
+  const today = new Date().toISOString().split('T')[0];
+  document.getElementById('dateFrom').value = today;
+  document.getElementById('dateTo').value = today;
+}
+
+function setPeriod(p) {
+  currentPeriod = p;
+  document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
+  const btns = document.querySelectorAll('.period-btn');
+  const idx = ['today','week','month','season'].indexOf(p);
+  if (idx >= 0) btns[idx].classList.add('active');
+  loadData();
+}
+
+function getDateRange() {
+  const today = new Date();
+  const fmt = d => d.toISOString().split('T')[0];
+  if (currentPeriod === 'today') {
+    const t = fmt(today);
+    return { from: t, to: t };
+  }
+  if (currentPeriod === 'week') {
+    const mon = new Date(today);
+    mon.setDate(today.getDate() - today.getDay() + 1);
+    return { from: fmt(mon), to: fmt(today) };
+  }
+  if (currentPeriod === 'month') {
+    const first = new Date(today.getFullYear(), today.getMonth(), 1);
+    return { from: fmt(first), to: fmt(today) };
+  }
+  if (currentPeriod === 'season') {
+    return { from: `${today.getFullYear()}-01-01`, to: fmt(today) };
+  }
+  if (currentPeriod === 'custom') {
+    return {
+      from: document.getElementById('dateFrom').value,
+      to: document.getElementById('dateTo').value
+    };
+  }
+  return { from: fmt(today), to: fmt(today) };
+}
+
+// ===== LOAD DATA =====
+async function loadData() {
+  const { from, to } = getDateRange();
+  const { data, error } = await db.from('vendite').select('*').gte('data', from).lte('data', to).order('created_at', { ascending: true });
+  if (error) { console.error(error); return; }
+  allData = data || [];
+  document.getElementById('lastUpdate').textContent = 'Aggiornato: ' + new Date().toLocaleTimeString('it-IT', {hour:'2-digit',minute:'2-digit'});
+  renderAll();
+}
+
+// ===== RENDER =====
+function renderAll() {
+  renderKPI();
+  renderChartGiorni();
+  renderChartTipi();
+  renderBreakdown();
+  renderTable();
+}
+
+function fmt(n) { return '€ ' + Number(n).toFixed(2).replace('.', ','); }
+function fmtShort(n) { return '€ ' + Number(n).toFixed(0).replace('.', ','); }
+
+function renderKPI() {
+  const totale = allData.reduce((a,v) => a + Number(v.totale), 0);
+  const visitatori = allData.reduce((a,v) => a + v.qty, 0);
+  const transazioni = allData.length;
+  const media = transazioni ? totale / transazioni : 0;
+  const giorni = new Set(allData.map(v => v.data)).size;
+
+  document.getElementById('kpiIncasso').textContent = fmt(totale);
+  document.getElementById('kpiVisitatori').textContent = visitatori.toLocaleString('it-IT');
+  document.getElementById('kpiMedia').textContent = fmt(media);
+  document.getElementById('kpiGiorni').textContent = giorni;
+  document.getElementById('kpiIncassoSub').textContent = `${transazioni} transazioni`;
+}
+
+function renderChartGiorni() {
+  const byDay = {};
+  allData.forEach(v => {
+    if (!byDay[v.data]) byDay[v.data] = 0;
+    byDay[v.data] += Number(v.totale);
+  });
+  const labels = Object.keys(byDay).sort();
+  const values = labels.map(d => byDay[d]);
+  const fmtDate = d => {
+    const [y,m,dd] = d.split('-');
+    return `${dd}/${m}`;
+  };
+
+  if (chartGiorni) chartGiorni.destroy();
+  const ctx = document.getElementById('chartGiorni').getContext('2d');
+  chartGiorni = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: labels.map(fmtDate),
+      datasets: [{
+        label: 'Incasso (€)',
+        data: values,
+        backgroundColor: 'rgba(26,122,68,0.15)',
+        borderColor: 'rgba(26,122,68,0.8)',
+        borderWidth: 2,
+        borderRadius: 6,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        y: { grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { callback: v => '€'+v, font: { size: 11 } } },
+        x: { grid: { display: false }, ticks: { font: { size: 11 } } }
+      }
+    }
+  });
+}
+
+function renderChartTipi() {
+  const base = allData.filter(v=>v.tipo==='base').reduce((a,v)=>a+v.qty,0);
+  const premium = allData.filter(v=>v.tipo==='premium').reduce((a,v)=>a+v.qty,0);
+
+  if (chartTipi) chartTipi.destroy();
+  const ctx = document.getElementById('chartTipi').getContext('2d');
+  chartTipi = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: ['Base', 'Premium'],
+      datasets: [{
+        data: [base, premium],
+        backgroundColor: ['rgba(20,84,160,0.15)', 'rgba(168,120,0,0.15)'],
+        borderColor: ['rgba(20,84,160,0.8)', 'rgba(168,120,0,0.8)'],
+        borderWidth: 2,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'bottom', labels: { font: { size: 12 }, padding: 16 } }
+      },
+      cutout: '65%'
+    }
+  });
+}
+
+function renderBreakdown() {
+  // Pagamenti
+  const cash = allData.filter(v=>v.pagamento==='cash').reduce((a,v)=>a+Number(v.totale),0);
+  const pos = allData.filter(v=>v.pagamento==='pos').reduce((a,v)=>a+Number(v.totale),0);
+  const posplus = allData.filter(v=>v.pagamento==='posplus').reduce((a,v)=>a+Number(v.totale),0);
+  const totPay = cash + pos + posplus || 1;
+  document.getElementById('bdPagamento').innerHTML = [
+    { label:'Contanti', val: cash, color:'var(--green)', pct: cash/totPay },
+    { label:'POS', val: pos, color:'var(--sea)', pct: pos/totPay },
+    { label:'POS+', val: posplus, color:'var(--gold)', pct: posplus/totPay },
+  ].map(r => `
+    <div class="breakdown-row">
+      <div style="flex:1">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+          <span class="br-label"><span class="br-dot" style="background:${r.color}"></span>${r.label}</span>
+          <span class="br-val">${fmt(r.val)}</span>
+        </div>
+        <div class="br-bar-wrap"><div class="br-bar" style="width:${(r.pct*100).toFixed(0)}%;background:${r.color}"></div></div>
+      </div>
+    </div>`).join('');
+
+  // Operatori
+  const ops = { op1: 'Cassa 1', op2: 'Cassa 2', dir: 'Direttore' };
+  const opTot = {};
+  allData.forEach(v => {
+    opTot[v.operatore] = (opTot[v.operatore]||0) + Number(v.totale);
+  });
+  const maxOp = Math.max(...Object.values(opTot), 1);
+  document.getElementById('bdOperatori').innerHTML = Object.entries(opTot)
+    .sort((a,b)=>b[1]-a[1])
+    .map(([op,tot]) => `
+    <div class="breakdown-row">
+      <div style="flex:1">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+          <span class="br-label">${ops[op]||op}</span>
+          <span class="br-val">${fmt(tot)}</span>
+        </div>
+        <div class="br-bar-wrap"><div class="br-bar" style="width:${(tot/maxOp*100).toFixed(0)}%;background:var(--sea)"></div></div>
+      </div>
+    </div>`).join('') || '<div class="empty">Nessun dato</div>';
+
+  // Turni
+  const turniCount = {};
+  allData.forEach(v => {
+    turniCount[v.turno] = (turniCount[v.turno]||0) + v.qty;
+  });
+  const sorted = Object.entries(turniCount).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  const maxT = sorted[0]?.[1] || 1;
+  document.getElementById('bdTurni').innerHTML = sorted.map(([ora, cnt]) => `
+    <div class="turni-row">
+      <span class="turni-ora">${ora}</span>
+      <div class="turni-bar-wrap"><div class="turni-bar" style="width:${(cnt/maxT*100).toFixed(0)}%;background:var(--stone)"></div></div>
+      <span class="turni-count">${cnt} vis.</span>
+    </div>`).join('') || '<div class="empty">Nessun dato</div>';
+}
+
+function renderTable() {
+  const byDay = {};
+  allData.forEach(v => {
+    if (!byDay[v.data]) byDay[v.data] = { data: v.data, visitatori: 0, totale: 0, cash: 0, pos: 0, posplus: 0, base: 0, premium: 0 };
+    const d = byDay[v.data];
+    d.visitatori += v.qty;
+    d.totale += Number(v.totale);
+    if (v.pagamento==='cash') d.cash += Number(v.totale);
+    else if (v.pagamento==='pos') d.pos += Number(v.totale);
+    else d.posplus += Number(v.totale);
+    if (v.tipo==='base') d.base += v.qty;
+    else d.premium += v.qty;
+  });
+  const days = Object.values(byDay).sort((a,b)=>b.data.localeCompare(a.data));
+
+  if (!days.length) {
+    document.getElementById('tableWrap').innerHTML = '<div class="empty">Nessuna vendita nel periodo selezionato</div>';
+    return;
+  }
+
+  document.getElementById('tableWrap').innerHTML = `
+    <table>
+      <thead><tr>
+        <th>Data</th>
+        <th>Visitatori</th>
+        <th>Base</th>
+        <th>Premium</th>
+        <th>Contanti</th>
+        <th>POS</th>
+        <th>POS+</th>
+        <th>Totale</th>
+      </tr></thead>
+      <tbody>
+        ${days.map(d => {
+          const [y,m,dd] = d.data.split('-');
+          return `<tr>
+            <td class="td-date">${dd}/${m}/${y}</td>
+            <td>${d.visitatori}</td>
+            <td>${d.base}</td>
+            <td>${d.premium}</td>
+            <td><span class="pay-pill pay-cash">${fmtShort(d.cash)}</span></td>
+            <td><span class="pay-pill pay-pos">${fmtShort(d.pos)}</span></td>
+            <td><span class="pay-pill pay-posplus">${fmtShort(d.posplus)}</span></td>
+            <td class="td-total">${fmt(d.totale)}</td>
+          </tr>`;
+        }).join('')}
+        <tr style="background:var(--bg);font-weight:700">
+          <td class="td-date">TOTALE</td>
+          <td>${days.reduce((a,d)=>a+d.visitatori,0)}</td>
+          <td>${days.reduce((a,d)=>a+d.base,0)}</td>
+          <td>${days.reduce((a,d)=>a+d.premium,0)}</td>
+          <td><span class="pay-pill pay-cash">${fmtShort(days.reduce((a,d)=>a+d.cash,0))}</span></td>
+          <td><span class="pay-pill pay-pos">${fmtShort(days.reduce((a,d)=>a+d.pos,0))}</span></td>
+          <td><span class="pay-pill pay-posplus">${fmtShort(days.reduce((a,d)=>a+d.posplus,0))}</span></td>
+          <td class="td-total">${fmt(days.reduce((a,d)=>a+d.totale,0))}</td>
+        </tr>
+      </tbody>
+    </table>`;
+}
+
+// ===== EXPORT CSV =====
+function exportCSV() {
+  const { from, to } = getDateRange();
+  const rows = [['Data','Turno','Tipo','Qty','Prezzo','Totale','Pagamento','Operatore']];
+  allData.forEach(v => {
+    const op = v.operatore==='op1'?'Cassa 1':v.operatore==='op2'?'Cassa 2':'Direttore';
+    rows.push([v.data, v.turno, v.tipo, v.qty, v.prezzo, v.totale, v.pagamento, op]);
+  });
+  const csv = '\ufeff' + rows.map(r => r.join(';')).join('\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv;charset=utf-8;'}));
+  a.download = `scopello-report-${from}-${to}.csv`;
+  a.click();
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && document.getElementById('appScreen').style.display !== 'block') repLogin();
+});
+</script>
+</body>
+</html>
