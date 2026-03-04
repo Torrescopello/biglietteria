@@ -721,7 +721,38 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); min-he
   </div>
 </div>
 
+<!-- MODAL NUMERO PRIMO TICKET -->
+<div class="modal-overlay" id="modalTicketStart">
+  <div class="modal">
+    <h2>Primo ticket del giorno</h2>
+    <p>Da quale numero parte la numerazione oggi?</p>
+    <input class="pw-input" type="number" id="ticketStartInput" min="1" max="100" value="1"
+      inputmode="numeric" pattern="[0-9]*"
+      onkeydown="if(event.key==='Enter')confirmTicketStart()">
+    <div class="modal-btns">
+      <button class="btn-m btn-m-cancel" onclick="confirmTicketStart()">Salta</button>
+      <button class="btn-m btn-m-ok" onclick="confirmTicketStart()">✓ Inizia</button>
+    </div>
+  </div>
+</div>
+
 <div class="success-flash" id="successFlash">
+  <span>✓ Vendita registrata</span>
+  <span class="sf-amount" id="flashAmount">€ 0,00</span>
+  <span class="sf-num" id="flashNum">#001</span>
+</div>
+  <div class="modal">
+    <h2>Primo ticket del giorno</h2>
+    <p>Da quale numero parte la numerazione oggi?</p>
+    <input class="pw-input" type="number" id="ticketStartInput" min="1" max="100" value="1"
+      inputmode="numeric" pattern="[0-9]*"
+      onkeydown="if(event.key==='Enter')confirmTicketStart()">
+    <div class="modal-btns">
+      <button class="btn-m btn-m-cancel" onclick="confirmTicketStart()">Salta</button>
+      <button class="btn-m btn-m-ok" onclick="confirmTicketStart()">✓ Inizia</button>
+    </div>
+  </div>
+</div>
   <span>✓ Vendita registrata</span>
   <span class="sf-amount" id="flashAmount">€ 0,00</span>
   <span class="sf-num" id="flashNum">#001</span>
@@ -944,7 +975,15 @@ function doLogin() {
       renderAll();
       updateSyncBadge();
       syncPending();
-      loadTodayVendite();
+      loadTodayVendite().then(() => {
+        // Mostra popup solo se non ci sono ancora vendite oggi
+        if (state.vendite.length === 0) {
+          const input = document.getElementById('ticketStartInput');
+          input.value = ticketCounter + 1 || 1;
+          document.getElementById('modalTicketStart').classList.add('visible');
+          setTimeout(() => input.select(), 200);
+        }
+      });
     }, 900);
   } else {
     err.textContent = 'Password non corretta.';
@@ -1053,6 +1092,16 @@ function loadTicketCounter() {
   // Legge da localStorage come base, poi loadTodayVendite sovrascriverà col max dal DB
   const saved = parseInt(localStorage.getItem('scopello_ticket_counter') || '0');
   ticketCounter = isNaN(saved) ? 0 : saved;
+}
+
+function confirmTicketStart() {
+  const val = parseInt(document.getElementById('ticketStartInput').value);
+  if (!isNaN(val) && val >= 1 && val <= 100) {
+    ticketCounter = val - 1;
+    localStorage.setItem('scopello_ticket_counter', ticketCounter);
+    updateSummary();
+  }
+  closeModal('modalTicketStart');
 }
 
 function applyTicketStart() {
