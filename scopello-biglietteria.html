@@ -976,12 +976,15 @@ function doLogin() {
       updateSyncBadge();
       syncPending();
       loadTodayVendite().then(() => {
-        // Mostra popup solo se non ci sono ancora vendite oggi
-        if (state.vendite.length === 0) {
+        // Mostra popup solo una volta al giorno (prima apertura del mattino)
+        const today = new Date().toLocaleDateString('it-IT');
+        const lastShown = localStorage.getItem('scopello_ticket_popup_date');
+        if (lastShown !== today && state.vendite.length === 0) {
+          localStorage.setItem('scopello_ticket_popup_date', today);
           const input = document.getElementById('ticketStartInput');
           input.value = ticketCounter + 1 || 1;
           document.getElementById('modalTicketStart').classList.add('visible');
-          setTimeout(() => input.select(), 200);
+          setTimeout(() => { input.focus(); input.select(); }, 200);
         }
       });
     }, 900);
