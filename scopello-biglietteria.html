@@ -354,7 +354,19 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); min-he
 .orario-btn.full { border-color: var(--red-border); color: var(--red); background: var(--red-bg); }
 .orario-btn.current { opacity: 0.4; cursor: not-allowed; }
 
-/* ===== NOTE OPERATORE ===== */
+/* ===== BOTTONE FLOTTANTE CAMBIO OPERATORE ===== */
+.fab-switch {
+  position: fixed; bottom: 24px; right: 20px; z-index: 100;
+  display: flex; align-items: center; gap: 6px;
+  background: var(--white); border: 2px solid var(--border);
+  border-radius: 50px; padding: 10px 16px 10px 12px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.13);
+  cursor: pointer; font-family: var(--fu);
+  transition: all 0.15s;
+}
+.fab-switch:active { transform: scale(0.95); background: var(--sea-bg); border-color: var(--sea); }
+.fab-icon { font-size: 1.1rem; color: var(--sea); }
+.fab-label { font-size: 0.76rem; font-weight: 700; color: var(--text2); max-width: 90px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .note-section {
   background: var(--white); border: 2px solid var(--border); border-radius: 14px;
   padding: 14px 16px; margin-bottom: 14px;
@@ -374,6 +386,21 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); min-he
 .note-save-btn:active { background: var(--green-bg); border-color: var(--green); color: var(--green); }
 .note-saved-msg { font-size: 0.72rem; color: var(--green); margin-left: 8px; font-weight: 600; display: none; }
 .note-saved-msg.show { display: inline; }
+
+/* Lista note multiple */
+.note-item {
+  display: flex; justify-content: space-between; align-items: flex-start;
+  background: var(--bg); border-radius: 8px; padding: 7px 10px;
+  margin-bottom: 6px; border-left: 3px solid var(--sea-border);
+  font-size: 0.82rem; color: var(--text2); gap: 8px;
+}
+.note-item-text { flex: 1; line-height: 1.4; }
+.note-item-meta { font-size: 0.62rem; color: var(--muted); white-space: nowrap; font-weight: 600; }
+.note-item-del {
+  background: none; border: none; color: var(--muted); cursor: pointer;
+  font-size: 0.9rem; padding: 0 2px; line-height: 1; flex-shrink: 0;
+}
+.note-item-del:active { color: var(--red); }
 
 /* ===== CASSA ===== */
 .cassa-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
@@ -520,7 +547,7 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); min-he
 <div id="appScreen" class="screen">
 
   <div class="topbar">
-    <div class="topbar-brand" onclick="openSwitchOp()" style="cursor:pointer;" title="Cambia operatore">
+    <div class="topbar-brand">
       <h1>Torre di Scopello</h1>
       <p>Percorso Storico Naturalistico</p>
     </div>
@@ -624,10 +651,11 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); min-he
     <!-- NOTE OPERATORE (solo cassa, non direttore) -->
     <div id="noteSection" class="note-section" style="display:none;">
       <div class="sec-label" style="margin-bottom:8px;">📝 Note turno</div>
-      <textarea class="note-textarea" id="noteText" placeholder="Annotazioni, comunicazioni, eventi particolari..."></textarea>
+      <div id="noteList" style="margin-bottom:10px;"></div>
+      <textarea class="note-textarea" id="noteText" placeholder="Scrivi una nota..."></textarea>
       <div>
-        <button class="note-save-btn" onclick="saveNote()">Salva nota</button>
-        <span class="note-saved-msg" id="noteSavedMsg">✓ Salvata</span>
+        <button class="note-save-btn" onclick="saveNote()">+ Aggiungi nota</button>
+        <span class="note-saved-msg" id="noteSavedMsg">✓ Aggiunta</span>
       </div>
     </div>
 
@@ -721,6 +749,12 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); min-he
       <button class="btn-export" onclick="resetDay()" style="color:var(--red);border-color:var(--red-border);">🗑 Reset giornata</button>
     </div>
   </div>
+
+  <!-- BOTTONE FLOTTANTE CAMBIO OPERATORE -->
+  <button class="fab-switch" onclick="openSwitchOp()" title="Cambia operatore">
+    <span class="fab-icon">⇄</span>
+    <span class="fab-label" id="fabLabel">—</span>
+  </button>
 
 </div>
 
@@ -963,7 +997,7 @@ let state = {
   operatore: null, isDir: false,
   turnoSel: null, paySel: null,
   vendite: [], turni: {},
-  note: { op1: '', op2: '' }
+  note: { op1: [], op2: [] }
 };
 let cart = {};
 CONFIG.orari.forEach(o => { state.turni[o] = { prenotati: 0 }; });
@@ -993,14 +1027,15 @@ function doLogin() {
     successMsg.textContent = `✓ Benvenuto — ${opName}`;
     successMsg.classList.add('visible');
     box.classList.add('success');
-    document.getElementById('opBadge').textContent = key === 'dir' ? '👑 Direttore' : CONFIG.nomiCasse[key];
     // aggiorna bottoni login con nomi personalizzati
     document.getElementById('opBtn1').textContent = CONFIG.nomiCasse.op1;
     document.getElementById('opBtn2').textContent = CONFIG.nomiCasse.op2;
+    updateOpLabels();
     setTimeout(() => {
       successMsg.classList.remove('visible');
       box.classList.remove('success');
       showScreen('appScreen');
+      updateOpLabels();
       loadTicketCounter();
       renderAll();
       updateSyncBadge();
@@ -1045,8 +1080,7 @@ function doSwitchOp() {
   if (pw === CONFIG.passwords[key]) {
     state.operatore = key;
     state.isDir = (key === 'dir');
-    const nome = key === 'dir' ? '👑 Direttore' : CONFIG.nomiCasse[key];
-    document.getElementById('opBadge').textContent = nome;
+    updateOpLabels();
     closeModal('modalSwitchOp');
     resetSellForm();
     renderUndoBtn();
@@ -1070,6 +1104,14 @@ function doLogout() {
 function showScreen(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
+}
+
+function updateOpLabels() {
+  const nome = state.operatore === 'dir' ? '👑 Direttore' : (CONFIG.nomiCasse[state.operatore] || state.operatore || '—');
+  const el = document.getElementById('opBadge');
+  const fab = document.getElementById('fabLabel');
+  if (el) el.textContent = nome;
+  if (fab) fab.textContent = nome;
 }
 
 // ============================================================
@@ -1522,7 +1564,11 @@ async function eseguiSposta() {
   const liberiNuovo = CONFIG.capMax - state.turni[spostaNewTurno].prenotati;
 
   if (liberiNuovo <= 0) {
-    if (!confirm(`Il turno ${spostaNewTurno} è pieno (0 posti liberi). Spostare comunque?`)) return;
+    const eccesso = totalQty - liberiNuovo;
+    if (!confirm(`⚠️ ATTENZIONE — Turno ${spostaNewTurno} PIENO!\n\nPosti disponibili: 0\nBiglietti da spostare: ${totalQty}\nSuperamento: +${eccesso} rispetto alla capienza (${CONFIG.capMax})\n\nVuoi spostare comunque?`)) return;
+  } else if (liberiNuovo < totalQty) {
+    const eccesso = totalQty - liberiNuovo;
+    if (!confirm(`⚠️ ATTENZIONE — Capienza superata!\n\nPosti disponibili: ${liberiNuovo}\nBiglietti da spostare: ${totalQty}\nSuperamento: +${eccesso} rispetto alla capienza (${CONFIG.capMax})\n\nVuoi spostare comunque?`)) return;
   }
 
   // Aggiorna in memoria
@@ -1549,10 +1595,35 @@ async function eseguiSposta() {
 // ============================================================
 function saveNote() {
   if (!state.operatore || state.operatore === 'dir') return;
-  state.note[state.operatore] = document.getElementById('noteText').value;
+  const txt = document.getElementById('noteText').value.trim();
+  if (!txt) return;
+  const ora = new Date().toLocaleTimeString('it-IT', {hour:'2-digit', minute:'2-digit'});
+  state.note[state.operatore].push({ testo: txt, ora });
+  document.getElementById('noteText').value = '';
+  renderNoteList();
   const msg = document.getElementById('noteSavedMsg');
   msg.classList.add('show');
   setTimeout(() => msg.classList.remove('show'), 2000);
+}
+
+function deleteNote(op, idx) {
+  state.note[op].splice(idx, 1);
+  renderNoteList();
+}
+
+function renderNoteList() {
+  const op = state.operatore;
+  if (!op || op === 'dir') return;
+  const el = document.getElementById('noteList');
+  if (!el) return;
+  const note = state.note[op];
+  if (!note.length) { el.innerHTML = ''; return; }
+  el.innerHTML = note.map((n, i) => `
+    <div class="note-item">
+      <span class="note-item-text">${n.testo}</span>
+      <span class="note-item-meta">${n.ora}</span>
+      <button class="note-item-del" onclick="deleteNote('${op}', ${i})" title="Elimina">✕</button>
+    </div>`).join('');
 }
 
 // ============================================================
@@ -1565,7 +1636,7 @@ function renderCassa() {
   const noteSection = document.getElementById('noteSection');
   if (!isDir && state.operatore && state.operatore !== 'dir') {
     noteSection.style.display = 'block';
-    document.getElementById('noteText').value = state.note[state.operatore] || '';
+    renderNoteList();
   } else {
     noteSection.style.display = 'none';
   }
@@ -1607,10 +1678,13 @@ function renderCassa() {
       const prem = vv.filter(v=>v.tipo==='premium').reduce((a,v)=>a+v.qty,0);
       const ridotto = vv.filter(v=>v.tipo==='ridotto').reduce((a,v)=>a+v.qty,0);
       const nopay = vv.filter(v=>v.tipo==='nopay').reduce((a,v)=>a+v.qty,0);
-      const nota = state.note[op];
+      const note = state.note[op];
+      const noteHTML = note.length
+        ? note.map(n => `<div class="op-note-display visible" style="margin-bottom:4px;">📝 <strong>${n.ora}</strong> — ${n.testo}</div>`).join('')
+        : '';
       return `<div class="op-resoconto">
         <div class="op-name">${CONFIG.nomiCasse[op]}</div>
-        ${nota ? `<div class="op-note-display visible">📝 ${nota}</div>` : ''}
+        ${noteHTML}
         <div class="op-row"><span class="op-row-label">Contanti</span><span class="op-row-val">€ ${cash.toFixed(2).replace('.',',')}</span></div>
         <div class="op-row"><span class="op-row-label">POS</span><span class="op-row-val">€ ${pos.toFixed(2).replace('.',',')}</span></div>
         <div class="op-row"><span class="op-row-label">POS+</span><span class="op-row-val">€ ${posplus.toFixed(2).replace('.',',')}</span></div>
@@ -1663,8 +1737,7 @@ function updateCassaNames() {
   CONFIG.nomiCasse.op1 = document.getElementById('nameCassa1').value || 'Cassa 1';
   CONFIG.nomiCasse.op2 = document.getElementById('nameCassa2').value || 'Cassa 2';
   localStorage.setItem('scopello_nomi', JSON.stringify(CONFIG.nomiCasse));
-  if (state.operatore === 'op1') document.getElementById('opBadge').textContent = CONFIG.nomiCasse.op1;
-  if (state.operatore === 'op2') document.getElementById('opBadge').textContent = CONFIG.nomiCasse.op2;
+  updateOpLabels();
   document.getElementById('opBtn1').textContent = CONFIG.nomiCasse.op1;
   document.getElementById('opBtn2').textContent = CONFIG.nomiCasse.op2;
 }
@@ -1691,7 +1764,7 @@ function checkDirPw() {
   if (pw === CONFIG.passwords.dir) {
     state.isDir = true;
     state.operatore = 'dir';
-    document.getElementById('opBadge').textContent = '👑 Direttore';
+    updateOpLabels();
     closeModal('modalPwDir');
     renderCassa();
   } else {
