@@ -838,7 +838,17 @@ const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 let pendingSync = JSON.parse(localStorage.getItem('pendingSync') || '[]');
 let isOnline = navigator.onLine;
 
-window.addEventListener('online', () => { isOnline = true; syncPending(); updateSyncBadge(); });
+window.addEventListener('online', async () => {
+  isOnline = true;
+  updateSyncBadge();
+  await syncPending();
+  // Dopo sync ricarica dal DB — così le vendite offline appaiono subito
+  if (state.operatore) {
+    state.vendite = [];
+    CONFIG.orari.forEach(o => { state.turni[o] = { prenotati: 0 }; });
+    await loadTodayVendite();
+  }
+});
 window.addEventListener('offline', () => { isOnline = false; updateSyncBadge(); });
 
 function updateSyncBadge() {
@@ -1035,7 +1045,7 @@ function doLogin() {
     document.getElementById('opBtn1').textContent = CONFIG.nomiCasse.op1;
     document.getElementById('opBtn2').textContent = CONFIG.nomiCasse.op2;
     updateOpLabels();
-    setTimeout(() => {
+    setTimeout(async () => {
       successMsg.classList.remove('visible');
       box.classList.remove('success');
       showScreen('appScreen');
@@ -1043,8 +1053,9 @@ function doLogin() {
       loadTicketCounter();
       renderAll();
       updateSyncBadge();
-      syncPending();
-      loadTodayVendite();
+      // Prima sincronizza le vendite offline, poi carica dal DB
+      await syncPending();
+      await loadTodayVendite();
     }, 900);
   } else {
     err.textContent = 'Password non corretta.';
