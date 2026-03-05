@@ -154,6 +154,9 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); min-he
 .turno-chip.selected .t-free { color: var(--sea); }
 .turno-chip.full { opacity: 0.5; cursor: not-allowed; background: var(--s1); }
 .turno-chip.full .t-free { color: var(--red); }
+.turno-chip.past { opacity: 0.35; cursor: not-allowed; background: var(--s1); }
+.turno-chip.past .t-ora { color: var(--muted); }
+.turno-chip.past .t-free { color: var(--muted); font-style: italic; }
 
 /* ===== TICKET CARDS — griglia 2x2 ===== */
 .ticket-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
@@ -1123,6 +1126,23 @@ function updateClock() {
 }
 setInterval(updateClock, 1000); updateClock();
 
+// Ogni minuto ricontrolla i turni: aggiorna chip e deseleziona se il turno selezionato è passato
+setInterval(() => {
+  if (!state.operatore) return;
+  if (state.turnoSel) {
+    const now = new Date();
+    const nowMin = now.getHours() * 60 + now.getMinutes();
+    const [h, m] = state.turnoSel.split(':').map(Number);
+    if (h * 60 + m < nowMin) {
+      state.turnoSel = null;
+      updateSummary();
+    }
+  }
+  if (document.getElementById('tab-vendita').classList.contains('active')) {
+    renderTurniVendita();
+  }
+}, 60000);
+
 function switchTab(name) {
   document.querySelectorAll('.tab-btn').forEach((b,i) => b.classList.toggle('active', ['vendita','turni','storico','cassa'][i] === name));
   document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
@@ -1250,14 +1270,27 @@ function updateCartUI() {
 // VENDITA
 // ============================================================
 function renderTurniVendita() {
+  const now = new Date();
+  const nowMinutes = now.getHours() * 60 + now.getMinutes();
+
   document.getElementById('turniScrollVendita').innerHTML = CONFIG.orari.map(ora => {
     const t = state.turni[ora];
     const liberi = CONFIG.capMax - t.prenotati;
     const full = liberi <= 0;
     const sel = state.turnoSel === ora;
-    return `<div class="turno-chip ${full?'full':''} ${sel?'selected':''}" onclick="${full?'':'selectTurno(\''+ora+'\')'}">
+
+    // Considera passato un turno con orario < ora attuale
+    const [h, m] = ora.split(':').map(Number);
+    const turnoMinutes = h * 60 + m;
+    const past = turnoMinutes < nowMinutes;
+
+    const disabled = full || past;
+    const chipClass = ['turno-chip', full ? 'full' : '', past && !full ? 'past' : '', sel ? 'selected' : ''].filter(Boolean).join(' ');
+    const subLabel = full ? 'Esaurito' : past ? 'Passato' : liberi + ' posti';
+
+    return `<div class="${chipClass}" onclick="${disabled ? '' : "selectTurno('" + ora + "')"}">
       <div class="t-ora">${ora}</div>
-      <div class="t-free">${full ? 'Esaurito' : liberi+' posti'}</div>
+      <div class="t-free">${subLabel}</div>
     </div>`;
   }).join('');
 }
