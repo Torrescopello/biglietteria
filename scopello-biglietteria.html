@@ -307,6 +307,53 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); min-he
 }
 .btn-annulla-dir:active { background: var(--red-bg); }
 
+/* ===== STORICO RAGGRUPPATO ===== */
+.storico-group {
+  background: var(--white); border: 2px solid var(--border); border-radius: 14px;
+  padding: 12px 14px; animation: slide-in 0.2s ease;
+}
+.sg-header {
+  display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;
+}
+.sg-ticket { font-family: var(--fd); font-size: 1.1rem; color: var(--sea); font-weight: 700; }
+.sg-turno { font-size: 0.76rem; font-weight: 700; color: var(--text2); }
+.sg-meta { font-size: 0.68rem; color: var(--muted); font-weight: 600; margin-bottom: 8px; }
+.sg-righe { display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; }
+.sg-riga { display: flex; justify-content: space-between; font-size: 0.82rem; padding: 3px 0; border-bottom: 1px solid var(--s1); }
+.sg-riga:last-child { border-bottom: none; }
+.sg-riga-label { color: var(--text2); font-weight: 600; }
+.sg-riga-val { color: var(--text); font-weight: 700; }
+.sg-footer { display: flex; justify-content: space-between; align-items: center; padding-top: 6px; border-top: 2px solid var(--border); }
+.sg-total { font-family: var(--fd); font-size: 1.3rem; color: var(--text); }
+.sg-pay { font-size: 0.68rem; font-weight: 700; text-transform: uppercase; padding: 3px 8px; border-radius: 6px; }
+.sg-actions { display: flex; gap: 6px; align-items: center; }
+.btn-sposta { font-size: 0.7rem; font-weight: 700; color: var(--sea); background: var(--sea-bg);
+  border: 1.5px solid var(--sea-border); border-radius: 6px; padding: 3px 8px; cursor: pointer; }
+.btn-sposta:active { background: var(--sea); color: #fff; }
+
+/* ===== TURNO DETAIL (tab Turni) ===== */
+.turno-card { cursor: pointer; transition: border-color 0.15s; }
+.turno-card:active { border-color: var(--sea); }
+.turno-tickets-list { margin-top: 10px; border-top: 1px solid var(--s1); padding-top: 8px; display: none; }
+.turno-tickets-list.open { display: block; }
+.tt-group { display: flex; justify-content: space-between; align-items: center;
+  padding: 5px 0; border-bottom: 1px solid var(--s1); font-size: 0.8rem; }
+.tt-group:last-child { border-bottom: none; }
+.tt-num { font-family: var(--fd); font-size: 0.9rem; color: var(--sea); font-weight: 700; min-width: 48px; }
+.tt-desc { color: var(--text2); font-weight: 600; flex: 1; padding: 0 8px; }
+.tt-op { font-size: 0.65rem; color: var(--muted); font-weight: 600; }
+
+/* ===== MODAL SPOSTA TURNO ===== */
+.orari-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; margin-bottom: 14px; }
+.orario-btn {
+  padding: 10px 4px; border-radius: 10px; border: 2px solid var(--border);
+  background: var(--bg); font-family: var(--fu); font-size: 0.8rem; font-weight: 700;
+  cursor: pointer; text-align: center; transition: all 0.12s; color: var(--text2);
+}
+.orario-btn.selected { background: var(--sea-bg); border-color: var(--sea); color: var(--sea); }
+.orario-btn.full { border-color: var(--red-border); color: var(--red); background: var(--red-bg); }
+.orario-btn.current { opacity: 0.4; cursor: not-allowed; }
+
 /* ===== NOTE OPERATORE ===== */
 .note-section {
   background: var(--white); border: 2px solid var(--border); border-radius: 14px;
@@ -718,6 +765,19 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); min-he
     <div class="modal-btns">
       <button class="btn-m btn-m-cancel" onclick="doLogout()" style="color:var(--red);">⏏ Esci</button>
       <button class="btn-m btn-m-ok" onclick="doSwitchOp()">Accedi</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL SPOSTA TURNO -->
+<div class="modal-overlay" id="modalSpostaTurno">
+  <div class="modal">
+    <h2>Sposta ticket</h2>
+    <p id="modalSpostaText"></p>
+    <div class="orari-grid" id="orariGrid"></div>
+    <div class="modal-btns">
+      <button class="btn-m btn-m-cancel" onclick="closeModal('modalSpostaTurno')">Annulla</button>
+      <button class="btn-m btn-m-ok" id="btnConfermaSposta" onclick="eseguiSposta()">↔ Sposta</button>
     </div>
   </div>
 </div>
@@ -1307,7 +1367,28 @@ function renderTurni() {
     const barColor = pct >= 100 ? 'var(--red)' : pct >= 75 ? 'var(--orange)' : 'var(--green)';
     const vBase = state.vendite.filter(v=>v.turno===ora&&v.tipo==='base').reduce((a,v)=>a+v.qty,0);
     const vPrem = state.vendite.filter(v=>v.turno===ora&&v.tipo==='premium').reduce((a,v)=>a+v.qty,0);
-    return `<div class="turno-card">
+
+    // Raggruppa ticket per ticketNum per questo turno
+    const ticketMap = {};
+    state.vendite.filter(v=>v.turno===ora).forEach(v => {
+      if (!ticketMap[v.ticketNum]) ticketMap[v.ticketNum] = { righe: [], ora: v.ora, op: v.operatore };
+      ticketMap[v.ticketNum].righe.push(v);
+    });
+    const ticketKeys = Object.keys(ticketMap).sort();
+    const ticketListHTML = ticketKeys.length === 0
+      ? '<div style="font-size:0.76rem;color:var(--muted);padding:4px 0;">Nessun biglietto venduto</div>'
+      : ticketKeys.map(tNum => {
+          const grp = ticketMap[tNum];
+          const desc = grp.righe.map(v=>`${v.qty}× ${tipoLabel(v.tipo)}`).join(', ');
+          const opLabel = grp.op==='dir'?'Dir':CONFIG.nomiCasse[grp.op]||grp.op;
+          return `<div class="tt-group">
+            <span class="tt-num">${tNum}</span>
+            <span class="tt-desc">${desc}</span>
+            <span class="tt-op">${grp.ora} ${opLabel}</span>
+          </div>`;
+        }).join('');
+
+    return `<div class="turno-card" onclick="toggleTurnoDetail('detail-${ora.replace(':','')}')">
       <div class="turno-card-header">
         <span class="turno-ora">${ora}</span>
         <span class="t-badge ${badgeClass}">${badgeLabel}</span>
@@ -1319,8 +1400,16 @@ function renderTurni() {
         <div class="t-stat"><span class="ts-val">${vBase}</span><span class="ts-lab">base</span></div>
         <div class="t-stat"><span class="ts-val">${vPrem}</span><span class="ts-lab">premium</span></div>
       </div>
+      <div class="turno-tickets-list" id="detail-${ora.replace(':','')}">
+        ${ticketListHTML}
+      </div>
     </div>`;
   }).join('');
+}
+
+function toggleTurnoDetail(id) {
+  const el = document.getElementById(id);
+  if (el) el.classList.toggle('open');
 }
 
 // ============================================================
@@ -1330,22 +1419,45 @@ function renderStorico() {
   const list = document.getElementById('storicoList');
   const vendite = state.isDir ? [...state.vendite] : state.vendite.filter(v => v.operatore === state.operatore);
   if (!vendite.length) { list.innerHTML = '<div class="storico-empty">Nessuna vendita registrata</div>'; return; }
-  list.innerHTML = [...vendite].reverse().map(v => {
-    const opLabel = v.operatore==='dir' ? 'Direttore' : CONFIG.nomiCasse[v.operatore] || v.operatore;
-    const payClass = v.pagamento==='cash'?'cash':v.pagamento==='pos'?'pos':v.pagamento==='posplus'?'posplus':'gratis';
-    const pLabel = payLabel(v.pagamento);
-    const annullaBtn = state.isDir ? `<button class="btn-annulla-dir" onclick="annullaDir(${v.id})">✕ Annulla</button>` : '';
-    return `<div class="storico-item">
-      <div class="si-dot ${v.tipo}"></div>
-      <div class="si-info">
-        <div class="si-main">${v.qty}× ${tipoLabel(v.tipo)} — turno ${v.turno}</div>
-        <div class="si-sub">${v.ora} · ${opLabel}</div>
-        <div class="si-ticket-num">${v.ticketNum || ''}</div>
+
+  // Raggruppa per ticketNum
+  const gruppi = {};
+  [...vendite].reverse().forEach(v => {
+    if (!gruppi[v.ticketNum]) gruppi[v.ticketNum] = [];
+    gruppi[v.ticketNum].push(v);
+  });
+
+  list.innerHTML = Object.entries(gruppi).map(([tNum, righe]) => {
+    const prima = righe[0];
+    const totale = righe.reduce((a,v)=>a+v.totale,0);
+    const opLabel = prima.operatore==='dir'?'Direttore':CONFIG.nomiCasse[prima.operatore]||prima.operatore;
+    const payClass = prima.pagamento==='cash'?'cash':prima.pagamento==='pos'?'pos':prima.pagamento==='posplus'?'posplus':'gratis';
+    const pLabel = payLabel(prima.pagamento);
+
+    const righeHTML = righe.map(v => `
+      <div class="sg-riga">
+        <span class="sg-riga-label">${tipoLabel(v.tipo)}</span>
+        <span class="sg-riga-val">${v.qty}× &nbsp; € ${v.totale.toFixed(2).replace('.',',')}</span>
+      </div>`).join('');
+
+    const annullaBtn = state.isDir
+      ? `<button class="btn-annulla-dir" onclick="annullaDir(${prima.id})">✕</button>` : '';
+    const spostaBtn = `<button class="btn-sposta" onclick="apriSposta('${tNum}')">↔ Sposta</button>`;
+
+    return `<div class="storico-group">
+      <div class="sg-header">
+        <span class="sg-ticket">${tNum}</span>
+        <span class="sg-turno">⏰ ${prima.turno}</span>
       </div>
-      <div class="si-right">
-        <div class="si-amount">€ ${v.totale.toFixed(2).replace('.',',')}</div>
-        <span class="si-pay ${payClass}">${pLabel}</span>
-        ${annullaBtn}
+      <div class="sg-meta">${prima.ora} · ${opLabel}</div>
+      <div class="sg-righe">${righeHTML}</div>
+      <div class="sg-footer">
+        <span class="sg-total">€ ${totale.toFixed(2).replace('.',',')}</span>
+        <div class="sg-actions">
+          <span class="sg-pay ${payClass}">${pLabel}</span>
+          ${spostaBtn}
+          ${annullaBtn}
+        </div>
       </div>
     </div>`;
   }).join('');
@@ -1354,11 +1466,82 @@ function renderStorico() {
 function annullaDir(id) {
   const vendita = state.vendite.find(v => v.id === id);
   if (!vendita) return;
-  // Annulla tutte le righe dello stesso ticket
   const sameTicket = state.vendite.filter(v => v.ticketNum === vendita.ticketNum);
   const righe = sameTicket.map(v => `${v.qty}× ${tipoLabel(v.tipo)}`).join(', ');
   if (!confirm(`Annullare ticket ${vendita.ticketNum}: ${righe} turno ${vendita.turno}?`)) return;
   sameTicket.forEach(v => doAnnullaVendita(v));
+}
+
+// ============================================================
+// SPOSTA TURNO
+// ============================================================
+let spostaTicketNum = null;
+let spostaNewTurno = null;
+
+function apriSposta(ticketNum) {
+  const righe = state.vendite.filter(v => v.ticketNum === ticketNum);
+  if (!righe.length) return;
+  const turnoAttuale = righe[0].turno;
+  const desc = righe.map(v=>`${v.qty}× ${tipoLabel(v.tipo)}`).join(', ');
+  spostaTicketNum = ticketNum;
+  spostaNewTurno = null;
+
+  document.getElementById('modalSpostaText').innerHTML =
+    `Ticket <strong>${ticketNum}</strong> — ${desc}<br>Turno attuale: <strong>${turnoAttuale}</strong><br><br>Seleziona il nuovo turno:`;
+
+  // Costruisce griglia orari
+  document.getElementById('orariGrid').innerHTML = CONFIG.orari.map(ora => {
+    const liberi = CONFIG.capMax - state.turni[ora].prenotati;
+    const isCurrent = ora === turnoAttuale;
+    const isFull = liberi <= 0 && !isCurrent;
+    let cls = isCurrent ? 'orario-btn current' : isFull ? 'orario-btn full' : 'orario-btn';
+    const subLabel = isCurrent ? 'attuale' : liberi <= 0 ? 'pieno' : `${liberi} lib.`;
+    return `<button class="${cls}" onclick="selectSpostaTurno('${ora}')" ${isCurrent?'disabled':''}>
+      ${ora}<br><span style="font-size:0.6rem;font-weight:600;">${subLabel}</span>
+    </button>`;
+  }).join('');
+
+  document.getElementById('btnConfermaSposta').disabled = true;
+  document.getElementById('modalSpostaTurno').classList.add('visible');
+}
+
+function selectSpostaTurno(ora) {
+  spostaNewTurno = ora;
+  document.querySelectorAll('.orario-btn').forEach(b => b.classList.remove('selected'));
+  event.currentTarget.classList.add('selected');
+  document.getElementById('btnConfermaSposta').disabled = false;
+}
+
+async function eseguiSposta() {
+  if (!spostaTicketNum || !spostaNewTurno) return;
+  const righe = state.vendite.filter(v => v.ticketNum === spostaTicketNum);
+  if (!righe.length) return;
+
+  const turnoVecchio = righe[0].turno;
+  const totalQty = righe.reduce((a,v)=>a+v.qty,0);
+  const liberiNuovo = CONFIG.capMax - state.turni[spostaNewTurno].prenotati;
+
+  if (liberiNuovo <= 0) {
+    if (!confirm(`Il turno ${spostaNewTurno} è pieno (0 posti liberi). Spostare comunque?`)) return;
+  }
+
+  // Aggiorna in memoria
+  righe.forEach(v => { v.turno = spostaNewTurno; });
+  state.turni[turnoVecchio].prenotati = Math.max(0, state.turni[turnoVecchio].prenotati - totalQty);
+  state.turni[spostaNewTurno].prenotati += totalQty;
+
+  // Aggiorna nel DB
+  if (isOnline) {
+    for (const v of righe) {
+      if (v.dbId) await db.from('vendite').update({ turno: spostaNewTurno }).eq('id', v.dbId);
+    }
+  }
+
+  closeModal('modalSpostaTurno');
+  renderTurniVendita();
+  renderStorico();
+  if (document.getElementById('tab-turni').classList.contains('active')) renderTurni();
+  if (document.getElementById('tab-cassa').classList.contains('active')) renderCassa();
 }
 
 // ============================================================
