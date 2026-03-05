@@ -52,6 +52,7 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); min-he
   align-items: center; justify-content: center; padding: 20px 16px;
   background: linear-gradient(160deg, #f5f2ed 0%, #ede5d8 100%);
 }
+#loginScreen:not(.active) { display: none; }
 #loginScreen.active { display: flex; }
 
 .login-logo { display: none; }
@@ -1598,6 +1599,8 @@ function saveNote() {
   const txt = document.getElementById('noteText').value.trim();
   if (!txt) return;
   const ora = new Date().toLocaleTimeString('it-IT', {hour:'2-digit', minute:'2-digit'});
+  // Assicura che l'array esista sempre
+  if (!Array.isArray(state.note[state.operatore])) state.note[state.operatore] = [];
   state.note[state.operatore].push({ testo: txt, ora });
   document.getElementById('noteText').value = '';
   renderNoteList();
@@ -1616,13 +1619,14 @@ function renderNoteList() {
   if (!op || op === 'dir') return;
   const el = document.getElementById('noteList');
   if (!el) return;
+  if (!Array.isArray(state.note[op])) state.note[op] = [];
   const note = state.note[op];
   if (!note.length) { el.innerHTML = ''; return; }
   el.innerHTML = note.map((n, i) => `
     <div class="note-item">
       <span class="note-item-text">${n.testo}</span>
       <span class="note-item-meta">${n.ora}</span>
-      <button class="note-item-del" onclick="deleteNote('${op}', ${i})" title="Elimina">✕</button>
+      <button class="note-item-del" onclick="deleteNote('${op}',${i})" title="Elimina">✕</button>
     </div>`).join('');
 }
 
@@ -1678,7 +1682,7 @@ function renderCassa() {
       const prem = vv.filter(v=>v.tipo==='premium').reduce((a,v)=>a+v.qty,0);
       const ridotto = vv.filter(v=>v.tipo==='ridotto').reduce((a,v)=>a+v.qty,0);
       const nopay = vv.filter(v=>v.tipo==='nopay').reduce((a,v)=>a+v.qty,0);
-      const note = state.note[op];
+      const note = Array.isArray(state.note[op]) ? state.note[op] : [];
       const noteHTML = note.length
         ? note.map(n => `<div class="op-note-display visible" style="margin-bottom:4px;">📝 <strong>${n.ora}</strong> — ${n.testo}</div>`).join('')
         : '';
