@@ -841,8 +841,19 @@ let isOnline = navigator.onLine;
 window.addEventListener('online', async () => {
   isOnline = true;
   updateSyncBadge();
+
+  // Se era stato fatto un reset offline, cancella prima dal DB
+  const pendingReset = localStorage.getItem('scopello_pending_reset');
+  if (pendingReset) {
+    await db.from('vendite').delete().eq('data', pendingReset);
+    localStorage.removeItem('scopello_pending_reset');
+    // NON svuotiamo pendingSync qui — reset_day lo ha già fatto al momento del reset.
+    // Le vendite ora in pending sono solo quelle fatte DOPO il reset: vanno sincronizzate.
+  }
+
   await syncPending();
-  // Dopo sync ricarica dal DB — così le vendite offline appaiono subito
+
+  // Ricarica dal DB se loggato
   if (state.operatore) {
     await loadTodayVendite();
   }
@@ -1839,8 +1850,24 @@ function exportCSV() {
   a.click();
 }
 
-function resetDay() {
+async function resetDay() {
   if (!confirm('Sei sicuro di voler resettare tutti i dati della giornata?')) return;
+
+  const today = new Date().toLocaleDateString('it-IT', {year:'numeric',month:'2-digit',day:'2-digit'}).split('/').reverse().join('-');
+
+  // Cancella dal DB se online, altrimenti salva il flag per farlo appena torna la connessione
+  if (isOnline) {
+    await db.from('vendite').delete().eq('data', today);
+  } else {
+    // Segna che va fatto un reset per questa data appena torna online
+    localStorage.setItem('scopello_pending_reset', today);
+  }
+
+  // Svuota la coda offline — niente da sincronizzare dopo un reset
+  pendingSync = [];
+  savePending();
+
+  // Azzera stato locale
   state.vendite = [];
   CONFIG.orari.forEach(o => { state.turni[o] = { prenotati: 0 }; });
   ticketCounter = 0;
