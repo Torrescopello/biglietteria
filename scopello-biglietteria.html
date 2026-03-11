@@ -1848,24 +1848,38 @@ function renderCassa() {
     noteSection.style.display = 'none';
   }
 
-  const totCash = state.vendite.filter(v=>v.pagamento==='cash').reduce((a,v)=>a+v.totale,0);
-  const totPos = state.vendite.filter(v=>v.pagamento==='pos').reduce((a,v)=>a+v.totale,0);
-  const totPosPlus = state.vendite.filter(v=>v.pagamento==='posplus').reduce((a,v)=>a+v.totale,0);
-  const totAll = totCash + totPos + totPosPlus;
-  const totVisit = state.vendite.reduce((a,v)=>a+v.qty,0);
-  const myVendite = state.vendite.filter(v=>v.operatore===state.operatore);
-  const myCash = myVendite.filter(v=>v.pagamento==='cash').reduce((a,v)=>a+v.totale,0);
-  const myPos = myVendite.filter(v=>v.pagamento==='pos').reduce((a,v)=>a+v.totale,0);
-  const myPosPlus = myVendite.filter(v=>v.pagamento==='posplus').reduce((a,v)=>a+v.totale,0);
-  const myTot = myCash + myPos + myPosPlus;
-
   const rimborsi = Array.isArray(state.rimborsi) ? state.rimborsi : [];
-  // I totali mostrano le vendite ATTIVE (già al netto degli annulli — doAnnullaVendita
-  // rimuove da state.vendite). I rimborsi sono informazione separata.
-  const rimbCash    = rimborsi.filter(r => r.rimborsoCon === 'cash').reduce((a,r) => a + r.totale, 0);
-  const rimbPos     = rimborsi.filter(r => r.rimborsoCon === 'pos').reduce((a,r) => a + r.totale, 0);
-  const rimbPosPlus = rimborsi.filter(r => r.rimborsoCon === 'posplus').reduce((a,r) => a + r.totale, 0);
-  const hasRimborsi  = rimborsi.length > 0;
+
+  // Totali: vendite attive + reintegro dei ticket annullati nel loro metodo originale
+  // - se rimborsato: il valore torna nel metodo originale, poi esce dal metodo rimborso
+  // - se non rimborsato: il valore rimane nel metodo originale (i soldi non sono usciti)
+  // Formula: totale = vendite_attive[metodo] + annullati_pagati_con[metodo] - rimborsati_con[metodo]
+  const vendCash    = state.vendite.filter(v=>v.pagamento==='cash').reduce((a,v)=>a+v.totale,0);
+  const vendPos     = state.vendite.filter(v=>v.pagamento==='pos').reduce((a,v)=>a+v.totale,0);
+  const vendPosPlus = state.vendite.filter(v=>v.pagamento==='posplus').reduce((a,v)=>a+v.totale,0);
+
+  // Reintegro: ticket annullati che avevano pagato con quel metodo
+  const reintCash    = rimborsi.filter(r=>r.pagamentoOriginale==='cash').reduce((a,r)=>a+r.totale,0);
+  const reintPos     = rimborsi.filter(r=>r.pagamentoOriginale==='pos').reduce((a,r)=>a+r.totale,0);
+  const reintPosPlus = rimborsi.filter(r=>r.pagamentoOriginale==='posplus').reduce((a,r)=>a+r.totale,0);
+
+  // Uscita: soldi effettivamente rimborsati con quel metodo
+  const rimbCash    = rimborsi.filter(r=>r.rimborsoCon==='cash').reduce((a,r)=>a+r.totale,0);
+  const rimbPos     = rimborsi.filter(r=>r.rimborsoCon==='pos').reduce((a,r)=>a+r.totale,0);
+  const rimbPosPlus = rimborsi.filter(r=>r.rimborsoCon==='posplus').reduce((a,r)=>a+r.totale,0);
+
+  const totCash    = vendCash + reintCash - rimbCash;
+  const totPos     = vendPos  + reintPos  - rimbPos;
+  const totPosPlus = vendPosPlus + reintPosPlus - rimbPosPlus;
+  const totAll     = totCash + totPos + totPosPlus;
+  const totVisit   = state.vendite.reduce((a,v)=>a+v.qty,0);
+  const hasRimborsi = rimborsi.length > 0;
+
+  const myVendite = state.vendite.filter(v=>v.operatore===state.operatore);
+  const myCash    = myVendite.filter(v=>v.pagamento==='cash').reduce((a,v)=>a+v.totale,0);
+  const myPos     = myVendite.filter(v=>v.pagamento==='pos').reduce((a,v)=>a+v.totale,0);
+  const myPosPlus = myVendite.filter(v=>v.pagamento==='posplus').reduce((a,v)=>a+v.totale,0);
+  const myTot     = myCash + myPos + myPosPlus;
 
   const cassaGrid = document.getElementById('cassaGrid');
   if (isDir) {
@@ -1873,15 +1887,18 @@ function renderCassa() {
       <div class="cassa-card cc-cash">
         <div class="cc-label">Contanti</div>
         <div class="cc-val">€ ${totCash.toFixed(2).replace('.',',')}</div>
-        ${rimbCash > 0 ? `<div class="cc-sub" style="color:var(--red)">rimb. € ${rimbCash.toFixed(2).replace('.',',')}</div>` : '<div class="cc-sub">tutte le casse</div>'}
+        <div class="cc-sub" style="${rimbCash>0?'color:var(--red)':''}">${rimbCash>0?'rimb. € '+rimbCash.toFixed(2).replace('.',','):'tutte le casse'}</div>
       </div>
       <div class="cassa-card cc-pos">
         <div class="cc-label">POS</div>
         <div class="cc-val">€ ${totPos.toFixed(2).replace('.',',')}</div>
-        ${rimbPos > 0 ? `<div class="cc-sub" style="color:var(--red)">rimb. € ${rimbPos.toFixed(2).replace('.',',')}</div>` : '<div class="cc-sub">tutte le casse</div>'}
+        <div class="cc-sub" style="${rimbPos>0?'color:var(--red)':''}">${rimbPos>0?'rimb. € '+rimbPos.toFixed(2).replace('.',','):'tutte le casse'}</div>
       </div>
       <div class="cassa-card cc-posplus">
         <div class="cc-label">POS+</div>
+        <div class="cc-val">€ ${totPosPlus.toFixed(2).replace('.',',')}</div>
+        <div class="cc-sub" style="${rimbPosPlus>0?'color:var(--red)':''}">${rimbPosPlus>0?'rimb. € '+rimbPosPlus.toFixed(2).replace('.',','):'tutte le casse'}</div>
+      </div>
         <div class="cc-val">€ ${totPosPlus.toFixed(2).replace('.',',')}</div>
         ${rimbPosPlus > 0 ? `<div class="cc-sub" style="color:var(--red)">rimb. € ${rimbPosPlus.toFixed(2).replace('.',',')}</div>` : '<div class="cc-sub">tutte le casse</div>'}
       </div>
@@ -1904,9 +1921,21 @@ function renderCassa() {
     const opList = ['op1','op2'].concat(state.vendite.some(v=>v.operatore==='dir') ? ['dir'] : []);
     opRes.innerHTML = opList.map(op => {
       const vv = state.vendite.filter(v=>v.operatore===op);
-      const cash = vv.filter(v=>v.pagamento==='cash').reduce((a,v)=>a+v.totale,0);
-      const pos = vv.filter(v=>v.pagamento==='pos').reduce((a,v)=>a+v.totale,0);
-      const posplus = vv.filter(v=>v.pagamento==='posplus').reduce((a,v)=>a+v.totale,0);
+      // Vendite attive
+      const vendCashOp    = vv.filter(v=>v.pagamento==='cash').reduce((a,v)=>a+v.totale,0);
+      const vendPosOp     = vv.filter(v=>v.pagamento==='pos').reduce((a,v)=>a+v.totale,0);
+      const vendPosPlus0p = vv.filter(v=>v.pagamento==='posplus').reduce((a,v)=>a+v.totale,0);
+      // Reintegro annulli di questo operatore (come nei totali globali)
+      const opRimb = rimborsi.filter(r=>r.operatoreCassa===op);
+      const reintCashOp    = opRimb.filter(r=>r.pagamentoOriginale==='cash').reduce((a,r)=>a+r.totale,0);
+      const reintPosOp     = opRimb.filter(r=>r.pagamentoOriginale==='pos').reduce((a,r)=>a+r.totale,0);
+      const reintPosPlusOp = opRimb.filter(r=>r.pagamentoOriginale==='posplus').reduce((a,r)=>a+r.totale,0);
+      const rimbCashOp    = opRimb.filter(r=>r.rimborsoCon==='cash').reduce((a,r)=>a+r.totale,0);
+      const rimbPosOp     = opRimb.filter(r=>r.rimborsoCon==='pos').reduce((a,r)=>a+r.totale,0);
+      const rimbPosPlusOp = opRimb.filter(r=>r.rimborsoCon==='posplus').reduce((a,r)=>a+r.totale,0);
+      const cash    = vendCashOp    + reintCashOp    - rimbCashOp;
+      const pos     = vendPosOp     + reintPosOp     - rimbPosOp;
+      const posplus = vendPosPlus0p + reintPosPlusOp - rimbPosPlusOp;
       const base = vv.filter(v=>v.tipo==='base').reduce((a,v)=>a+v.qty,0);
       const prem = vv.filter(v=>v.tipo==='premium').reduce((a,v)=>a+v.qty,0);
       const ridotto = vv.filter(v=>v.tipo==='ridotto').reduce((a,v)=>a+v.qty,0);
