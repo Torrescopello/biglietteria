@@ -1899,9 +1899,6 @@ function renderCassa() {
         <div class="cc-val">€ ${totPosPlus.toFixed(2).replace('.',',')}</div>
         <div class="cc-sub" style="${rimbPosPlus>0?'color:var(--red)':''}">${rimbPosPlus>0?'rimb. € '+rimbPosPlus.toFixed(2).replace('.',','):'tutte le casse'}</div>
       </div>
-        <div class="cc-val">€ ${totPosPlus.toFixed(2).replace('.',',')}</div>
-        ${rimbPosPlus > 0 ? `<div class="cc-sub" style="color:var(--red)">rimb. € ${rimbPosPlus.toFixed(2).replace('.',',')}</div>` : '<div class="cc-sub">tutte le casse</div>'}
-      </div>
       <div class="cassa-card cc-total" style="grid-column:1/-1">
         <div class="cc-label">Totale Giornata</div>
         <div class="cc-val">€ ${totAll.toFixed(2).replace('.',',')}</div>
