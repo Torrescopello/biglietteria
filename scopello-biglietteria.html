@@ -571,6 +571,13 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); min-he
   font-size: 0.78rem; color: var(--red); font-weight: 600;
 }
 .rimborsi-detail { margin-top: 10px; }
+
+.rimborso-desc { display: flex; flex-direction: column; gap: 2px; flex: 1; padding: 0 8px; }
+.rimborso-pagorig { font-size: 0.7rem; color: var(--muted); font-style: italic; }
+.rimborso-edit-btn {
+  background: none; border: none; cursor: pointer; font-size: 0.85rem;
+  padding: 2px 4px; margin-top: 2px; display: block;
+}
 </style>
 </head>
 <body>
@@ -1647,6 +1654,7 @@ function annullaDir(id) {
   const vendita = state.vendite.find(v => v.id === id);
   if (!vendita) return;
   annullaDirId = id;
+  modificaRimborsoIdx = null;
   rimborsoSel = null;
   // Resetta bottoni
   ['rbNon','rbCash','rbPos','rbPosPlus'].forEach(bid => document.getElementById(bid).classList.remove('selected'));
@@ -1672,12 +1680,21 @@ function selectRimborso(tipo) {
 }
 
 function eseguiAnnullaDir() {
-  if (!annullaDirId || !rimborsoSel) return;
+  if (!rimborsoSel) return;
+  // Modalità MODIFICA rimborso esistente
+  if (modificaRimborsoIdx !== null) {
+    state.rimborsi[modificaRimborsoIdx].rimborsoCon = rimborsoSel;
+    modificaRimborsoIdx = null;
+    closeModal('modalRimborso');
+    if (document.getElementById('tab-cassa').classList.contains('active')) renderCassa();
+    return;
+  }
+  // Modalità NUOVO annullo
+  if (!annullaDirId) return;
   const vendita = state.vendite.find(v => v.id === annullaDirId);
   if (!vendita) return;
   const sameTicket = state.vendite.filter(v => v.ticketNum === vendita.ticketNum);
   const totale = sameTicket.reduce((a,v) => a + v.totale, 0);
-  // Salva rimborso in state
   if (!Array.isArray(state.rimborsi)) state.rimborsi = [];
   state.rimborsi.push({
     ticketNum: vendita.ticketNum,
@@ -1836,14 +1853,11 @@ function renderCassa() {
   const myTot = myCash + myPos + myPosPlus;
 
   const rimborsi = Array.isArray(state.rimborsi) ? state.rimborsi : [];
-  // Rimborsi per metodo pagamento — scalano dalla relativa voce
+  // I totali mostrano le vendite ATTIVE (già al netto degli annulli — doAnnullaVendita
+  // rimuove da state.vendite). I rimborsi sono informazione separata.
   const rimbCash    = rimborsi.filter(r => r.rimborsoCon === 'cash').reduce((a,r) => a + r.totale, 0);
   const rimbPos     = rimborsi.filter(r => r.rimborsoCon === 'pos').reduce((a,r) => a + r.totale, 0);
   const rimbPosPlus = rimborsi.filter(r => r.rimborsoCon === 'posplus').reduce((a,r) => a + r.totale, 0);
-  const nettoCash    = totCash - rimbCash;
-  const nettoPos     = totPos - rimbPos;
-  const nettoPosPlus = totPosPlus - rimbPosPlus;
-  const nettoAll     = nettoCash + nettoPos + nettoPosPlus;
   const hasRimborsi  = rimborsi.length > 0;
 
   const cassaGrid = document.getElementById('cassaGrid');
@@ -1851,22 +1865,22 @@ function renderCassa() {
     cassaGrid.innerHTML = `
       <div class="cassa-card cc-cash">
         <div class="cc-label">Contanti</div>
-        <div class="cc-val">€ ${nettoCash.toFixed(2).replace('.',',')}</div>
-        ${hasRimborsi && rimbCash > 0 ? `<div class="cc-sub" style="color:var(--red)">− € ${rimbCash.toFixed(2).replace('.',',')} rimborsati</div>` : '<div class="cc-sub">tutte le casse</div>'}
+        <div class="cc-val">€ ${totCash.toFixed(2).replace('.',',')}</div>
+        ${rimbCash > 0 ? `<div class="cc-sub" style="color:var(--red)">rimb. € ${rimbCash.toFixed(2).replace('.',',')}</div>` : '<div class="cc-sub">tutte le casse</div>'}
       </div>
       <div class="cassa-card cc-pos">
         <div class="cc-label">POS</div>
-        <div class="cc-val">€ ${nettoPos.toFixed(2).replace('.',',')}</div>
-        ${hasRimborsi && rimbPos > 0 ? `<div class="cc-sub" style="color:var(--red)">− € ${rimbPos.toFixed(2).replace('.',',')} rimborsati</div>` : '<div class="cc-sub">tutte le casse</div>'}
+        <div class="cc-val">€ ${totPos.toFixed(2).replace('.',',')}</div>
+        ${rimbPos > 0 ? `<div class="cc-sub" style="color:var(--red)">rimb. € ${rimbPos.toFixed(2).replace('.',',')}</div>` : '<div class="cc-sub">tutte le casse</div>'}
       </div>
       <div class="cassa-card cc-posplus">
         <div class="cc-label">POS+</div>
-        <div class="cc-val">€ ${nettoPosPlus.toFixed(2).replace('.',',')}</div>
-        ${hasRimborsi && rimbPosPlus > 0 ? `<div class="cc-sub" style="color:var(--red)">− € ${rimbPosPlus.toFixed(2).replace('.',',')} rimborsati</div>` : '<div class="cc-sub">tutte le casse</div>'}
+        <div class="cc-val">€ ${totPosPlus.toFixed(2).replace('.',',')}</div>
+        ${rimbPosPlus > 0 ? `<div class="cc-sub" style="color:var(--red)">rimb. € ${rimbPosPlus.toFixed(2).replace('.',',')}</div>` : '<div class="cc-sub">tutte le casse</div>'}
       </div>
       <div class="cassa-card cc-total" style="grid-column:1/-1">
         <div class="cc-label">Totale Giornata</div>
-        <div class="cc-val">€ ${nettoAll.toFixed(2).replace('.',',')}</div>
+        <div class="cc-val">€ ${totAll.toFixed(2).replace('.',',')}</div>
         <div class="cc-sub">${totVisit} visitatori${hasRimborsi ? ` · ${rimborsi.length} ticket annullati` : ''}</div>
       </div>`;
   } else {
@@ -1879,7 +1893,9 @@ function renderCassa() {
 
   const opRes = document.getElementById('opResoconti');
   if (isDir) {
-    opRes.innerHTML = ['op1','op2'].map(op => {
+    // Includi 'dir' solo se ha vendite, così appare nel resoconto
+    const opList = ['op1','op2'].concat(state.vendite.some(v=>v.operatore==='dir') ? ['dir'] : []);
+    opRes.innerHTML = opList.map(op => {
       const vv = state.vendite.filter(v=>v.operatore===op);
       const cash = vv.filter(v=>v.pagamento==='cash').reduce((a,v)=>a+v.totale,0);
       const pos = vv.filter(v=>v.pagamento==='pos').reduce((a,v)=>a+v.totale,0);
@@ -1888,12 +1904,12 @@ function renderCassa() {
       const prem = vv.filter(v=>v.tipo==='premium').reduce((a,v)=>a+v.qty,0);
       const ridotto = vv.filter(v=>v.tipo==='ridotto').reduce((a,v)=>a+v.qty,0);
       const nopay = vv.filter(v=>v.tipo==='nopay').reduce((a,v)=>a+v.qty,0);
-      const note = Array.isArray(state.note[op]) ? state.note[op] : [];
+      const note = op !== 'dir' && Array.isArray(state.note[op]) ? state.note[op] : [];
       const noteHTML = note.length
         ? note.map(n => `<div class="op-note-display visible" style="margin-bottom:4px;">📝 <strong>${n.ora}</strong> — ${n.testo}</div>`).join('')
         : '';
       return `<div class="op-resoconto">
-        <div class="op-name">${CONFIG.nomiCasse[op]}</div>
+        <div class="op-name">${op === 'dir' ? '👑 Direttore' : CONFIG.nomiCasse[op]}</div>
         ${noteHTML}
         <div class="op-row"><span class="op-row-label">Contanti</span><span class="op-row-val">€ ${cash.toFixed(2).replace('.',',')}</span></div>
         <div class="op-row"><span class="op-row-label">POS</span><span class="op-row-val">€ ${pos.toFixed(2).replace('.',',')}</span></div>
@@ -1917,16 +1933,22 @@ function renderCassa() {
     const righeHtml = rimborsi.map(r => {
       const rbClass = r.rimborsoCon === 'no' ? 'rb-no' : r.rimborsoCon === 'cash' ? 'rb-cash' : r.rimborsoCon === 'pos' ? 'rb-pos' : 'rb-posplus';
       const rbLabel = r.rimborsoCon === 'no' ? 'Non rimborsato' : 'Rimb. ' + payLabel(r.rimborsoCon);
+      const pagOrigLabel = payLabel(r.pagamentoOriginale);
       const opLabel = r.operatoreCassa === 'dir' ? 'Dir' : CONFIG.nomiCasse[r.operatoreCassa] || r.operatoreCassa;
       const amountHtml = r.rimborsoCon !== 'no'
         ? `<span class="rimborso-amount">− € ${r.totale.toFixed(2).replace('.',',')}</span>`
-        : `<span class="rimborso-amount" style="color:var(--muted);font-size:0.8rem;">annullato</span>`;
+        : `<span class="rimborso-amount" style="color:var(--muted);font-size:0.8rem;">non rimb.</span>`;
+      const idx = state.rimborsi.indexOf(r);
       return `<div class="rimborso-row">
         <span class="rimborso-ticket">${r.ticketNum}</span>
-        <span class="rimborso-desc">${r.righe} · turno ${r.turno} · ${opLabel} · ${r.ora}</span>
+        <div class="rimborso-desc">
+          <span>${r.righe} · turno ${r.turno} · ${opLabel} · ${r.ora}</span>
+          <span class="rimborso-pagorig">pagato: ${pagOrigLabel}</span>
+        </div>
         <div class="rimborso-meta">
           ${amountHtml}
           <span class="rimborso-badge ${rbClass}">${rbLabel}</span>
+          <button class="rimborso-edit-btn" onclick="apriModificaRimborso(${idx})" title="Modifica rimborso">✏️</button>
         </div>
       </div>`;
     }).join('');
@@ -2081,6 +2103,28 @@ function toggleRimborsiDetail() {
   const open = detail.style.display !== 'none';
   detail.style.display = open ? 'none' : 'block';
   if (chevron) chevron.textContent = open ? '▼' : '▲';
+}
+
+let modificaRimborsoIdx = null;
+
+function apriModificaRimborso(idx) {
+  const r = state.rimborsi[idx];
+  if (!r) return;
+  modificaRimborsoIdx = idx;
+  annullaDirId = null; // non stiamo annullando, stiamo modificando
+  rimborsoSel = r.rimborsoCon;
+  // Imposta bottoni
+  ['rbNon','rbCash','rbPos','rbPosPlus'].forEach(bid => document.getElementById(bid).classList.remove('selected'));
+  const map = { no:'rbNon', cash:'rbCash', pos:'rbPos', posplus:'rbPosPlus' };
+  if (map[r.rimborsoCon]) document.getElementById(map[r.rimborsoCon]).classList.add('selected');
+  document.getElementById('btnConfermaRimborso').disabled = false;
+  // Testo riepilogo
+  const pagOrigLabel = payLabel(r.pagamentoOriginale);
+  document.getElementById('modalRimborsoText').innerHTML =
+    `Modifica rimborso ticket <strong>${r.ticketNum}</strong><br>
+     ${r.righe} · turno <strong>${r.turno}</strong><br>
+     Pagato con: <strong>${pagOrigLabel}</strong> · Totale: <strong style="color:var(--red)">€ ${r.totale.toFixed(2).replace('.',',')}</strong>`;
+  document.getElementById('modalRimborso').classList.add('visible');
 }
 
 </script>
