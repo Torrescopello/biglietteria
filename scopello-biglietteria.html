@@ -916,6 +916,7 @@ const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // Coda offline
 let pendingSync = JSON.parse(localStorage.getItem('pendingSync') || '[]');
+let _rimborsiStored = JSON.parse(localStorage.getItem('scopello_rimborsi') || '[]');
 let isOnline = navigator.onLine;
 
 window.addEventListener('online', async () => {
@@ -1020,18 +1021,22 @@ async function syncPending() {
 function savePending() {
   localStorage.setItem('pendingSync', JSON.stringify(pendingSync));
 }
+function saveRimborsi() {
+  localStorage.setItem('scopello_rimborsi', JSON.stringify(state.rimborsi));
+}
 
 // Progressivo non più automatico — numero inserito a mano dall'operatore
 
 async function loadTodayVendite() {
   if (!isOnline) return;
+  const storedRimborsi = JSON.parse(localStorage.getItem('scopello_rimborsi') || '[]');
   const today = new Date().toLocaleDateString('it-IT', {year:'numeric',month:'2-digit',day:'2-digit'}).split('/').reverse().join('-');
   const { data, error } = await db.from('vendite').select('*').eq('data', today).order('created_at', { ascending: true });
   if (error || !data) return;
 
   // Azzera sempre prima di ricaricare — evita duplicati
   state.vendite = [];
-  state.rimborsi = [];
+  state.rimborsi = storedRimborsi;  // ripristina rimborsi salvati
   CONFIG.orari.forEach(o => { state.turni[o] = { prenotati: 0 }; });
 
   // Trova il massimo numero ticket già emesso oggi per evitare duplicati
@@ -1684,6 +1689,7 @@ function eseguiAnnullaDir() {
   // Modalità MODIFICA rimborso esistente
   if (modificaRimborsoIdx !== null) {
     state.rimborsi[modificaRimborsoIdx].rimborsoCon = rimborsoSel;
+    saveRimborsi();
     modificaRimborsoIdx = null;
     closeModal('modalRimborso');
     if (document.getElementById('tab-cassa').classList.contains('active')) renderCassa();
@@ -1706,6 +1712,7 @@ function eseguiAnnullaDir() {
     ora: new Date().toLocaleTimeString('it-IT', {hour:'2-digit', minute:'2-digit'}),
     operatoreCassa: sameTicket[0].operatore
   });
+  saveRimborsi();
   closeModal('modalRimborso');
   sameTicket.forEach(v => doAnnullaVendita(v));
   if (document.getElementById('tab-cassa').classList.contains('active')) renderCassa();
@@ -2075,6 +2082,7 @@ async function resetDay() {
   // Azzera stato locale
   state.vendite = [];
   state.rimborsi = [];
+  localStorage.removeItem('scopello_rimborsi');
   CONFIG.orari.forEach(o => { state.turni[o] = { prenotati: 0 }; });
   ticketCounter = 0;
   localStorage.setItem('scopello_ticket_counter', 0);
