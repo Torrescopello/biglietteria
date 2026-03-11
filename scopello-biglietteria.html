@@ -561,6 +561,16 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); min-he
 .cc-rimborsi { border-color: var(--red-border); }
 .cc-rimborsi .cc-val { color: var(--red); font-size: 1.4rem; }
 
+
+/* ===== RIMBORSI ESPANDIBILE ===== */
+.rimborsi-header {
+  display: flex; justify-content: space-between; align-items: center;
+  cursor: pointer; padding: 4px 0; user-select: none;
+}
+.rimborsi-toggle-info {
+  font-size: 0.78rem; color: var(--red); font-weight: 600;
+}
+.rimborsi-detail { margin-top: 10px; }
 </style>
 </head>
 <body>
@@ -1826,19 +1836,39 @@ function renderCassa() {
   const myTot = myCash + myPos + myPosPlus;
 
   const rimborsi = Array.isArray(state.rimborsi) ? state.rimborsi : [];
-  const totRimborsi = rimborsi.reduce((a,r) => a + r.totale, 0);
-  const netto = totAll - totRimborsi;
+  // Rimborsi per metodo pagamento — scalano dalla relativa voce
+  const rimbCash    = rimborsi.filter(r => r.rimborsoCon === 'cash').reduce((a,r) => a + r.totale, 0);
+  const rimbPos     = rimborsi.filter(r => r.rimborsoCon === 'pos').reduce((a,r) => a + r.totale, 0);
+  const rimbPosPlus = rimborsi.filter(r => r.rimborsoCon === 'posplus').reduce((a,r) => a + r.totale, 0);
+  const nettoCash    = totCash - rimbCash;
+  const nettoPos     = totPos - rimbPos;
+  const nettoPosPlus = totPosPlus - rimbPosPlus;
+  const nettoAll     = nettoCash + nettoPos + nettoPosPlus;
+  const hasRimborsi  = rimborsi.length > 0;
 
   const cassaGrid = document.getElementById('cassaGrid');
   if (isDir) {
     cassaGrid.innerHTML = `
-      <div class="cassa-card cc-cash"><div class="cc-label">Contanti lordi</div><div class="cc-val">€ ${totCash.toFixed(2).replace('.',',')}</div><div class="cc-sub">tutte le casse</div></div>
-      <div class="cassa-card cc-pos"><div class="cc-label">POS lordi</div><div class="cc-val">€ ${totPos.toFixed(2).replace('.',',')}</div><div class="cc-sub">tutte le casse</div></div>
-      <div class="cassa-card cc-posplus"><div class="cc-label">POS+ lordi</div><div class="cc-val">€ ${totPosPlus.toFixed(2).replace('.',',')}</div><div class="cc-sub">tutte le casse</div></div>
-      <div class="cassa-card cc-total" style="grid-column:1/-1"><div class="cc-label">Incasso Lordo Giornata</div><div class="cc-val">€ ${totAll.toFixed(2).replace('.',',')}</div><div class="cc-sub">${totVisit} visitatori totali</div></div>
-      ${rimborsi.length > 0 ? `
-      <div class="cassa-card cc-rimborsi" style="grid-column:1/-1"><div class="cc-label">Rimborsi effettuati</div><div class="cc-val">− € ${totRimborsi.toFixed(2).replace('.',',')}</div><div class="cc-sub">${rimborsi.length} ticket annullati</div></div>
-      <div class="cassa-card cc-netto" style="grid-column:1/-1"><div class="cc-label">Incasso Netto Giornata</div><div class="cc-val">€ ${netto.toFixed(2).replace('.',',')}</div><div class="cc-sub">dopo rimborsi</div></div>` : ''}`;
+      <div class="cassa-card cc-cash">
+        <div class="cc-label">Contanti</div>
+        <div class="cc-val">€ ${nettoCash.toFixed(2).replace('.',',')}</div>
+        ${hasRimborsi && rimbCash > 0 ? `<div class="cc-sub" style="color:var(--red)">− € ${rimbCash.toFixed(2).replace('.',',')} rimborsati</div>` : '<div class="cc-sub">tutte le casse</div>'}
+      </div>
+      <div class="cassa-card cc-pos">
+        <div class="cc-label">POS</div>
+        <div class="cc-val">€ ${nettoPos.toFixed(2).replace('.',',')}</div>
+        ${hasRimborsi && rimbPos > 0 ? `<div class="cc-sub" style="color:var(--red)">− € ${rimbPos.toFixed(2).replace('.',',')} rimborsati</div>` : '<div class="cc-sub">tutte le casse</div>'}
+      </div>
+      <div class="cassa-card cc-posplus">
+        <div class="cc-label">POS+</div>
+        <div class="cc-val">€ ${nettoPosPlus.toFixed(2).replace('.',',')}</div>
+        ${hasRimborsi && rimbPosPlus > 0 ? `<div class="cc-sub" style="color:var(--red)">− € ${rimbPosPlus.toFixed(2).replace('.',',')} rimborsati</div>` : '<div class="cc-sub">tutte le casse</div>'}
+      </div>
+      <div class="cassa-card cc-total" style="grid-column:1/-1">
+        <div class="cc-label">Totale Giornata</div>
+        <div class="cc-val">€ ${nettoAll.toFixed(2).replace('.',',')}</div>
+        <div class="cc-sub">${totVisit} visitatori${hasRimborsi ? ` · ${rimborsi.length} ticket annullati` : ''}</div>
+      </div>`;
   } else {
     cassaGrid.innerHTML = `
       <div class="cassa-card cc-cash"><div class="cc-label">Contanti</div><div class="cc-val">€ ${myCash.toFixed(2).replace('.',',')}</div></div>
@@ -1880,26 +1910,35 @@ function renderCassa() {
     opRes.innerHTML = `<button class="btn-export" onclick="openDirPw()" style="color:var(--gold);border-color:var(--gold-border)">🔐 Accedi come Direttore per resoconti completi</button>`;
   }
 
-  // Sezione rimborsi dettaglio
+  // Sezione rimborsi espandibile
   const rimborsiSection = document.getElementById('rimborsiSection');
   if (isDir && rimborsi.length > 0) {
+    const totRimb = rimbCash + rimbPos + rimbPosPlus;
     const righeHtml = rimborsi.map(r => {
       const rbClass = r.rimborsoCon === 'no' ? 'rb-no' : r.rimborsoCon === 'cash' ? 'rb-cash' : r.rimborsoCon === 'pos' ? 'rb-pos' : 'rb-posplus';
-      const rbLabel = r.rimborsoCon === 'no' ? 'Non rimborsato' : 'Rimborso ' + payLabel(r.rimborsoCon);
+      const rbLabel = r.rimborsoCon === 'no' ? 'Non rimborsato' : 'Rimb. ' + payLabel(r.rimborsoCon);
       const opLabel = r.operatoreCassa === 'dir' ? 'Dir' : CONFIG.nomiCasse[r.operatoreCassa] || r.operatoreCassa;
+      const amountHtml = r.rimborsoCon !== 'no'
+        ? `<span class="rimborso-amount">− € ${r.totale.toFixed(2).replace('.',',')}</span>`
+        : `<span class="rimborso-amount" style="color:var(--muted);font-size:0.8rem;">annullato</span>`;
       return `<div class="rimborso-row">
         <span class="rimborso-ticket">${r.ticketNum}</span>
         <span class="rimborso-desc">${r.righe} · turno ${r.turno} · ${opLabel} · ${r.ora}</span>
         <div class="rimborso-meta">
-          <span class="rimborso-amount">− € ${r.totale.toFixed(2).replace('.',',')}</span>
+          ${amountHtml}
           <span class="rimborso-badge ${rbClass}">${rbLabel}</span>
         </div>
       </div>`;
     }).join('');
     rimborsiSection.style.display = 'block';
     rimborsiSection.innerHTML = `<div class="rimborsi-section">
-      <div class="sec-label" style="margin-bottom:10px;">🚫 Ticket annullati</div>
-      ${righeHtml}
+      <div class="rimborsi-header" onclick="toggleRimborsiDetail()">
+        <span class="sec-label" style="margin:0;">🚫 Ticket annullati (${rimborsi.length})</span>
+        <span class="rimborsi-toggle-info">${totRimb > 0 ? `− € ${totRimb.toFixed(2).replace('.',',')} rimborsati` : 'nessun rimborso'} <span id="rimborsiChevron">▼</span></span>
+      </div>
+      <div class="rimborsi-detail" id="rimborsiDetail" style="display:none;">
+        ${righeHtml}
+      </div>
     </div>`;
   } else {
     rimborsiSection.style.display = 'none';
@@ -2035,6 +2074,15 @@ function renderAll() {
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') document.querySelectorAll('.modal-overlay.visible').forEach(m => m.classList.remove('visible'));
 });
+function toggleRimborsiDetail() {
+  const detail = document.getElementById('rimborsiDetail');
+  const chevron = document.getElementById('rimborsiChevron');
+  if (!detail) return;
+  const open = detail.style.display !== 'none';
+  detail.style.display = open ? 'none' : 'block';
+  if (chevron) chevron.textContent = open ? '▼' : '▲';
+}
+
 </script>
 </body>
 </html>
