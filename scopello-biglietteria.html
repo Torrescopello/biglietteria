@@ -1915,7 +1915,11 @@ function renderCassa() {
   const opRes = document.getElementById('opResoconti');
   if (isDir) {
     // Includi 'dir' solo se ha vendite, così appare nel resoconto
-    const opList = ['op1','op2'].concat(state.vendite.some(v=>v.operatore==='dir') ? ['dir'] : []);
+    // Direttore appare se: ha vendite, ha rimborsi, oppure è l'operatore attivo
+    const dirHasActivity = state.operatore === 'dir'
+      || state.vendite.some(v=>v.operatore==='dir')
+      || state.rimborsi.some(r=>r.operatoreCassa==='dir');
+    const opList = ['op1','op2'].concat(dirHasActivity ? ['dir'] : []);
     opRes.innerHTML = opList.map(op => {
       const vv = state.vendite.filter(v=>v.operatore===op);
       // Vendite attive
