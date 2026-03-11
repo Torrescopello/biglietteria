@@ -306,10 +306,11 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); min-he
 
 /* Annulla btn nel storico (direttore) */
 .btn-annulla-dir {
-  background: none; border: none; color: var(--red); font-size: 0.7rem; font-weight: 700;
-  cursor: pointer; padding: 2px 6px; border-radius: 6px; transition: background 0.1s;
+  background: var(--red-bg); border: 2px solid var(--red-border); color: var(--red);
+  font-size: 0.72rem; font-weight: 700; cursor: pointer; padding: 5px 10px;
+  border-radius: 8px; transition: all 0.12s; font-family: var(--fu);
 }
-.btn-annulla-dir:active { background: var(--red-bg); }
+.btn-annulla-dir:active { background: var(--red); color: #fff; }
 
 /* ===== STORICO RAGGRUPPATO ===== */
 .storico-group {
@@ -519,6 +520,47 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); min-he
 .success-flash.show { transform: translate(-50%,-50%) scale(1); opacity: 1; }
 .success-flash .sf-amount { font-family: var(--fd); font-size: 2.4rem; display: block; margin-top: 4px; font-weight: normal; }
 .success-flash .sf-num { font-size: 0.82rem; opacity: 0.85; margin-top: 4px; display: block; }
+
+/* ===== MODAL RIMBORSO ===== */
+.rimborso-pay-row { display: flex; gap: 8px; margin: 14px 0; }
+.rimborso-btn {
+  flex: 1; padding: 12px 6px; border-radius: 10px; border: 2px solid var(--border);
+  background: var(--bg); font-family: var(--fu); font-size: 0.78rem; font-weight: 700;
+  cursor: pointer; text-align: center; transition: all 0.15s; color: var(--text2);
+}
+.rimborso-btn.selected { background: var(--red-bg); border-color: var(--red-border); color: var(--red); }
+.rimborso-btn.no-rimborso.selected { background: var(--s1); border-color: var(--border); color: var(--muted); }
+
+/* ===== RIMBORSI IN CASSA ===== */
+.rimborsi-section {
+  background: var(--white); border: 2px solid var(--red-border); border-radius: 14px;
+  padding: 14px 16px; margin-bottom: 10px;
+}
+.rimborsi-section .sec-label { color: var(--red); }
+.rimborso-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 7px 0; border-bottom: 1px solid var(--s1); font-size: 0.82rem;
+}
+.rimborso-row:last-child { border-bottom: none; }
+.rimborso-ticket { font-family: var(--fd); color: var(--red); font-weight: 700; min-width: 52px; }
+.rimborso-desc { color: var(--text2); font-weight: 600; flex: 1; padding: 0 8px; font-size: 0.78rem; }
+.rimborso-meta { text-align: right; }
+.rimborso-amount { font-family: var(--fd); color: var(--red); font-size: 0.95rem; display: block; }
+.rimborso-badge {
+  font-size: 0.6rem; font-weight: 700; text-transform: uppercase; padding: 2px 6px;
+  border-radius: 5px; display: inline-block; margin-top: 2px;
+}
+.rb-cash { background: var(--green-bg); color: var(--green); }
+.rb-pos  { background: var(--sea-bg); color: var(--sea); }
+.rb-posplus { background: var(--gold-bg); color: var(--gold); }
+.rb-no   { background: var(--s1); color: var(--muted); }
+
+/* Totale netto in cassa */
+.cc-netto { border-color: var(--green); border-width: 3px; }
+.cc-netto .cc-val { color: var(--green); }
+.cc-rimborsi { border-color: var(--red-border); }
+.cc-rimborsi .cc-val { color: var(--red); font-size: 1.4rem; }
+
 </style>
 </head>
 <body>
@@ -668,6 +710,7 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); min-he
 
     <div class="sec-label" style="margin-bottom:10px;">Resoconto operatori</div>
     <div id="opResoconti"></div>
+    <div id="rimborsiSection" style="display:none;"></div>
 
     <div id="settingsSection" style="display:none;">
       <div class="sec-label" style="margin-bottom:10px;">Prezzi & Impostazioni</div>
@@ -820,6 +863,26 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); min-he
   </div>
 </div>
 
+<!-- MODAL RIMBORSO -->
+<div class="modal-overlay" id="modalRimborso">
+  <div class="modal">
+    <h2>Annulla ticket</h2>
+    <p id="modalRimborsoText"></p>
+    <div class="sec-label" style="margin-top:4px;margin-bottom:0;">Il cliente è stato rimborsato?</div>
+    <div class="rimborso-pay-row">
+      <button class="rimborso-btn no-rimborso" id="rbNon" onclick="selectRimborso('no')">✕ Non rimborsato</button>
+      <button class="rimborso-btn" id="rbCash" onclick="selectRimborso('cash')">💵 Contanti</button>
+      <button class="rimborso-btn" id="rbPos" onclick="selectRimborso('pos')">💳 POS</button>
+      <button class="rimborso-btn" id="rbPosPlus" onclick="selectRimborso('posplus')">💳 POS+</button>
+    </div>
+    <div class="modal-btns">
+      <button class="btn-m btn-m-cancel" onclick="closeModal('modalRimborso')">Annulla</button>
+      <button class="btn-m btn-m-ok" id="btnConfermaRimborso" onclick="eseguiAnnullaDir()" disabled
+        style="background:var(--red);border-color:var(--red);">✕ Conferma annullo</button>
+    </div>
+  </div>
+</div>
+
 <div class="success-flash" id="successFlash">
   <span>✓ Vendita registrata</span>
   <span class="sf-amount" id="flashAmount">€ 0,00</span>
@@ -951,6 +1014,7 @@ async function loadTodayVendite() {
 
   // Azzera sempre prima di ricaricare — evita duplicati
   state.vendite = [];
+  state.rimborsi = [];
   CONFIG.orari.forEach(o => { state.turni[o] = { prenotati: 0 }; });
 
   // Trova il massimo numero ticket già emesso oggi per evitare duplicati
@@ -1024,7 +1088,8 @@ let state = {
   operatore: null, isDir: false,
   turnoSel: null, paySel: null,
   vendite: [], turni: {},
-  note: { op1: [], op2: [] }
+  note: { op1: [], op2: [] },
+  rimborsi: []
 };
 let cart = {};
 CONFIG.orari.forEach(o => { state.turni[o] = { prenotati: 0 }; });
@@ -1123,6 +1188,7 @@ function doLogout() {
   closeModal('modalSwitchOp');
   state.operatore = null; state.isDir = false;
   state.vendite = [];
+  state.rimborsi = [];
   CONFIG.orari.forEach(o => { state.turni[o] = { prenotati: 0 }; });
   const u = document.getElementById('undoBtn'); if (u) u.remove();
   resetSellForm();
@@ -1541,7 +1607,7 @@ function renderStorico() {
       </div>`).join('');
 
     const annullaBtn = state.isDir
-      ? `<button class="btn-annulla-dir" onclick="annullaDir(${prima.id})">✕</button>` : '';
+      ? `<button class="btn-annulla-dir" onclick="annullaDir(${prima.id})">🗑 Elimina</button>` : '';
     const spostaBtn = `<button class="btn-sposta" onclick="apriSposta('${tNum}')">↔ Sposta</button>`;
 
     return `<div class="storico-group">
@@ -1563,13 +1629,59 @@ function renderStorico() {
   }).join('');
 }
 
+// Variabili per annullo con rimborso
+let annullaDirId = null;
+let rimborsoSel = null;
+
 function annullaDir(id) {
   const vendita = state.vendite.find(v => v.id === id);
   if (!vendita) return;
+  annullaDirId = id;
+  rimborsoSel = null;
+  // Resetta bottoni
+  ['rbNon','rbCash','rbPos','rbPosPlus'].forEach(bid => document.getElementById(bid).classList.remove('selected'));
+  document.getElementById('btnConfermaRimborso').disabled = true;
+  // Testo riepilogo
   const sameTicket = state.vendite.filter(v => v.ticketNum === vendita.ticketNum);
   const righe = sameTicket.map(v => `${v.qty}× ${tipoLabel(v.tipo)}`).join(', ');
-  if (!confirm(`Annullare ticket ${vendita.ticketNum}: ${righe} turno ${vendita.turno}?`)) return;
+  const totale = sameTicket.reduce((a,v) => a + v.totale, 0);
+  const pagOrig = payLabel(vendita.pagamento);
+  document.getElementById('modalRimborsoText').innerHTML =
+    `Ticket <strong>${vendita.ticketNum}</strong> — ${righe}<br>
+     Turno: <strong>${vendita.turno}</strong> · Pagato con: <strong>${pagOrig}</strong><br>
+     Totale: <strong style="color:var(--red)">€ ${totale.toFixed(2).replace('.',',')}</strong>`;
+  document.getElementById('modalRimborso').classList.add('visible');
+}
+
+function selectRimborso(tipo) {
+  rimborsoSel = tipo;
+  ['rbNon','rbCash','rbPos','rbPosPlus'].forEach(bid => document.getElementById(bid).classList.remove('selected'));
+  const map = { no:'rbNon', cash:'rbCash', pos:'rbPos', posplus:'rbPosPlus' };
+  if (map[tipo]) document.getElementById(map[tipo]).classList.add('selected');
+  document.getElementById('btnConfermaRimborso').disabled = false;
+}
+
+function eseguiAnnullaDir() {
+  if (!annullaDirId || !rimborsoSel) return;
+  const vendita = state.vendite.find(v => v.id === annullaDirId);
+  if (!vendita) return;
+  const sameTicket = state.vendite.filter(v => v.ticketNum === vendita.ticketNum);
+  const totale = sameTicket.reduce((a,v) => a + v.totale, 0);
+  // Salva rimborso in state
+  if (!Array.isArray(state.rimborsi)) state.rimborsi = [];
+  state.rimborsi.push({
+    ticketNum: vendita.ticketNum,
+    turno: vendita.turno,
+    righe: sameTicket.map(v => `${v.qty}× ${tipoLabel(v.tipo)}`).join(', '),
+    totale,
+    pagamentoOriginale: vendita.pagamento,
+    rimborsoCon: rimborsoSel,
+    ora: new Date().toLocaleTimeString('it-IT', {hour:'2-digit', minute:'2-digit'}),
+    operatoreCassa: sameTicket[0].operatore
+  });
+  closeModal('modalRimborso');
   sameTicket.forEach(v => doAnnullaVendita(v));
+  if (document.getElementById('tab-cassa').classList.contains('active')) renderCassa();
 }
 
 // ============================================================
@@ -1713,13 +1825,20 @@ function renderCassa() {
   const myPosPlus = myVendite.filter(v=>v.pagamento==='posplus').reduce((a,v)=>a+v.totale,0);
   const myTot = myCash + myPos + myPosPlus;
 
+  const rimborsi = Array.isArray(state.rimborsi) ? state.rimborsi : [];
+  const totRimborsi = rimborsi.reduce((a,r) => a + r.totale, 0);
+  const netto = totAll - totRimborsi;
+
   const cassaGrid = document.getElementById('cassaGrid');
   if (isDir) {
     cassaGrid.innerHTML = `
-      <div class="cassa-card cc-cash"><div class="cc-label">Contanti</div><div class="cc-val">€ ${totCash.toFixed(2).replace('.',',')}</div><div class="cc-sub">tutte le casse</div></div>
-      <div class="cassa-card cc-pos"><div class="cc-label">POS</div><div class="cc-val">€ ${totPos.toFixed(2).replace('.',',')}</div><div class="cc-sub">tutte le casse</div></div>
-      <div class="cassa-card cc-posplus"><div class="cc-label">POS+</div><div class="cc-val">€ ${totPosPlus.toFixed(2).replace('.',',')}</div><div class="cc-sub">tutte le casse</div></div>
-      <div class="cassa-card cc-total" style="grid-column:1/-1"><div class="cc-label">Incasso Totale Giornata</div><div class="cc-val">€ ${totAll.toFixed(2).replace('.',',')}</div><div class="cc-sub">${totVisit} visitatori totali</div></div>`;
+      <div class="cassa-card cc-cash"><div class="cc-label">Contanti lordi</div><div class="cc-val">€ ${totCash.toFixed(2).replace('.',',')}</div><div class="cc-sub">tutte le casse</div></div>
+      <div class="cassa-card cc-pos"><div class="cc-label">POS lordi</div><div class="cc-val">€ ${totPos.toFixed(2).replace('.',',')}</div><div class="cc-sub">tutte le casse</div></div>
+      <div class="cassa-card cc-posplus"><div class="cc-label">POS+ lordi</div><div class="cc-val">€ ${totPosPlus.toFixed(2).replace('.',',')}</div><div class="cc-sub">tutte le casse</div></div>
+      <div class="cassa-card cc-total" style="grid-column:1/-1"><div class="cc-label">Incasso Lordo Giornata</div><div class="cc-val">€ ${totAll.toFixed(2).replace('.',',')}</div><div class="cc-sub">${totVisit} visitatori totali</div></div>
+      ${rimborsi.length > 0 ? `
+      <div class="cassa-card cc-rimborsi" style="grid-column:1/-1"><div class="cc-label">Rimborsi effettuati</div><div class="cc-val">− € ${totRimborsi.toFixed(2).replace('.',',')}</div><div class="cc-sub">${rimborsi.length} ticket annullati</div></div>
+      <div class="cassa-card cc-netto" style="grid-column:1/-1"><div class="cc-label">Incasso Netto Giornata</div><div class="cc-val">€ ${netto.toFixed(2).replace('.',',')}</div><div class="cc-sub">dopo rimborsi</div></div>` : ''}`;
   } else {
     cassaGrid.innerHTML = `
       <div class="cassa-card cc-cash"><div class="cc-label">Contanti</div><div class="cc-val">€ ${myCash.toFixed(2).replace('.',',')}</div></div>
@@ -1759,6 +1878,31 @@ function renderCassa() {
     }).join('');
   } else {
     opRes.innerHTML = `<button class="btn-export" onclick="openDirPw()" style="color:var(--gold);border-color:var(--gold-border)">🔐 Accedi come Direttore per resoconti completi</button>`;
+  }
+
+  // Sezione rimborsi dettaglio
+  const rimborsiSection = document.getElementById('rimborsiSection');
+  if (isDir && rimborsi.length > 0) {
+    const righeHtml = rimborsi.map(r => {
+      const rbClass = r.rimborsoCon === 'no' ? 'rb-no' : r.rimborsoCon === 'cash' ? 'rb-cash' : r.rimborsoCon === 'pos' ? 'rb-pos' : 'rb-posplus';
+      const rbLabel = r.rimborsoCon === 'no' ? 'Non rimborsato' : 'Rimborso ' + payLabel(r.rimborsoCon);
+      const opLabel = r.operatoreCassa === 'dir' ? 'Dir' : CONFIG.nomiCasse[r.operatoreCassa] || r.operatoreCassa;
+      return `<div class="rimborso-row">
+        <span class="rimborso-ticket">${r.ticketNum}</span>
+        <span class="rimborso-desc">${r.righe} · turno ${r.turno} · ${opLabel} · ${r.ora}</span>
+        <div class="rimborso-meta">
+          <span class="rimborso-amount">− € ${r.totale.toFixed(2).replace('.',',')}</span>
+          <span class="rimborso-badge ${rbClass}">${rbLabel}</span>
+        </div>
+      </div>`;
+    }).join('');
+    rimborsiSection.style.display = 'block';
+    rimborsiSection.innerHTML = `<div class="rimborsi-section">
+      <div class="sec-label" style="margin-bottom:10px;">🚫 Ticket annullati</div>
+      ${righeHtml}
+    </div>`;
+  } else {
+    rimborsiSection.style.display = 'none';
   }
 
   document.getElementById('settingsSection').style.display = isDir ? 'block' : 'none';
@@ -1869,6 +2013,7 @@ async function resetDay() {
 
   // Azzera stato locale
   state.vendite = [];
+  state.rimborsi = [];
   CONFIG.orari.forEach(o => { state.turni[o] = { prenotati: 0 }; });
   ticketCounter = 0;
   localStorage.setItem('scopello_ticket_counter', 0);
