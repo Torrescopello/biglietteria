@@ -293,6 +293,7 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); min-he
 .si-dot.premium { background: var(--gold); }
 .si-dot.ridotto { background: var(--green); }
 .si-dot.nopay { background: var(--purple); }
+.si-dot.upgrade { background: var(--orange); }
 .si-info { flex: 1; }
 .si-main { font-size: 0.86rem; font-weight: 700; color: var(--text); }
 .si-sub { font-size: 0.7rem; color: var(--muted); margin-top: 2px; font-weight: 600; }
@@ -916,6 +917,32 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); min-he
   </div>
 </div>
 
+<!-- MODAL UPGRADE -->
+<div class="modal-overlay" id="modalUpgrade">
+  <div class="modal">
+    <h2>↑ Upgrade Base → Premium</h2>
+    <p id="modalUpgradeText"></p>
+    <div class="sec-label" style="margin-top:4px;margin-bottom:8px;">Quantità da aggiornare</div>
+    <div style="display:flex;align-items:center;gap:16px;margin-bottom:10px;justify-content:center;">
+      <button class="cart-qty-btn" onclick="changeUpgradeQty(-1)">−</button>
+      <span id="upgradeQtyVal" style="font-size:1.6rem;font-weight:800;min-width:30px;text-align:center;">1</span>
+      <button class="cart-qty-btn" onclick="changeUpgradeQty(+1)">+</button>
+    </div>
+    <div id="upgradeTotaleDisplay" style="font-family:var(--fd);font-size:1.3rem;color:var(--orange);text-align:center;margin-bottom:14px;font-weight:700;"></div>
+    <div class="sec-label" style="margin-bottom:6px;">Metodo di pagamento</div>
+    <div class="rimborso-pay-row">
+      <button class="rimborso-btn" id="upgPayCash" onclick="selectUpgradePay('cash')">💵 Contanti</button>
+      <button class="rimborso-btn" id="upgPayPos" onclick="selectUpgradePay('pos')">💳 POS</button>
+      <button class="rimborso-btn" id="upgPayPosPlus" onclick="selectUpgradePay('posplus')">💳 POS+</button>
+    </div>
+    <div class="modal-btns">
+      <button class="btn-m btn-m-cancel" onclick="closeModal('modalUpgrade')">Annulla</button>
+      <button class="btn-m btn-m-ok" id="btnConfermaUpgrade" onclick="eseguiUpgrade()" disabled
+        style="background:var(--orange);border-color:var(--orange);">↑ Conferma upgrade</button>
+    </div>
+  </div>
+</div>
+
 <div class="success-flash" id="successFlash">
   <span>✓ Vendita registrata</span>
   <span class="sf-amount" id="flashAmount">€ 0,00</span>
@@ -1511,7 +1538,7 @@ function updateSummary() {
 }
 
 function tipoLabel(t) {
-  return t === 'base' ? 'Base' : t === 'premium' ? 'Premium' : t === 'ridotto' ? 'Ridotto' : 'Non pagante';
+  return t === 'base' ? 'Base' : t === 'premium' ? 'Premium' : t === 'ridotto' ? 'Ridotto' : t === 'upgrade' ? '↑ Upgrade Base→Premium' : 'Non pagante';
 }
 function payLabel(p) {
   return p === 'cash' ? 'Contanti' : p === 'pos' ? 'POS' : p === 'posplus' ? 'POS+' : 'Gratuito';
@@ -1712,6 +1739,11 @@ function renderStorico() {
     const annullaBtn = state.isDir
       ? `<button class="btn-annulla-dir" onclick="annullaDir(${prima.id})">🗑 Elimina</button>` : '';
     const spostaBtn = `<button class="btn-sposta" onclick="apriSposta('${tNum}')">↔ Sposta</button>`;
+    const hasBase = righe.some(v => v.tipo === 'base');
+    const hasUpgrade = righe.some(v => v.tipo === 'upgrade');
+    const upgradeBtn = hasBase && !hasUpgrade
+      ? `<button class="btn-sposta" onclick="apriUpgrade('${tNum}')" style="background:var(--stone-bg);border-color:var(--stone);color:var(--stone);">↑ Upgrade</button>`
+      : '';
 
     return `<div class="storico-group">
       <div class="sg-header">
@@ -1724,6 +1756,7 @@ function renderStorico() {
         <span class="sg-total">€ ${totale.toFixed(2).replace('.',',')}</span>
         <div class="sg-actions">
           <span class="sg-pay ${payClass}">${pLabel}</span>
+          ${upgradeBtn}
           ${spostaBtn}
           ${annullaBtn}
         </div>
@@ -1798,6 +1831,90 @@ function eseguiAnnullaDir() {
   saveRimborsi();
   closeModal('modalRimborso');
   sameTicket.forEach(v => doAnnullaVendita(v));
+  if (document.getElementById('tab-cassa').classList.contains('active')) renderCassa();
+}
+
+// ============================================================
+// UPGRADE BASE → PREMIUM
+// ============================================================
+let upgradeTicketNum = null;
+let upgradeMaxQty = 0;
+let upgradeQty = 1;
+let upgradePay = null;
+let upgradeDiff = 0;
+
+function apriUpgrade(ticketNum) {
+  const righe = state.vendite.filter(v => v.ticketNum === ticketNum);
+  const baseRiga = righe.find(v => v.tipo === 'base');
+  if (!baseRiga) return;
+  upgradeTicketNum = ticketNum;
+  upgradeDiff = CONFIG.prezzi.premium - CONFIG.prezzi.base;
+  upgradeMaxQty = baseRiga.qty;
+  upgradeQty = baseRiga.qty;
+  upgradePay = null;
+  ['upgPayCash','upgPayPos','upgPayPosPlus'].forEach(id => document.getElementById(id).classList.remove('selected'));
+  document.getElementById('btnConfermaUpgrade').disabled = true;
+  document.getElementById('upgradeQtyVal').textContent = upgradeQty;
+  document.getElementById('modalUpgradeText').innerHTML =
+    `Ticket <strong>${ticketNum}</strong> — turno <strong>${baseRiga.turno}</strong><br>
+     Differenza Base→Premium: +€${upgradeDiff} per biglietto`;
+  updateUpgradeTotale();
+  document.getElementById('modalUpgrade').classList.add('visible');
+}
+
+function changeUpgradeQty(d) {
+  upgradeQty = Math.min(upgradeMaxQty, Math.max(1, upgradeQty + d));
+  document.getElementById('upgradeQtyVal').textContent = upgradeQty;
+  updateUpgradeTotale();
+}
+
+function updateUpgradeTotale() {
+  const tot = upgradeDiff * upgradeQty;
+  document.getElementById('upgradeTotaleDisplay').textContent =
+    `${upgradeQty} × €${upgradeDiff} = €${tot.toFixed(2).replace('.',',')}`;
+}
+
+function selectUpgradePay(tipo) {
+  upgradePay = tipo;
+  ['upgPayCash','upgPayPos','upgPayPosPlus'].forEach(id => document.getElementById(id).classList.remove('selected'));
+  const map = { cash:'upgPayCash', pos:'upgPayPos', posplus:'upgPayPosPlus' };
+  if (map[tipo]) document.getElementById(map[tipo]).classList.add('selected');
+  document.getElementById('btnConfermaUpgrade').disabled = false;
+}
+
+async function eseguiUpgrade() {
+  if (!upgradePay || !upgradeTicketNum) return;
+  const btn = document.getElementById('btnConfermaUpgrade');
+  if (btn) btn.disabled = true;
+  const righe = state.vendite.filter(v => v.ticketNum === upgradeTicketNum);
+  if (!righe.length) return;
+  const baseRiga = righe.find(v => v.tipo === 'base') || righe[0];
+  const now = new Date();
+  const vendita = {
+    id: Date.now() + Math.random(),
+    dbId: null,
+    ora: now.toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'}),
+    turno: baseRiga.turno,
+    tipo: 'upgrade',
+    qty: upgradeQty,
+    prezzo: upgradeDiff,
+    totale: upgradeDiff * upgradeQty,
+    pagamento: upgradePay,
+    operatore: state.operatore,
+    timestamp: now,
+    ticketNum: upgradeTicketNum
+  };
+  state.vendite.push(vendita);
+  await saveVendita(vendita);
+  // Non aggiorna turni.prenotati — la persona è già contata
+  closeModal('modalUpgrade');
+  const tot = upgradeDiff * upgradeQty;
+  const f = document.getElementById('successFlash');
+  document.getElementById('flashAmount').textContent = '+ € ' + tot.toFixed(2).replace('.',',');
+  document.getElementById('flashNum').textContent = upgradeTicketNum + ' ↑ Upgrade';
+  f.classList.add('show');
+  setTimeout(() => f.classList.remove('show'), 3000);
+  renderStorico();
   if (document.getElementById('tab-cassa').classList.contains('active')) renderCassa();
 }
 
@@ -1958,7 +2075,7 @@ function renderCassa() {
   const totPos     = vendPos  + reintPos  - rimbPos;
   const totPosPlus = vendPosPlus + reintPosPlus - rimbPosPlus;
   const totAll     = totCash + totPos + totPosPlus;
-  const totVisit   = state.vendite.reduce((a,v)=>a+v.qty,0);
+  const totVisit   = state.vendite.filter(v=>v.tipo!=='upgrade').reduce((a,v)=>a+v.qty,0);
   const hasRimborsi = rimborsi.length > 0;
 
   const myVendite = state.vendite.filter(v=>v.operatore===state.operatore);
@@ -2027,6 +2144,7 @@ function renderCassa() {
       const prem = vv.filter(v=>v.tipo==='premium').reduce((a,v)=>a+v.qty,0);
       const ridotto = vv.filter(v=>v.tipo==='ridotto').reduce((a,v)=>a+v.qty,0);
       const nopay = vv.filter(v=>v.tipo==='nopay').reduce((a,v)=>a+v.qty,0);
+      const upgr = vv.filter(v=>v.tipo==='upgrade').reduce((a,v)=>a+v.qty,0);
       const note = op !== 'dir' && Array.isArray(state.note[op]) ? state.note[op] : [];
       const noteHTML = note.length
         ? note.map(n => `<div class="op-note-display visible" style="margin-bottom:4px;">📝 <strong>${n.ora}</strong> — ${n.testo}</div>`).join('')
@@ -2042,6 +2160,7 @@ function renderCassa() {
         <div class="op-row"><span class="op-row-label">Premium</span><span class="op-row-val">${prem}</span></div>
         <div class="op-row"><span class="op-row-label">Ridotto</span><span class="op-row-val">${ridotto}</span></div>
         <div class="op-row"><span class="op-row-label">Non paganti</span><span class="op-row-val">${nopay}</span></div>
+        ${upgr > 0 ? `<div class="op-row"><span class="op-row-label">Upgrade B→P</span><span class="op-row-val">${upgr}</span></div>` : ''}
         <div class="op-row"><span class="op-row-label">Tot. biglietti</span><span class="op-row-val">${base+prem+ridotto+nopay}</span></div>
       </div>`;
     }).join('');
