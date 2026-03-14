@@ -4,8 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="Torre di Scopello">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Biglietteria">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#1a1714">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="apple-touch-startup-image" href="icons/icon-512.png">
 <title>Percorso Storico Naturalistico — Torre di Scopello</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
@@ -521,6 +526,17 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); min-he
 .success-flash .sf-amount { font-family: var(--fd); font-size: 2.4rem; display: block; margin-top: 4px; font-weight: normal; }
 .success-flash .sf-num { font-size: 0.82rem; opacity: 0.85; margin-top: 4px; display: block; }
 
+/* ===== ERROR TOAST ===== */
+.error-toast {
+  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px);
+  background: var(--red); color: #fff; border-radius: 12px; padding: 12px 24px;
+  z-index: 300; font-size: 0.88rem; font-weight: 700;
+  box-shadow: 0 4px 16px rgba(192,57,43,0.4);
+  transition: transform 0.3s ease, opacity 0.3s; pointer-events: none; opacity: 0;
+  white-space: nowrap;
+}
+.error-toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+
 /* ===== MODAL RIMBORSO ===== */
 .rimborso-pay-row { display: flex; gap: 8px; margin: 14px 0; }
 .rimborso-btn {
@@ -905,6 +921,7 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); min-he
   <span class="sf-amount" id="flashAmount">€ 0,00</span>
   <span class="sf-num" id="flashNum">#001</span>
 </div>
+<div class="error-toast" id="errorToast"></div>
 
 <script>
 // ============================================================
@@ -915,8 +932,8 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // Coda offline
-let pendingSync = JSON.parse(localStorage.getItem('pendingSync') || '[]');
-let _rimborsiStored = JSON.parse(localStorage.getItem('scopello_rimborsi') || '[]');
+let pendingSync = (() => { try { return JSON.parse(localStorage.getItem('pendingSync') || '[]'); } catch(e) { return []; } })();
+let _rimborsiStored = (() => { try { return JSON.parse(localStorage.getItem('scopello_rimborsi') || '[]'); } catch(e) { return []; } })();
 let isOnline = navigator.onLine;
 
 window.addEventListener('online', async () => {
@@ -1001,7 +1018,8 @@ async function saveVendita(vendita) {
 async function deleteVendita(vendita) {
   if (!vendita.dbId) return;
   if (isOnline) {
-    await db.from('vendite').delete().eq('id', vendita.dbId);
+    const { error } = await db.from('vendite').delete().eq('id', vendita.dbId);
+    if (error) showErrorToast('Errore cancellazione DB: ' + error.message);
   }
 }
 
@@ -1019,17 +1037,17 @@ async function syncPending() {
 }
 
 function savePending() {
-  localStorage.setItem('pendingSync', JSON.stringify(pendingSync));
+  try { localStorage.setItem('pendingSync', JSON.stringify(pendingSync)); } catch(e) { showErrorToast('Spazio locale esaurito: dati offline non salvati'); }
 }
 function saveRimborsi() {
-  localStorage.setItem('scopello_rimborsi', JSON.stringify(state.rimborsi));
+  try { localStorage.setItem('scopello_rimborsi', JSON.stringify(state.rimborsi)); } catch(e) { showErrorToast('Spazio locale esaurito: rimborsi non salvati'); }
 }
 
 // Progressivo non più automatico — numero inserito a mano dall'operatore
 
 async function loadTodayVendite() {
   if (!isOnline) return;
-  const storedRimborsi = JSON.parse(localStorage.getItem('scopello_rimborsi') || '[]');
+  const storedRimborsi = (() => { try { return JSON.parse(localStorage.getItem('scopello_rimborsi') || '[]'); } catch(e) { return []; } })();
   const today = new Date().toLocaleDateString('it-IT', {year:'numeric',month:'2-digit',day:'2-digit'}).split('/').reverse().join('-');
   const { data, error } = await db.from('vendite').select('*').eq('data', today).order('created_at', { ascending: true });
   if (error || !data) return;
@@ -1067,7 +1085,7 @@ async function loadTodayVendite() {
   // Aggiorna counter solo se il DB ha ticket più avanzati
   if (maxTicketNum > ticketCounter) {
     ticketCounter = maxTicketNum;
-    localStorage.setItem('scopello_ticket_counter', ticketCounter);
+    try { localStorage.setItem('scopello_ticket_counter', ticketCounter); } catch(e) {}
   }
 
   // Aggiorna prezzi display senza azzerare il carrello
@@ -1100,6 +1118,10 @@ const CONFIG = {
     if (pw) Object.assign(CONFIG.passwords, pw);
     const nomi = JSON.parse(localStorage.getItem('scopello_nomi'));
     if (nomi) Object.assign(CONFIG.nomiCasse, nomi);
+    const prezzi = JSON.parse(localStorage.getItem('scopello_prezzi'));
+    if (prezzi) Object.assign(CONFIG.prezzi, prezzi);
+    const cap = parseInt(localStorage.getItem('scopello_capmax'));
+    if (!isNaN(cap) && cap > 0) CONFIG.capMax = cap;
     // Aggiorna bottoni login con nomi salvati
     document.getElementById('opBtn1').textContent = CONFIG.nomiCasse.op1;
     document.getElementById('opBtn2').textContent = CONFIG.nomiCasse.op2;
@@ -1272,7 +1294,7 @@ let ticketCounter = 0;
 function getNextTicketNum() {
   ticketCounter++;
   if (ticketCounter > 100) ticketCounter = 1;
-  localStorage.setItem('scopello_ticket_counter', ticketCounter);
+  try { localStorage.setItem('scopello_ticket_counter', ticketCounter); } catch(e) {}
   return '#' + String(ticketCounter).padStart(3, '0');
 }
 
@@ -1538,7 +1560,17 @@ function showFlash(tot, tNum) {
   document.getElementById('flashAmount').textContent = '€ ' + tot.toFixed(2).replace('.',',');
   document.getElementById('flashNum').textContent = tNum;
   f.classList.add('show');
-  setTimeout(() => f.classList.remove('show'), 2000);
+  setTimeout(() => f.classList.remove('show'), 3000);
+}
+
+let _errorToastTimer = null;
+function showErrorToast(msg) {
+  const t = document.getElementById('errorToast');
+  if (!t) return;
+  t.textContent = '⚠ ' + msg;
+  t.classList.add('show');
+  if (_errorToastTimer) clearTimeout(_errorToastTimer);
+  _errorToastTimer = setTimeout(() => t.classList.remove('show'), 4000);
 }
 
 // ============================================================
@@ -1742,7 +1774,7 @@ function apriSposta(ticketNum) {
     const isFull = liberi <= 0 && !isCurrent;
     let cls = isCurrent ? 'orario-btn current' : isFull ? 'orario-btn full' : 'orario-btn';
     const subLabel = isCurrent ? 'attuale' : liberi <= 0 ? 'pieno' : `${liberi} lib.`;
-    return `<button class="${cls}" onclick="selectSpostaTurno('${ora}')" ${isCurrent?'disabled':''}>
+    return `<button class="${cls}" onclick="selectSpostaTurno('${ora}', this)" ${isCurrent?'disabled':''}>
       ${ora}<br><span style="font-size:0.6rem;font-weight:600;">${subLabel}</span>
     </button>`;
   }).join('');
@@ -1751,10 +1783,10 @@ function apriSposta(ticketNum) {
   document.getElementById('modalSpostaTurno').classList.add('visible');
 }
 
-function selectSpostaTurno(ora) {
+function selectSpostaTurno(ora, btn) {
   spostaNewTurno = ora;
   document.querySelectorAll('.orario-btn').forEach(b => b.classList.remove('selected'));
-  event.currentTarget.classList.add('selected');
+  if (btn) btn.classList.add('selected');
   document.getElementById('btnConfermaSposta').disabled = false;
 }
 
@@ -1783,7 +1815,10 @@ async function eseguiSposta() {
   // Aggiorna nel DB
   if (isOnline) {
     for (const v of righe) {
-      if (v.dbId) await db.from('vendite').update({ turno: spostaNewTurno }).eq('id', v.dbId);
+      if (v.dbId) {
+        const { error } = await db.from('vendite').update({ turno: spostaNewTurno }).eq('id', v.dbId);
+        if (error) showErrorToast('Errore aggiornamento turno nel DB: ' + error.message);
+      }
     }
   }
 
@@ -2029,11 +2064,13 @@ function changePrice(tipo, d) {
   document.getElementById('priceBaseDisplay').textContent = '€'+CONFIG.prezzi.base;
   document.getElementById('pricePremiumDisplay').textContent = '€'+CONFIG.prezzi.premium;
   document.getElementById('priceRidottoDisplay').textContent = '€'+CONFIG.prezzi.ridotto;
+  try { localStorage.setItem('scopello_prezzi', JSON.stringify(CONFIG.prezzi)); } catch(e) {}
 }
 
 function changeCap(d) {
   CONFIG.capMax = Math.max(1, Math.min(100, CONFIG.capMax + d));
   document.getElementById('capSet').textContent = CONFIG.capMax;
+  try { localStorage.setItem('scopello_capmax', CONFIG.capMax); } catch(e) {}
 }
 
 function updateCassaNames() {
@@ -2165,6 +2202,12 @@ function apriModificaRimborso(idx) {
   document.getElementById('modalRimborso').classList.add('visible');
 }
 
+// Registra Service Worker per funzionamento offline (PWA)
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').catch(() => {});
+  });
+}
 </script>
 </body>
 </html>

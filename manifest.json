@@ -1,0 +1,25 @@
+{
+  "name": "Torre di Scopello — Biglietteria",
+  "short_name": "Biglietteria",
+  "description": "Cassa biglietti Percorso Storico Naturalistico Torre di Scopello",
+  "start_url": "./scopello-biglietteria.html",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f5f2ed",
+  "theme_color": "#1a1714",
+  "lang": "it",
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
