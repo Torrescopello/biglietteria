@@ -1,4 +1,4 @@
-const CACHE = 'biglietteria-v1';
+const CACHE = 'biglietteria-v2';
 const ASSETS = [
   './scopello-biglietteria.html',
   './manifest.json',
@@ -27,9 +27,17 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
 
-  // Richieste Supabase: sempre network (dati live), fallback silenzioso
+  // Richieste Supabase: sempre network con timeout 8s, fallback silenzioso
   if (url.hostname.includes('supabase.co')) {
-    e.respondWith(fetch(e.request).catch(() => new Response('', { status: 503 })));
+    e.respondWith(
+      Promise.race([
+        fetch(e.request),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 8000))
+      ]).catch(() => new Response(JSON.stringify({ error: 'offline' }), {
+        status: 503,
+        headers: { 'Content-Type': 'application/json' }
+      }))
+    );
     return;
   }
 

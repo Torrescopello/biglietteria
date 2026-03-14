@@ -1041,6 +1041,28 @@ function savePending() {
 }
 function saveRimborsi() {
   try { localStorage.setItem('scopello_rimborsi', JSON.stringify(state.rimborsi)); } catch(e) { showErrorToast('Spazio locale esaurito: rimborsi non salvati'); }
+  if (isOnline) syncRimborsiToDB();
+}
+
+async function syncRimborsiToDB() {
+  const today = new Date().toLocaleDateString('it-IT', {year:'numeric',month:'2-digit',day:'2-digit'}).split('/').reverse().join('-');
+  const row = { data: today, payload: JSON.stringify(state.rimborsi) };
+  // Upsert: crea o aggiorna il record dei rimborsi del giorno
+  await db.from('rimborsi_giornata').upsert(row, { onConflict: 'data' }).catch(() => {});
+}
+
+async function loadRimborsiFromDB() {
+  if (!isOnline) return;
+  const today = new Date().toLocaleDateString('it-IT', {year:'numeric',month:'2-digit',day:'2-digit'}).split('/').reverse().join('-');
+  const { data, error } = await db.from('rimborsi_giornata').select('payload').eq('data', today).single();
+  if (error || !data) return;
+  try {
+    const rimborsiDB = JSON.parse(data.payload);
+    if (Array.isArray(rimborsiDB) && rimborsiDB.length >= state.rimborsi.length) {
+      state.rimborsi = rimborsiDB;
+      try { localStorage.setItem('scopello_rimborsi', data.payload); } catch(e) {}
+    }
+  } catch(e) {}
 }
 
 // Progressivo non più automatico — numero inserito a mano dall'operatore
@@ -1087,6 +1109,9 @@ async function loadTodayVendite() {
     ticketCounter = maxTicketNum;
     try { localStorage.setItem('scopello_ticket_counter', ticketCounter); } catch(e) {}
   }
+
+  // Carica rimborsi dal DB (più aggiornato del localStorage su multi-device)
+  await loadRimborsiFromDB();
 
   // Aggiorna prezzi display senza azzerare il carrello
   document.getElementById('priceBaseDisplay').textContent = '€' + CONFIG.prezzi.base;
@@ -1150,7 +1175,7 @@ function selectOp(op) {
 }
 
 function doLogin() {
-  const pw = document.getElementById('loginPw').value;
+  const pw = document.getElementById('loginPw').value.trim();
   const err = document.getElementById('loginError');
   const key = selectedOp === 1 ? 'op1' : selectedOp === 2 ? 'op2' : 'dir';
   if (pw === CONFIG.passwords[key]) {
@@ -1178,6 +1203,7 @@ function doLogin() {
       // Prima sincronizza le vendite offline, poi carica dal DB
       await syncPending();
       await loadTodayVendite();
+      if (isOnline) startRealtime();
     }, 900);
   } else {
     err.textContent = 'Password non corretta.';
@@ -1212,7 +1238,7 @@ function switchSelectOp(op) {
 }
 
 function doSwitchOp() {
-  const pw = document.getElementById('swPwInput').value;
+  const pw = document.getElementById('swPwInput').value.trim();
   const key = switchSelectedOp === 1 ? 'op1' : switchSelectedOp === 2 ? 'op2' : 'dir';
   if (pw === CONFIG.passwords[key]) {
     state.operatore = key;
@@ -1229,6 +1255,7 @@ function doSwitchOp() {
 }
 
 function doLogout() {
+  stopRealtime();
   closeModal('modalSwitchOp');
   state.operatore = null; state.isDir = false;
   state.vendite = [];
@@ -1281,6 +1308,7 @@ function switchTab(name) {
   document.querySelectorAll('.tab-btn').forEach((b,i) => b.classList.toggle('active', ['vendita','turni','storico','cassa'][i] === name));
   document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
   document.getElementById('tab-'+name).classList.add('active');
+  if (name === 'vendita') { renderTurniVendita(); updateSummary(); }
   if (name === 'turni') renderTurni();
   if (name === 'storico') renderStorico();
   if (name === 'cassa') renderCassa();
@@ -1290,6 +1318,24 @@ function switchTab(name) {
 // TICKET COUNTER
 // ============================================================
 let ticketCounter = 0;
+
+async function syncTicketCounterFromDB() {
+  if (!isOnline) return;
+  const today = new Date().toLocaleDateString('it-IT', {year:'numeric',month:'2-digit',day:'2-digit'}).split('/').reverse().join('-');
+  const { data } = await db.from('vendite').select('ticket_num').eq('data', today).not('ticket_num', 'is', null);
+  if (!data) return;
+  let max = ticketCounter;
+  data.forEach(v => {
+    if (v.ticket_num) {
+      const n = parseInt(v.ticket_num.replace('#',''));
+      if (!isNaN(n) && n > max) max = n;
+    }
+  });
+  if (max > ticketCounter) {
+    ticketCounter = max;
+    try { localStorage.setItem('scopello_ticket_counter', ticketCounter); } catch(e) {}
+  }
+}
 
 function getNextTicketNum() {
   ticketCounter++;
@@ -1483,7 +1529,8 @@ function confirmSale() {
   document.getElementById('modalConferma').classList.add('visible');
 }
 
-function executeSale() {
+async function executeSale() {
+  await syncTicketCounterFromDB();
   const now = new Date();
   const tNum = getNextTicketNum();
   const pago = state.paySel || 'gratis';
@@ -2100,7 +2147,7 @@ function openDirPw() {
   setTimeout(() => document.getElementById('pwDirInput').focus(), 150);
 }
 function checkDirPw() {
-  const pw = document.getElementById('pwDirInput').value;
+  const pw = document.getElementById('pwDirInput').value.trim();
   if (pw === CONFIG.passwords.dir) {
     state.isDir = true;
     state.operatore = 'dir';
@@ -2201,6 +2248,38 @@ function apriModificaRimborso(idx) {
      Pagato con: <strong>${pagOrigLabel}</strong> · Totale: <strong style="color:var(--red)">€ ${r.totale.toFixed(2).replace('.',',')}</strong>`;
   document.getElementById('modalRimborso').classList.add('visible');
 }
+
+// ============================================================
+// REALTIME — aggiornamento automatico quando un'altra cassa vende
+// ============================================================
+let realtimeChannel = null;
+
+function startRealtime() {
+  if (realtimeChannel) return; // già attivo
+  const today = new Date().toLocaleDateString('it-IT', {year:'numeric',month:'2-digit',day:'2-digit'}).split('/').reverse().join('-');
+  realtimeChannel = db
+    .channel('vendite-live')
+    .on('postgres_changes', {
+      event: '*',
+      schema: 'public',
+      table: 'vendite',
+      filter: `data=eq.${today}`
+    }, () => {
+      // Ricarica silenziosamente i dati aggiornati
+      if (state.operatore) loadTodayVendite();
+    })
+    .subscribe();
+}
+
+function stopRealtime() {
+  if (realtimeChannel) {
+    db.removeChannel(realtimeChannel);
+    realtimeChannel = null;
+  }
+}
+
+window.addEventListener('online', () => { if (state.operatore) startRealtime(); });
+window.addEventListener('offline', stopRealtime);
 
 // Registra Service Worker per funzionamento offline (PWA)
 if ('serviceWorker' in navigator) {
