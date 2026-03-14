@@ -1364,7 +1364,7 @@ function applyTicketStart() {
   const val = parseInt(el.value);
   if (isNaN(val) || val < 1 || val > 100) { alert('Inserisci un numero tra 1 e 100.'); return; }
   ticketCounter = val - 1;
-  localStorage.setItem('scopello_ticket_counter', ticketCounter);
+  try { localStorage.setItem('scopello_ticket_counter', ticketCounter); } catch(e) {}
   updateSummary();
   alert(`✓ Prossimo ticket: #${String(val).padStart(3,'0')}`);
 }
@@ -1537,21 +1537,23 @@ async function executeSale() {
   const tot = cartTotal();
   const totalQty = cartTotalQty();
 
-  // Salva una riga per ogni tipo nel carrello
-  Object.entries(cart).filter(([,q])=>q>0).forEach(([tipo, qty]) => {
-    const prezzo = CONFIG.prezzi[tipo];
-    const subtot = prezzo * qty;
-    const vendita = {
-      id: Date.now() + Math.random(),
-      dbId: null,
-      ora: now.toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'}),
-      turno: state.turnoSel, tipo, qty,
-      prezzo, totale: subtot, pagamento: pago,
-      operatore: state.operatore, timestamp: now, ticketNum: tNum
-    };
-    state.vendite.push(vendita);
-    saveVendita(vendita);
-  });
+  // Salva una riga per ogni tipo nel carrello (await per garantire sync DB)
+  await Promise.all(
+    Object.entries(cart).filter(([,q])=>q>0).map(([tipo, qty]) => {
+      const prezzo = CONFIG.prezzi[tipo];
+      const subtot = prezzo * qty;
+      const vendita = {
+        id: Date.now() + Math.random(),
+        dbId: null,
+        ora: now.toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'}),
+        turno: state.turnoSel, tipo, qty,
+        prezzo, totale: subtot, pagamento: pago,
+        operatore: state.operatore, timestamp: now, ticketNum: tNum
+      };
+      state.vendite.push(vendita);
+      return saveVendita(vendita);
+    })
+  );
 
   state.turni[state.turnoSel].prenotati += totalQty;
   closeModal('modalConferma');
@@ -1765,6 +1767,8 @@ function selectRimborso(tipo) {
 
 function eseguiAnnullaDir() {
   if (!rimborsoSel) return;
+  const btn = document.getElementById('btnConfermaRimborso');
+  if (btn) btn.disabled = true; // anti-doppio-click
   // Modalità MODIFICA rimborso esistente
   if (modificaRimborsoIdx !== null) {
     state.rimborsi[modificaRimborsoIdx].rimborsoCon = rimborsoSel;
@@ -2123,7 +2127,7 @@ function changeCap(d) {
 function updateCassaNames() {
   CONFIG.nomiCasse.op1 = document.getElementById('nameCassa1').value || 'Cassa 1';
   CONFIG.nomiCasse.op2 = document.getElementById('nameCassa2').value || 'Cassa 2';
-  localStorage.setItem('scopello_nomi', JSON.stringify(CONFIG.nomiCasse));
+  try { localStorage.setItem('scopello_nomi', JSON.stringify(CONFIG.nomiCasse)); } catch(e) {}
   updateOpLabels();
   document.getElementById('opBtn1').textContent = CONFIG.nomiCasse.op1;
   document.getElementById('opBtn2').textContent = CONFIG.nomiCasse.op2;
@@ -2135,7 +2139,7 @@ function changePassword(key) {
   if (!val) { alert('Inserisci una nuova password.'); return; }
   if (val.length < 4) { alert('La password deve essere di almeno 4 caratteri.'); return; }
   CONFIG.passwords[key] = val;
-  localStorage.setItem('scopello_passwords', JSON.stringify(CONFIG.passwords));
+  try { localStorage.setItem('scopello_passwords', JSON.stringify(CONFIG.passwords)); } catch(e) {}
   document.getElementById(inputId).value = '';
   alert('✓ Password aggiornata e salvata!');
 }
