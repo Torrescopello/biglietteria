@@ -190,6 +190,36 @@ td.td-total { font-family: var(--fd); font-size: 1rem; color: var(--text); }
 .pay-pos { background: var(--sea-bg); color: var(--sea); }
 .pay-posplus { background: var(--gold-bg); color: var(--gold); }
 
+/* ===== TREND BADGE ===== */
+.trend-up { color: var(--green); font-size: 0.72rem; font-weight: 700; }
+.trend-down { color: var(--red); font-size: 0.72rem; font-weight: 700; }
+.trend-neu { color: var(--muted); font-size: 0.72rem; font-weight: 600; }
+
+/* ===== TABELLA TRANSAZIONI ===== */
+.tx-filters { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; align-items: center; }
+.tx-search {
+  border: 1.5px solid var(--border); border-radius: 8px; padding: 7px 12px;
+  font-family: var(--fu); font-size: 0.8rem; color: var(--text); background: var(--bg);
+  outline: none; min-width: 180px; flex: 1;
+}
+.tx-search:focus { border-color: var(--sea); }
+.tx-filter-btn {
+  padding: 6px 14px; border-radius: 20px; border: 1.5px solid var(--border);
+  background: none; font-family: var(--fu); font-size: 0.74rem; font-weight: 600;
+  color: var(--text2); cursor: pointer; transition: all 0.15s; white-space: nowrap;
+}
+.tx-filter-btn.active { background: var(--text); color: #fff; border-color: var(--text); }
+.tx-count { font-size: 0.72rem; color: var(--muted); margin-left: auto; }
+td.td-time { color: var(--muted); font-size: 0.78rem; }
+td.td-op { font-size: 0.78rem; }
+.tipo-pill {
+  display: inline-block; padding: 2px 8px; border-radius: 6px; font-size: 0.68rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.06em;
+}
+.tipo-base { background: var(--sea-bg); color: var(--sea); }
+.tipo-premium { background: var(--gold-bg); color: var(--gold); }
+.tipo-upgrade { background: #f3eafa; color: #7b3fa0; }
+
 /* ===== LOADING ===== */
 .loading {
   text-align: center; padding: 60px 20px; color: var(--muted);
@@ -293,6 +323,21 @@ td.td-total { font-family: var(--fd); font-size: 1rem; color: var(--text); }
         <div class="kpi-val" id="kpiGiorni">—</div>
         <div class="kpi-sub">con almeno 1 vendita</div>
       </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Ora di punta</div>
+        <div class="kpi-val" id="kpiOraPunta">—</div>
+        <div class="kpi-sub" id="kpiOraPuntaSub">visitatori</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Giorno migliore</div>
+        <div class="kpi-val" id="kpiGiornoTop">—</div>
+        <div class="kpi-sub" id="kpiGiornoTopSub">nel periodo</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">vs periodo prec.</div>
+        <div class="kpi-val" id="kpiTrend">—</div>
+        <div class="kpi-sub" id="kpiTrendSub">confronto incasso</div>
+      </div>
     </div>
 
     <!-- CHARTS -->
@@ -307,6 +352,13 @@ td.td-total { font-family: var(--fd); font-size: 1rem; color: var(--text); }
         <div class="chart-sub">Base vs Premium</div>
         <div class="chart-wrap"><canvas id="chartTipi"></canvas></div>
       </div>
+    </div>
+
+    <!-- CHART ORE -->
+    <div class="chart-card" style="margin-bottom:20px">
+      <div class="chart-title">Ore di punta</div>
+      <div class="chart-sub">Distribuzione visitatori per turno nel periodo</div>
+      <div class="chart-wrap"><canvas id="chartOre"></canvas></div>
     </div>
 
     <!-- BREAKDOWN -->
@@ -325,13 +377,29 @@ td.td-total { font-family: var(--fd); font-size: 1rem; color: var(--text); }
       </div>
     </div>
 
-    <!-- TABELLA -->
+    <!-- TABELLA GIORNALIERA -->
     <div class="table-card">
       <div class="table-header">
         <div class="table-title">Riepilogo per giorno</div>
         <button class="btn-csv" onclick="exportCSV()">📥 Esporta CSV</button>
       </div>
       <div id="tableWrap"><div class="loading"><div class="loading-spinner"></div>Caricamento dati...</div></div>
+    </div>
+
+    <!-- TABELLA TRANSAZIONI -->
+    <div class="table-card">
+      <div class="table-header">
+        <div class="table-title">Dettaglio transazioni</div>
+      </div>
+      <div class="tx-filters">
+        <input class="tx-search" type="text" id="txSearch" placeholder="Cerca per turno, tipo, operatore..." oninput="renderTransazioni()">
+        <button class="tx-filter-btn active" onclick="setTxFilter('all',this)">Tutti</button>
+        <button class="tx-filter-btn" onclick="setTxFilter('base',this)">Base</button>
+        <button class="tx-filter-btn" onclick="setTxFilter('premium',this)">Premium</button>
+        <button class="tx-filter-btn" onclick="setTxFilter('upgrade',this)">Upgrade</button>
+        <span class="tx-count" id="txCount"></span>
+      </div>
+      <div id="txWrap"><div class="loading"><div class="loading-spinner"></div>Caricamento...</div></div>
     </div>
 
   </div>
@@ -345,7 +413,9 @@ const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let currentPeriod = 'today';
 let allData = [];
-let chartGiorni = null, chartTipi = null;
+let prevData = [];
+let chartGiorni = null, chartTipi = null, chartOre = null;
+let txFilter = 'all';
 
 // ===== LOGIN =====
 function repLogin() {
@@ -412,11 +482,26 @@ function getDateRange() {
 }
 
 // ===== LOAD DATA =====
+function getPrevDateRange() {
+  const { from, to } = getDateRange();
+  const f = new Date(from), t = new Date(to);
+  const days = Math.round((t - f) / 86400000) + 1;
+  const pf = new Date(f); pf.setDate(pf.getDate() - days);
+  const pt = new Date(t); pt.setDate(pt.getDate() - days);
+  const fmt = d => d.toISOString().split('T')[0];
+  return { from: fmt(pf), to: fmt(pt) };
+}
+
 async function loadData() {
   const { from, to } = getDateRange();
-  const { data, error } = await db.from('vendite').select('*').gte('data', from).lte('data', to).order('created_at', { ascending: true });
-  if (error) { console.error(error); return; }
-  allData = data || [];
+  const prev = getPrevDateRange();
+  const [res, resPrev] = await Promise.all([
+    db.from('vendite').select('*').gte('data', from).lte('data', to).order('created_at', { ascending: false }),
+    db.from('vendite').select('*').gte('data', prev.from).lte('data', prev.to)
+  ]);
+  if (res.error) { console.error(res.error); return; }
+  allData = res.data || [];
+  prevData = resPrev.data || [];
   document.getElementById('lastUpdate').textContent = 'Aggiornato: ' + new Date().toLocaleTimeString('it-IT', {hour:'2-digit',minute:'2-digit'});
   renderAll();
 }
@@ -426,8 +511,10 @@ function renderAll() {
   renderKPI();
   renderChartGiorni();
   renderChartTipi();
+  renderChartOre();
   renderBreakdown();
   renderTable();
+  renderTransazioni();
 }
 
 function fmt(n) { return '€ ' + Number(n).toFixed(2).replace('.', ','); }
@@ -445,6 +532,42 @@ function renderKPI() {
   document.getElementById('kpiMedia').textContent = fmt(media);
   document.getElementById('kpiGiorni').textContent = giorni;
   document.getElementById('kpiIncassoSub').textContent = `${transazioni} transazioni`;
+
+  // Ora di punta
+  const turniCount = {};
+  allData.forEach(v => { turniCount[v.turno] = (turniCount[v.turno]||0) + v.qty; });
+  const topTurno = Object.entries(turniCount).sort((a,b)=>b[1]-a[1])[0];
+  document.getElementById('kpiOraPunta').textContent = topTurno ? topTurno[0] : '—';
+  document.getElementById('kpiOraPuntaSub').textContent = topTurno ? `${topTurno[1]} visitatori` : 'nessun dato';
+
+  // Giorno migliore
+  const byDay = {};
+  allData.forEach(v => { byDay[v.data] = (byDay[v.data]||0) + Number(v.totale); });
+  const topDay = Object.entries(byDay).sort((a,b)=>b[1]-a[1])[0];
+  if (topDay) {
+    const [y,m,d] = topDay[0].split('-');
+    document.getElementById('kpiGiornoTop').textContent = `${d}/${m}`;
+    document.getElementById('kpiGiornoTopSub').textContent = fmt(topDay[1]);
+  } else {
+    document.getElementById('kpiGiornoTop').textContent = '—';
+    document.getElementById('kpiGiornoTopSub').textContent = 'nessun dato';
+  }
+
+  // Trend vs periodo precedente
+  const prevTotale = prevData.reduce((a,v) => a + Number(v.totale), 0);
+  const kpiTrend = document.getElementById('kpiTrend');
+  const kpiTrendSub = document.getElementById('kpiTrendSub');
+  if (prevTotale > 0) {
+    const pct = ((totale - prevTotale) / prevTotale * 100);
+    const sign = pct >= 0 ? '+' : '';
+    kpiTrend.textContent = `${sign}${pct.toFixed(0)}%`;
+    kpiTrend.className = 'kpi-val ' + (pct >= 0 ? 'trend-up' : 'trend-down');
+    kpiTrendSub.textContent = `prec. ${fmt(prevTotale)}`;
+  } else {
+    kpiTrend.textContent = '—';
+    kpiTrend.className = 'kpi-val trend-neu';
+    kpiTrendSub.textContent = 'nessun periodo prec.';
+  }
 }
 
 function renderChartGiorni() {
@@ -627,6 +750,106 @@ function renderTable() {
         </tr>
       </tbody>
     </table>`;
+}
+
+// ===== CHART ORE =====
+function renderChartOre() {
+  const turniCount = {};
+  allData.forEach(v => { turniCount[v.turno] = (turniCount[v.turno]||0) + v.qty; });
+  const labels = Object.keys(turniCount).sort();
+  const values = labels.map(k => turniCount[k]);
+
+  if (chartOre) chartOre.destroy();
+  const ctx = document.getElementById('chartOre').getContext('2d');
+  chartOre = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Visitatori',
+        data: values,
+        backgroundColor: labels.map((_, i) => {
+          const mx = Math.max(...values);
+          const v = values[i];
+          return v === mx ? 'rgba(139,105,20,0.7)' : 'rgba(139,105,20,0.18)';
+        }),
+        borderColor: 'rgba(139,105,20,0.7)',
+        borderWidth: 1.5,
+        borderRadius: 6,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        y: { grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { font: { size: 11 } }, beginAtZero: true },
+        x: { grid: { display: false }, ticks: { font: { size: 11 } } }
+      }
+    }
+  });
+}
+
+// ===== TRANSAZIONI =====
+function setTxFilter(f, btn) {
+  txFilter = f;
+  document.querySelectorAll('.tx-filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderTransazioni();
+}
+
+function renderTransazioni() {
+  const query = (document.getElementById('txSearch').value || '').toLowerCase();
+  const ops = { op1: 'Cassa 1', op2: 'Cassa 2', dir: 'Direttore' };
+  let data = allData.filter(v => {
+    if (txFilter !== 'all' && v.tipo !== txFilter) return false;
+    if (query) {
+      const hay = [v.turno, v.tipo, ops[v.operatore]||v.operatore, v.pagamento, v.data].join(' ').toLowerCase();
+      if (!hay.includes(query)) return false;
+    }
+    return true;
+  });
+
+  document.getElementById('txCount').textContent = `${data.length} transazioni`;
+
+  if (!data.length) {
+    document.getElementById('txWrap').innerHTML = '<div class="empty">Nessuna transazione trovata</div>';
+    return;
+  }
+
+  const payLabels = { cash: 'Contanti', pos: 'POS', posplus: 'POS+' };
+  document.getElementById('txWrap').innerHTML = `
+    <div style="overflow-x:auto">
+    <table>
+      <thead><tr>
+        <th>Data</th>
+        <th>Ora</th>
+        <th>Turno</th>
+        <th>Tipo</th>
+        <th>Qty</th>
+        <th>Pagamento</th>
+        <th>Operatore</th>
+        <th>Totale</th>
+      </tr></thead>
+      <tbody>
+        ${data.map(v => {
+          const [y,m,dd] = v.data.split('-');
+          const ora = v.created_at ? new Date(v.created_at).toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'}) : '—';
+          const tipoClass = v.tipo==='base'?'tipo-base':v.tipo==='premium'?'tipo-premium':'tipo-upgrade';
+          const payClass = v.pagamento==='cash'?'pay-cash':v.pagamento==='pos'?'pay-pos':'pay-posplus';
+          return `<tr>
+            <td class="td-date">${dd}/${m}/${y}</td>
+            <td class="td-time">${ora}</td>
+            <td>${v.turno||'—'}</td>
+            <td><span class="tipo-pill ${tipoClass}">${v.tipo}</span></td>
+            <td>${v.qty}</td>
+            <td><span class="pay-pill ${payClass}">${payLabels[v.pagamento]||v.pagamento}</span></td>
+            <td class="td-op">${ops[v.operatore]||v.operatore||'—'}</td>
+            <td class="td-total">${fmt(v.totale)}</td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>
+    </div>`;
 }
 
 // ===== EXPORT CSV =====
