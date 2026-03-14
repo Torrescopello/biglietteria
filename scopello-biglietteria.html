@@ -595,6 +595,89 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); min-he
   background: none; border: none; cursor: pointer; font-size: 0.85rem;
   padding: 2px 4px; margin-top: 2px; display: block;
 }
+
+/* ===== RESPONSIVE TABLET / iPad (768px+) ===== */
+@media (min-width: 768px) {
+  .login-box { max-width: 440px; padding: 32px 28px; }
+  .login-box h2 { font-size: 1.3rem; }
+  .login-box .desc { font-size: 0.86rem; }
+  .field-label { font-size: 0.76rem; }
+  .field-input { font-size: 1.1rem; padding: 14px 16px; }
+  .op-btn { font-size: 0.9rem; padding: 12px 8px; }
+  .btn-login { font-size: 1rem; padding: 15px; }
+
+  .topbar { padding: 12px 28px; }
+  .topbar-brand h1 { font-size: 1.3rem; }
+  .topbar-brand p { font-size: 0.72rem; }
+  .op-badge { font-size: 0.85rem !important; padding: 6px 16px; }
+  .top-clock { font-size: 1.5rem; }
+
+  .tab-btn { font-size: 0.88rem; padding: 16px 8px; }
+
+  .tab-content { padding: 24px 28px; max-width: 900px; margin: 0 auto; }
+
+  .ticket-cards { grid-template-columns: repeat(4, 1fr); gap: 14px; }
+  .ticket-card { padding: 22px 14px; }
+  .ticket-card .tc-icon { font-size: 2rem; }
+  .ticket-card .tc-name { font-size: 0.9rem; }
+  .ticket-card .tc-price { font-size: 2rem; }
+
+  .turno-chip { min-width: 96px; padding: 13px 16px; }
+  .turno-chip .t-ora { font-size: 1.2rem; }
+  .turno-chip .t-free { font-size: 0.76rem; }
+
+  .pay-row { gap: 12px; }
+  .pay-btn { padding: 20px 12px; font-size: 0.92rem; }
+  .pay-btn .pay-icon { font-size: 2rem; }
+
+  .sell-summary { padding: 18px 22px; }
+  .sum-row { font-size: 1rem; }
+  .sum-total { font-size: 2.2rem; }
+
+  .cassa-grid { grid-template-columns: repeat(4, 1fr); gap: 14px; }
+  .cassa-card { padding: 20px 16px; }
+  .cc-label { font-size: 0.76rem; }
+  .cc-val { font-size: 1.9rem; }
+  .cc-total .cc-val { font-size: 2.4rem; }
+
+  .btn-confirm { font-size: 1.2rem; padding: 22px; }
+  .btn-export { font-size: 0.9rem; padding: 15px; }
+
+  .sec-label { font-size: 0.78rem; }
+  .storico-item { padding: 16px 18px; }
+  .si-main { font-size: 1rem; }
+  .si-sub { font-size: 0.82rem; }
+  .si-amount { font-size: 1.3rem; }
+
+  .turno-card { padding: 18px 22px; }
+  .turno-ora { font-size: 1.7rem; }
+  .t-badge { font-size: 0.8rem; padding: 6px 14px; }
+
+  .modal { max-width: 480px; padding: 32px 28px; }
+  .modal h2 { font-size: 1.6rem; }
+  .modal p { font-size: 0.94rem; }
+
+  .settings-section { padding: 18px 22px; }
+  .settings-row-label { font-size: 0.94rem; }
+  .s-val { font-size: 1.1rem; }
+
+  .fab-switch { bottom: 32px; right: 32px; padding: 13px 20px 13px 16px; }
+  .fab-label { font-size: 0.86rem; max-width: 120px; }
+}
+
+/* ===== RESPONSIVE DESKTOP (1024px+) ===== */
+@media (min-width: 1024px) {
+  .tab-content { max-width: 1100px; padding: 28px 40px; }
+
+  .ticket-cards { grid-template-columns: repeat(4, 1fr); gap: 18px; }
+
+  .cassa-grid { grid-template-columns: repeat(4, 1fr); }
+
+  .turni-grid { grid-template-columns: repeat(2, 1fr); }
+
+  .storico-list { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .storico-group { break-inside: avoid; }
+}
 </style>
 </head>
 <body>
@@ -962,6 +1045,25 @@ const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 let pendingSync = (() => { try { return JSON.parse(localStorage.getItem('pendingSync') || '[]'); } catch(e) { return []; } })();
 let _rimborsiStored = (() => { try { return JSON.parse(localStorage.getItem('scopello_rimborsi') || '[]'); } catch(e) { return []; } })();
 let isOnline = navigator.onLine;
+
+// Heartbeat: verifica connessione reale ogni 30s (navigator.onLine non è affidabile)
+async function checkRealConnectivity() {
+  try {
+    const res = await fetch('https://www.gstatic.com/generate_204', { method: 'HEAD', cache: 'no-store', signal: AbortSignal.timeout(5000) });
+    return res.status === 204 || res.ok;
+  } catch { return false; }
+}
+setInterval(async () => {
+  const wasOnline = isOnline;
+  isOnline = await checkRealConnectivity();
+  if (isOnline !== wasOnline) {
+    updateSyncBadge();
+    if (isOnline) {
+      await syncPending();
+      await loadTodayVendite();
+    }
+  }
+}, 30000);
 
 window.addEventListener('online', async () => {
   isOnline = true;
@@ -1737,7 +1839,7 @@ function renderStorico() {
       </div>`).join('');
 
     const annullaBtn = state.isDir
-      ? `<button class="btn-annulla-dir" onclick="annullaDir(${prima.id})">🗑 Elimina</button>` : '';
+      ? `<button class="btn-annulla-dir" data-vid="${prima.id}" onclick="annullaDir(this.dataset.vid*1)">🗑 Elimina</button>` : '';
     const spostaBtn = `<button class="btn-sposta" onclick="apriSposta('${tNum}')">↔ Sposta</button>`;
     const hasBase = righe.some(v => v.tipo === 'base');
     const hasUpgrade = righe.some(v => v.tipo === 'upgrade');
@@ -2128,7 +2230,7 @@ function renderCassa() {
       // Vendite attive
       const vendCashOp    = vv.filter(v=>v.pagamento==='cash').reduce((a,v)=>a+v.totale,0);
       const vendPosOp     = vv.filter(v=>v.pagamento==='pos').reduce((a,v)=>a+v.totale,0);
-      const vendPosPlus0p = vv.filter(v=>v.pagamento==='posplus').reduce((a,v)=>a+v.totale,0);
+      const vendPosPlusOp = vv.filter(v=>v.pagamento==='posplus').reduce((a,v)=>a+v.totale,0);
       // Reintegro annulli di questo operatore (come nei totali globali)
       const opRimb = rimborsi.filter(r=>r.operatoreCassa===op);
       const reintCashOp    = opRimb.filter(r=>r.pagamentoOriginale==='cash').reduce((a,r)=>a+r.totale,0);
@@ -2139,7 +2241,7 @@ function renderCassa() {
       const rimbPosPlusOp = opRimb.filter(r=>r.rimborsoCon==='posplus').reduce((a,r)=>a+r.totale,0);
       const cash    = vendCashOp    + reintCashOp    - rimbCashOp;
       const pos     = vendPosOp     + reintPosOp     - rimbPosOp;
-      const posplus = vendPosPlus0p + reintPosPlusOp - rimbPosPlusOp;
+      const posplus = vendPosPlusOp + reintPosPlusOp - rimbPosPlusOp;
       const base = vv.filter(v=>v.tipo==='base').reduce((a,v)=>a+v.qty,0);
       const prem = vv.filter(v=>v.tipo==='premium').reduce((a,v)=>a+v.qty,0);
       const ridotto = vv.filter(v=>v.tipo==='ridotto').reduce((a,v)=>a+v.qty,0);
