@@ -875,7 +875,7 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); min-he
         <div class="settings-row-item">
           <span class="settings-row-label">Primo ticket del giorno</span>
           <div class="settings-val-row">
-            <input type="number" id="ticketStartSet" min="1" max="100" value="1"
+            <input type="number" id="ticketStartSet" min="1" max="999" value="1"
               inputmode="numeric" pattern="[0-9]*"
               style="width:70px;text-align:center;font-size:1.1rem;font-weight:800;
                      border:2px solid var(--border);border-radius:8px;padding:6px 8px;
@@ -1521,6 +1521,15 @@ function switchTab(name) {
 // ============================================================
 let ticketCounter = 0;
 
+// Restituisce il suffisso di cassa per i ticket offline di backup
+// op1 = nessun suffisso (cassa principale), op2+ = suffisso lettera
+function offlineSuffix() {
+  if (!state.operatore || state.operatore === 'op1') return '';
+  if (state.operatore === 'op2') return '-B';
+  return '-' + state.operatore.toUpperCase();
+}
+
+// Sincronizzo il counter locale col DB (usato solo per il "peek" nella UI)
 async function syncTicketCounterFromDB() {
   if (!isOnline) return;
   const today = new Date().toLocaleDateString('it-IT', {year:'numeric',month:'2-digit',day:'2-digit'}).split('/').reverse().join('-');
@@ -1529,7 +1538,8 @@ async function syncTicketCounterFromDB() {
   let max = ticketCounter;
   data.forEach(v => {
     if (v.ticket_num) {
-      const n = parseInt(v.ticket_num.replace('#',''));
+      // Estrae solo la parte numerica (ignora suffissi offline come -B)
+      const n = parseInt((v.ticket_num || '').replace('#',''));
       if (!isNaN(n) && n > max) max = n;
     }
   });
@@ -1539,24 +1549,36 @@ async function syncTicketCounterFromDB() {
   }
 }
 
-function getNextTicketNum() {
+// Genera il prossimo numero ticket
+// - Online: chiama la funzione atomica su Supabase (nessun duplicato possibile)
+// - Offline: usa counter locale + suffisso operatore (es. #006-B per Cassa 2)
+async function getNextTicketNum() {
+  if (isOnline) {
+    const today = new Date().toLocaleDateString('it-IT', {year:'numeric',month:'2-digit',day:'2-digit'}).split('/').reverse().join('-');
+    const { data, error } = await db.rpc('get_next_ticket_num', { p_data: today });
+    if (!error && data) {
+      const n = parseInt(data);
+      if (!isNaN(n)) {
+        ticketCounter = n;
+        try { localStorage.setItem('scopello_ticket_counter', ticketCounter); } catch(e) {}
+        return '#' + String(n).padStart(3, '0');
+      }
+    }
+    // Fallback se RPC non disponibile (migration non ancora eseguita)
+  }
+  // Offline (o RPC non disponibile): counter locale con suffisso
   ticketCounter++;
-  if (ticketCounter > 100) ticketCounter = 1;
+  if (ticketCounter > 999) ticketCounter = 1;
   try { localStorage.setItem('scopello_ticket_counter', ticketCounter); } catch(e) {}
-  return '#' + String(ticketCounter).padStart(3, '0');
+  return '#' + String(ticketCounter).padStart(3, '0') + offlineSuffix();
 }
 
 function peekNextTicketNum() {
-  const next = ticketCounter >= 100 ? 1 : ticketCounter + 1;
-  return '#' + String(next).padStart(3, '0');
+  const next = ticketCounter >= 999 ? 1 : ticketCounter + 1;
+  return '#' + String(next).padStart(3, '0') + (isOnline ? '' : offlineSuffix());
 }
 
-// Nota: il counter viene sincronizzato col massimo dal DB ad ogni login
-// tramite loadTodayVendite. Con 2 casse su dispositivi diversi, fare sempre
-// login prima di iniziare il turno garantisce che entrambe partano dal numero corretto.
-
 function loadTicketCounter() {
-  // Legge da localStorage come base, poi loadTodayVendite sovrascriverà col max dal DB
   const saved = parseInt(localStorage.getItem('scopello_ticket_counter') || '0');
   ticketCounter = isNaN(saved) ? 0 : saved;
 }
@@ -1564,7 +1586,7 @@ function loadTicketCounter() {
 function applyTicketStart() {
   const el = document.getElementById('ticketStartSet');
   const val = parseInt(el.value);
-  if (isNaN(val) || val < 1 || val > 100) { alert('Inserisci un numero tra 1 e 100.'); return; }
+  if (isNaN(val) || val < 1 || val > 999) { alert('Inserisci un numero tra 1 e 999.'); return; }
   ticketCounter = val - 1;
   try { localStorage.setItem('scopello_ticket_counter', ticketCounter); } catch(e) {}
   updateSummary();
@@ -1732,9 +1754,8 @@ function confirmSale() {
 }
 
 async function executeSale() {
-  await syncTicketCounterFromDB();
   const now = new Date();
-  const tNum = getNextTicketNum();
+  const tNum = await getNextTicketNum();
   const pago = state.paySel || 'gratis';
   const tot = cartTotal();
   const totalQty = cartTotalQty();
@@ -2393,7 +2414,7 @@ function renderCassa() {
     document.getElementById('nameCassa2').value = CONFIG.nomiCasse.op2;
     document.getElementById('pwLabel1').textContent = 'Password ' + CONFIG.nomiCasse.op1;
     document.getElementById('pwLabel2').textContent = 'Password ' + CONFIG.nomiCasse.op2;
-    document.getElementById('ticketStartSet').value = ticketCounter + 1 > 100 ? 1 : ticketCounter + 1;
+    document.getElementById('ticketStartSet').value = ticketCounter + 1 > 999 ? 1 : ticketCounter + 1;
   }
 }
 
