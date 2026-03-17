@@ -1043,8 +1043,10 @@ const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // Coda offline
 let pendingSync = (() => { try { return JSON.parse(localStorage.getItem('pendingSync') || '[]'); } catch(e) { return []; } })();
+let pendingDeletes = (() => { try { return JSON.parse(localStorage.getItem('pendingDeletes') || '[]'); } catch(e) { return []; } })();
 let _rimborsiStored = (() => { try { return JSON.parse(localStorage.getItem('scopello_rimborsi') || '[]'); } catch(e) { return []; } })();
 let isOnline = navigator.onLine;
+let isSyncing = false;
 
 // Heartbeat: verifica connessione reale ogni 30s (navigator.onLine non è affidabile)
 async function checkRealConnectivity() {
@@ -1060,6 +1062,7 @@ setInterval(async () => {
     updateSyncBadge();
     if (isOnline) {
       await syncPending();
+      await syncRimborsiOnReconnect();
       await loadTodayVendite();
     }
   }
@@ -1079,6 +1082,7 @@ window.addEventListener('online', async () => {
   }
 
   await syncPending();
+  await syncRimborsiOnReconnect();
 
   // Ricarica dal DB se loggato
   if (state.operatore) {
@@ -1090,13 +1094,20 @@ window.addEventListener('offline', () => { isOnline = false; updateSyncBadge(); 
 function updateSyncBadge() {
   const badge = document.getElementById('syncBadge');
   if (!badge) return;
+  const totPending = pendingSync.length + pendingDeletes.length;
   if (!isOnline) {
-    badge.textContent = '📵 Offline';
+    const label = totPending > 0 ? `📵 Offline (${totPending} in attesa)` : '📵 Offline';
+    badge.textContent = label;
     badge.style.background = 'var(--red-bg)';
     badge.style.color = 'var(--red)';
     badge.style.borderColor = 'var(--red-border)';
-  } else if (pendingSync.length > 0) {
-    badge.textContent = `⏳ Sync (${pendingSync.length})`;
+  } else if (isSyncing) {
+    badge.textContent = `⏳ Sincronizzazione…`;
+    badge.style.background = '#fff3e0';
+    badge.style.color = 'var(--orange)';
+    badge.style.borderColor = '#ffcc80';
+  } else if (totPending > 0) {
+    badge.textContent = `⏳ Da sincronizzare (${totPending})`;
     badge.style.background = '#fff3e0';
     badge.style.color = 'var(--orange)';
     badge.style.borderColor = '#ffcc80';
@@ -1127,42 +1138,96 @@ async function saveVendita(vendita) {
       // Se la colonna ticket_num non esiste ancora, riprova senza
       if (error.message && error.message.includes('ticket_num')) {
         const { ticket_num, ...rowNoTicket } = row;
-        const { error: e2 } = await db.from('vendite').insert(rowNoTicket);
-        if (e2) { pendingSync.push({...rowNoTicket, localId: vendita.id}); savePending(); }
+        const { data: ins2, error: e2 } = await db.from('vendite').insert(rowNoTicket).select('id').single();
+        if (e2) { addToPending({...rowNoTicket, localId: vendita.id}); }
+        else if (ins2) { const v = state.vendite.find(x => x.id === vendita.id); if (v) v.dbId = ins2.id; }
       } else {
-        pendingSync.push({...row, localId: vendita.id}); savePending();
+        addToPending({...row, localId: vendita.id});
       }
     } else if (inserted) {
-      // Aggiorna dbId sulla vendita in memoria
       const v = state.vendite.find(x => x.id === vendita.id);
       if (v) v.dbId = inserted.id;
     }
   } else {
-    pendingSync.push({...row, localId: vendita.id});
-    savePending();
+    addToPending({...row, localId: vendita.id});
   }
   updateSyncBadge();
 }
 
+function addToPending(row) {
+  // syncId univoco per prevenire duplicati se syncPending viene chiamato più volte
+  if (!row.syncId) row.syncId = Date.now() + '-' + Math.random().toString(36).slice(2);
+  // Non aggiungere se esiste già lo stesso syncId (doppio evento online)
+  if (!pendingSync.find(r => r.syncId === row.syncId)) {
+    pendingSync.push(row);
+    savePending();
+  }
+}
+
 async function deleteVendita(vendita) {
-  if (!vendita.dbId) return;
+  // Se mai arrivato nel DB, rimuovi dalla coda offline e basta
+  if (!vendita.dbId) {
+    pendingSync = pendingSync.filter(r => r.localId !== vendita.id);
+    savePending();
+    return;
+  }
   if (isOnline) {
     const { error } = await db.from('vendite').delete().eq('id', vendita.dbId);
-    if (error) showErrorToast('Errore cancellazione DB: ' + error.message);
+    if (error) {
+      // Fallback: metti in coda di delete per il prossimo sync
+      addToPendingDelete(vendita.dbId);
+      showErrorToast('DB non raggiungibile: annullo salvato in locale');
+    }
+  } else {
+    addToPendingDelete(vendita.dbId);
+  }
+}
+
+function addToPendingDelete(dbId) {
+  if (!pendingDeletes.includes(dbId)) {
+    pendingDeletes.push(dbId);
+    try { localStorage.setItem('pendingDeletes', JSON.stringify(pendingDeletes)); } catch(e) {}
   }
 }
 
 async function syncPending() {
-  if (!pendingSync.length || !isOnline) return;
-  const toSync = [...pendingSync];
-  pendingSync = [];
-  savePending();
-  for (const row of toSync) {
-    const { localId, ...data } = row;
-    const { error } = await db.from('vendite').insert(data);
-    if (error) { pendingSync.push(row); savePending(); }
+  if (isSyncing) return;
+  if (!isOnline) return;
+  isSyncing = true;
+  try {
+    // Prima esegui i delete in sospeso
+    if (pendingDeletes.length) {
+      const toDelete = [...pendingDeletes];
+      for (const dbId of toDelete) {
+        const { error } = await db.from('vendite').delete().eq('id', dbId);
+        if (!error) {
+          pendingDeletes = pendingDeletes.filter(id => id !== dbId);
+          try { localStorage.setItem('pendingDeletes', JSON.stringify(pendingDeletes)); } catch(e) {}
+        }
+      }
+    }
+    // Poi sincronizza le vendite offline
+    if (!pendingSync.length) return;
+    const toSync = [...pendingSync];
+    for (const row of toSync) {
+      const { localId, syncId, ...data } = row;
+      const { data: inserted, error } = await db.from('vendite').insert(data).select('id').single();
+      if (!error) {
+        // Rimuovi dalla coda solo dopo conferma DB
+        pendingSync = pendingSync.filter(r => r.syncId !== row.syncId);
+        savePending();
+        // Aggiorna dbId in memoria così l'annullo funziona anche dopo sync
+        if (inserted && localId) {
+          const v = state.vendite.find(x => x.id === localId);
+          if (v) v.dbId = inserted.id;
+        }
+      }
+      // Se error: rimane in pendingSync, verrà riprovato al prossimo sync
+    }
+  } finally {
+    isSyncing = false;
+    updateSyncBadge();
   }
-  updateSyncBadge();
 }
 
 function savePending() {
@@ -1176,8 +1241,16 @@ function saveRimborsi() {
 async function syncRimborsiToDB() {
   const today = new Date().toLocaleDateString('it-IT', {year:'numeric',month:'2-digit',day:'2-digit'}).split('/').reverse().join('-');
   const row = { data: today, payload: JSON.stringify(state.rimborsi) };
-  // Upsert: crea o aggiorna il record dei rimborsi del giorno
-  await db.from('rimborsi_giornata').upsert(row, { onConflict: 'data' }).catch(() => {});
+  const { error } = await db.from('rimborsi_giornata').upsert(row, { onConflict: 'data' });
+  if (error) {
+    // Rimborsi salvati in locale, ma non nel DB — riprova al prossimo sync
+    console.warn('Sync rimborsi fallito, verranno sincronizzati al prossimo collegamento:', error.message);
+  }
+}
+
+async function syncRimborsiOnReconnect() {
+  // Chiamata quando torna la connessione: forza sync rimborsi
+  if (state.rimborsi.length > 0) await syncRimborsiToDB();
 }
 
 async function loadRimborsiFromDB() {
