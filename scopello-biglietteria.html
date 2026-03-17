@@ -1055,7 +1055,8 @@ async function checkRealConnectivity() {
     return res.status === 204 || res.ok;
   } catch { return false; }
 }
-setInterval(async () => {
+const _heartbeatInterval = setInterval(async () => {
+  if (!state.operatore) return; // non fare richieste se non loggato
   const wasOnline = isOnline;
   isOnline = await checkRealConnectivity();
   if (isOnline !== wasOnline) {
@@ -1490,7 +1491,7 @@ function updateClock() {
 setInterval(updateClock, 1000); updateClock();
 
 // Ogni minuto ricontrolla i turni: aggiorna chip e deseleziona se il turno selezionato è passato
-setInterval(() => {
+const _turniInterval = setInterval(() => {
   if (!state.operatore) return;
   if (state.turnoSel) {
     const now = new Date();
@@ -1797,7 +1798,9 @@ function undoLastSale() {
 
 function doAnnullaVendita(vendita) {
   state.vendite = state.vendite.filter(v => v.id !== vendita.id);
-  state.turni[vendita.turno].prenotati = Math.max(0, state.turni[vendita.turno].prenotati - vendita.qty);
+  if (state.turni[vendita.turno]) {
+    state.turni[vendita.turno].prenotati = Math.max(0, state.turni[vendita.turno].prenotati - vendita.qty);
+  }
   deleteVendita(vendita);
   renderTurniVendita(); renderUndoBtn();
   if (document.getElementById('tab-storico').classList.contains('active')) renderStorico();
@@ -1862,7 +1865,7 @@ function renderTurni() {
 
     // Raggruppa ticket per ticketNum per questo turno
     const ticketMap = {};
-    state.vendite.filter(v=>v.turno===ora).forEach(v => {
+    state.vendite.filter(v=>v.turno===ora && v.ticketNum && v.ticketNum !== '—').forEach(v => {
       if (!ticketMap[v.ticketNum]) ticketMap[v.ticketNum] = { righe: [], ora: v.ora, op: v.operatore };
       ticketMap[v.ticketNum].righe.push(v);
     });
@@ -1933,7 +1936,7 @@ function renderStorico() {
       </div>`).join('');
 
     const annullaBtn = state.isDir
-      ? `<button class="btn-annulla-dir" data-vid="${prima.id}" onclick="annullaDir(this.dataset.vid*1)">🗑 Elimina</button>` : '';
+      ? `<button class="btn-annulla-dir" data-vid="${prima.id}" onclick="annullaDir(this.dataset.vid)">🗑 Elimina</button>` : '';
     const spostaBtn = `<button class="btn-sposta" onclick="apriSposta('${tNum}')">↔ Sposta</button>`;
     const hasBase = righe.some(v => v.tipo === 'base');
     const hasUpgrade = righe.some(v => v.tipo === 'upgrade');
@@ -1965,10 +1968,10 @@ function renderStorico() {
 let annullaDirId = null;
 let rimborsoSel = null;
 
-function annullaDir(id) {
-  const vendita = state.vendite.find(v => v.id === id);
+function annullaDir(idStr) {
+  const vendita = state.vendite.find(v => String(v.id) === String(idStr));
   if (!vendita) return;
-  annullaDirId = id;
+  annullaDirId = vendita.id; // mantieni il tipo originale per i confronti successivi
   modificaRimborsoIdx = null;
   rimborsoSel = null;
   // Resetta bottoni
@@ -2000,6 +2003,7 @@ function eseguiAnnullaDir() {
   if (btn) btn.disabled = true; // anti-doppio-click
   // Modalità MODIFICA rimborso esistente
   if (modificaRimborsoIdx !== null) {
+    if (!Array.isArray(state.rimborsi) || !state.rimborsi[modificaRimborsoIdx]) { modificaRimborsoIdx = null; return; }
     state.rimborsi[modificaRimborsoIdx].rimborsoCon = rimborsoSel;
     saveRimborsi();
     modificaRimborsoIdx = null;
