@@ -1222,8 +1222,10 @@ async function syncPending() {
           const v = state.vendite.find(x => x.id === localId);
           if (v) v.dbId = inserted.id;
         }
+      } else {
+        console.error('syncPending: errore insert', row.syncId, error.message);
+        // Rimane in pendingSync, verrà riprovato al prossimo sync
       }
-      // Se error: rimane in pendingSync, verrà riprovato al prossimo sync
     }
   } finally {
     isSyncing = false;
@@ -1787,21 +1789,21 @@ async function executeSale() {
   renderUndoBtn();
 }
 
-function undoLastSale() {
+async function undoLastSale() {
   const myLast = [...state.vendite].reverse().find(v => v.operatore === state.operatore);
   if (!myLast) return;
   const sameTicket = state.vendite.filter(v => v.ticketNum === myLast.ticketNum);
   const righe = sameTicket.map(v => `${v.qty}× ${tipoLabel(v.tipo)}`).join(', ');
   if (!confirm(`Annullare ticket ${myLast.ticketNum}: ${righe} turno ${myLast.turno}?`)) return;
-  sameTicket.forEach(v => doAnnullaVendita(v));
+  for (const v of sameTicket) await doAnnullaVendita(v);
 }
 
-function doAnnullaVendita(vendita) {
+async function doAnnullaVendita(vendita) {
   state.vendite = state.vendite.filter(v => v.id !== vendita.id);
   if (state.turni[vendita.turno]) {
     state.turni[vendita.turno].prenotati = Math.max(0, state.turni[vendita.turno].prenotati - vendita.qty);
   }
-  deleteVendita(vendita);
+  await deleteVendita(vendita);
   renderTurniVendita(); renderUndoBtn();
   if (document.getElementById('tab-storico').classList.contains('active')) renderStorico();
   if (document.getElementById('tab-cassa').classList.contains('active')) renderCassa();
@@ -1997,7 +1999,7 @@ function selectRimborso(tipo) {
   document.getElementById('btnConfermaRimborso').disabled = false;
 }
 
-function eseguiAnnullaDir() {
+async function eseguiAnnullaDir() {
   if (!rimborsoSel) return;
   const btn = document.getElementById('btnConfermaRimborso');
   if (btn) btn.disabled = true; // anti-doppio-click
@@ -2030,7 +2032,7 @@ function eseguiAnnullaDir() {
   });
   saveRimborsi();
   closeModal('modalRimborso');
-  sameTicket.forEach(v => doAnnullaVendita(v));
+  for (const v of sameTicket) await doAnnullaVendita(v);
   if (document.getElementById('tab-cassa').classList.contains('active')) renderCassa();
 }
 

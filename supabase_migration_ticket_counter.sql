@@ -35,3 +35,15 @@ GRANT ALL ON TABLE ticket_counters TO anon, authenticated;
 ALTER TABLE ticket_counters ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Lettura libera ticket_counters"  ON ticket_counters FOR SELECT USING (true);
 CREATE POLICY "Modifica libera ticket_counters" ON ticket_counters FOR ALL    USING (true);
+
+-- ============================================================
+-- Tabella rimborsi giornalieri (payload JSON serializzato)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS rimborsi_giornata (
+  data    date PRIMARY KEY,
+  payload text NOT NULL
+);
+
+GRANT ALL ON TABLE rimborsi_giornata TO anon, authenticated;
+ALTER TABLE rimborsi_giornata ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "rw_rimborsi" ON rimborsi_giornata FOR ALL USING (true);

@@ -500,8 +500,9 @@ async function loadData() {
     db.from('vendite').select('*').gte('data', prev.from).lte('data', prev.to)
   ]);
   if (res.error) { console.error(res.error); return; }
+  if (resPrev.error) { console.error(resPrev.error); }
   allData = res.data || [];
-  prevData = resPrev.data || [];
+  prevData = resPrev.error ? [] : (resPrev.data || []);
   document.getElementById('lastUpdate').textContent = 'Aggiornato: ' + new Date().toLocaleTimeString('it-IT', {hour:'2-digit',minute:'2-digit'});
   renderAll();
 }
