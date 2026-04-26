@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Controllo">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#1a1714">
+<title>Controllo Ingressi — Torre di Scopello</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root {
+  --fd: Georgia, 'Times New Roman', serif;
+  --fu: -apple-system, 'SF Pro Text', 'Helvetica Neue', sans-serif;
+  --bg: #f5f2ed;
+  --white: #ffffff;
+  --s1: #ede9e2;
+  --s2: #e2ddd5;
+  --border: #d0c8bc;
+  --text: #1a1714;
+  --text2: #4a4540;
+  --muted: #8a8278;
+  --green: #1a8c4e;
+  --green-bg: #e8f7ef;
+  --green-border: #a8dfc0;
+  --sea: #1565a0;
+  --sea-bg: #e3edf8;
+  --sea-border: #90bde0;
+  --gold: #b8860b;
+  --gold-bg: #fdf6e3;
+  --gold-border: #e8c84a;
+  --red: #c0392b;
+  --red-bg: #fdecea;
+  --red-border: #f0a8a0;
+  --orange: #d35400;
+  --purple: #7b3fa0;
+  --purple-bg: #f3eafa;
+  --purple-border: #d4a8e8;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+body { font-family: var(--fu); background: var(--bg); color: var(--text); min-height: 100vh; }
+
+.screen { display: none; }
+.screen.active { display: block; }
+
+/* ===== LOGIN ===== */
+#loginScreen {
+  min-height: 100vh; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; padding: 20px 16px;
+  background: linear-gradient(160deg, #f5f2ed 0%, #ede5d8 100%);
+}
+#loginScreen.active { display: flex; }
+
+.login-box {
+  background: var(--white); border: 2px solid var(--border); border-radius: 16px;
+  padding: 24px 20px; width: 100%; max-width: 320px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.07);
+}
+.login-title { font-family: var(--fd); font-weight: normal; font-size: 1.3rem; color: var(--text); margin-bottom: 2px; }
+.login-sub { font-size: 0.68rem; color: var(--muted); margin-bottom: 20px; text-transform: uppercase; letter-spacing: 0.12em; }
+.field-label { font-size: 0.64rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text2); margin-bottom: 6px; }
+.field-input {
+  width: 100%; background: var(--bg); border: 2px solid var(--border); border-radius: 10px;
+  padding: 12px 14px; font-family: var(--fu); font-size: 1rem; color: var(--text);
+  outline: none; -webkit-appearance: none; margin-bottom: 14px; transition: border-color 0.2s;
+}
+.field-input:focus { border-color: var(--sea); background: #fff; }
+.btn-login {
+  width: 100%; padding: 14px; border-radius: 10px; border: none; cursor: pointer;
+  font-family: var(--fu); font-size: 0.92rem; font-weight: 700; letter-spacing: 0.04em;
+  background: var(--purple); color: #fff; transition: all 0.15s;
+  box-shadow: 0 2px 8px rgba(123,63,160,0.3);
+}
+.btn-login:active { transform: scale(0.97); }
+.login-error { font-size: 0.76rem; color: var(--red); text-align: center; margin-top: 8px; min-height: 16px; font-weight: 600; }
+
+/* ===== TOPBAR ===== */
+#appScreen { min-height: 100vh; background: var(--bg); }
+.topbar {
+  background: var(--white); border-bottom: 2px solid var(--border);
+  padding: 10px 16px; display: flex; align-items: center; justify-content: space-between;
+  position: sticky; top: 0; z-index: 50;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+.topbar-brand h1 { font-family: var(--fd); font-weight: normal; font-size: 1rem; color: var(--text); }
+.topbar-brand p { font-size: 0.58rem; color: var(--muted); letter-spacing: 0.12em; text-transform: uppercase; }
+.topbar-right { display: flex; align-items: center; gap: 8px; }
+.ctrl-badge {
+  background: var(--purple-bg); border: 2px solid var(--purple-border);
+  border-radius: 20px; padding: 4px 12px; font-size: 0.72rem; font-weight: 700; color: var(--purple);
+}
+.sync-badge {
+  border-radius: 20px; padding: 4px 10px; font-size: 0.65rem; font-weight: 700;
+  background: var(--green-bg); color: var(--green); border: 2px solid var(--green-border);
+}
+.top-clock { font-size: 1.2rem; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; }
+
+/* ===== CONTENUTO ===== */
+.main-pad { padding: 16px; }
+
+.sec-label {
+  font-size: 0.66rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em;
+  color: var(--muted); margin-bottom: 10px; margin-top: 4px;
+}
+
+/* ===== BANNER TURNO CORRENTE ===== */
+.turno-banner {
+  border-radius: 16px; padding: 18px 20px; margin-bottom: 16px;
+  background: var(--sea); color: #fff;
+  box-shadow: 0 4px 16px rgba(21,101,160,0.3);
+}
+.turno-banner.nessuno { background: var(--text); box-shadow: 0 4px 16px rgba(0,0,0,0.2); }
+.tb-label { font-size: 0.62rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em; opacity: 0.75; margin-bottom: 4px; }
+.tb-ora { font-family: var(--fd); font-size: 2.6rem; font-weight: normal; line-height: 1; margin-bottom: 10px; }
+.tb-stats { display: flex; gap: 20px; }
+.tb-stat .val { font-size: 1.7rem; font-weight: 800; display: block; font-variant-numeric: tabular-nums; }
+.tb-stat .lab { font-size: 0.58rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; opacity: 0.75; }
+.tb-none { font-size: 0.88rem; opacity: 0.75; margin-top: 4px; }
+
+/* ===== STATS GIORNATA ===== */
+.day-stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 16px; }
+.stat-card {
+  background: var(--white); border: 2px solid var(--border); border-radius: 12px;
+  padding: 12px 8px; text-align: center;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+}
+.stat-val { font-family: var(--fd); font-size: 1.7rem; color: var(--text); display: block; }
+.stat-lab { font-size: 0.58rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+.stat-card.entrati { border-color: var(--green-border); }
+.stat-card.entrati .stat-val { color: var(--green); }
+.stat-card.rimanenti { border-color: var(--red-border); }
+.stat-card.rimanenti .stat-val { color: var(--red); }
+
+/* ===== TURNI LIST ===== */
+.turni-list { display: flex; flex-direction: column; gap: 6px; }
+
+.turno-item {
+  background: var(--white); border: 2px solid var(--border); border-radius: 14px;
+  overflow: hidden; transition: border-color 0.15s;
+}
+.turno-item.corrente { border-color: var(--sea); }
+.turno-item.prossimo { border-color: var(--gold-border); }
+
+.turno-header {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 14px; cursor: pointer; user-select: none;
+}
+.th-ora { font-family: var(--fd); font-size: 1.15rem; color: var(--text); min-width: 50px; }
+.th-progress { flex: 1; }
+.th-bar-wrap { background: var(--s1); border-radius: 99px; height: 5px; overflow: hidden; margin-bottom: 3px; }
+.th-bar { height: 100%; border-radius: 99px; transition: width 0.4s; }
+.th-nums { display: flex; justify-content: space-between; font-size: 0.6rem; color: var(--muted); font-weight: 600; }
+.th-badge {
+  font-size: 0.62rem; font-weight: 700; text-transform: uppercase;
+  padding: 3px 9px; border-radius: 8px; white-space: nowrap;
+}
+.badge-corrente { background: var(--sea-bg); color: var(--sea); border: 1.5px solid var(--sea-border); }
+.badge-prossimo { background: var(--gold-bg); color: var(--gold); border: 1.5px solid var(--gold-border); }
+.badge-completo { background: var(--green-bg); color: var(--green); border: 1.5px solid var(--green-border); }
+.badge-passato { background: var(--s1); color: var(--muted); border: 1.5px solid var(--border); }
+.badge-futuro { background: var(--s1); color: var(--muted); border: 1.5px solid var(--border); }
+.badge-vuoto { background: var(--s1); color: var(--muted); border: 1.5px solid var(--border); opacity: 0.6; }
+
+/* ===== DETTAGLIO BIGLIETTI ===== */
+.turno-detail {
+  display: none; border-top: 2px solid var(--border);
+  padding: 10px 14px; background: var(--bg);
+}
+.turno-detail.open { display: block; }
+
+.ticket-row {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--white); border: 2px solid var(--border); border-radius: 10px;
+  padding: 10px 12px; margin-bottom: 6px; transition: all 0.15s;
+}
+.ticket-row:last-child { margin-bottom: 0; }
+.ticket-row.entrato { background: var(--green-bg); border-color: var(--green-border); }
+
+.tr-num { font-family: var(--fd); font-size: 1rem; color: var(--sea); font-weight: 700; min-width: 46px; flex-shrink: 0; }
+.tr-info { flex: 1; }
+.tr-desc { font-size: 0.82rem; font-weight: 700; color: var(--text); }
+.tr-meta { font-size: 0.66rem; color: var(--muted); margin-top: 2px; font-weight: 600; }
+
+.tr-azioni { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.btn-entra {
+  padding: 8px 14px; border-radius: 8px; border: 2px solid var(--green-border);
+  background: var(--green-bg); color: var(--green); font-family: var(--fu);
+  font-size: 0.76rem; font-weight: 800; cursor: pointer; transition: all 0.15s;
+  white-space: nowrap;
+}
+.btn-entra:active { background: var(--green); color: #fff; transform: scale(0.95); }
+.btn-entra-done {
+  padding: 6px 12px; border-radius: 8px; border: none;
+  background: var(--green); color: #fff; font-family: var(--fu);
+  font-size: 0.72rem; font-weight: 800; white-space: nowrap;
+}
+.btn-undoentra {
+  background: none; border: none; color: var(--muted); font-size: 0.9rem;
+  cursor: pointer; padding: 4px; line-height: 1;
+}
+.btn-undoentra:active { color: var(--red); }
+
+.detail-empty { text-align: center; padding: 18px; color: var(--muted); font-size: 0.8rem; font-weight: 600; }
+
+/* ===== DB PAUSA AVVISO ===== */
+.avviso-pausa {
+  background: var(--gold-bg); border: 2px solid var(--gold-border); border-radius: 14px;
+  padding: 14px 16px; margin-bottom: 16px;
+}
+.avviso-pausa .ap-title { font-size: 0.86rem; font-weight: 800; color: var(--gold); margin-bottom: 4px; }
+.avviso-pausa .ap-text { font-size: 0.76rem; color: var(--text2); line-height: 1.5; }
+
+/* ===== SUCCESS FLASH ===== */
+.success-flash {
+  position: fixed; bottom: 24px; left: 50%;
+  transform: translateX(-50%) translateY(80px);
+  background: var(--green); color: #fff; border-radius: 12px; padding: 12px 24px;
+  z-index: 300; font-size: 0.88rem; font-weight: 700;
+  box-shadow: 0 4px 16px rgba(26,140,78,0.4);
+  transition: transform 0.3s ease, opacity 0.3s;
+  pointer-events: none; opacity: 0; white-space: nowrap;
+}
+.success-flash.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="loginScreen" class="screen active">
+  <div class="login-box">
+    <div class="login-title">Torre di Scopello</div>
+    <div class="login-sub">Controllo Ingressi</div>
+    <div class="field-label">Password</div>
+    <input class="field-input" type="password" id="loginPw" placeholder="••••••"
+      autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
+    <button class="btn-login" onclick="doLogin()">ACCEDI</button>
+    <div class="login-error" id="loginError"></div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="appScreen" class="screen">
+
+  <div class="topbar">
+    <div class="topbar-brand">
+      <h1>Torre di Scopello</h1>
+      <p>Controllo ingressi</p>
+    </div>
+    <div class="topbar-right">
+      <span class="sync-badge" id="syncBadge">✓ Online</span>
+      <span class="ctrl-badge">🔍 Controllo</span>
+      <span class="top-clock" id="topClock">--:--</span>
+    </div>
+  </div>
+
+  <div class="main-pad">
+
+    <!-- Avviso DB in pausa (mostrato solo se Supabase non risponde) -->
+    <div class="avviso-pausa" id="avisoPausa" style="display:none;">
+      <div class="ap-title">⚠️ Database in pausa</div>
+      <div class="ap-text">Il progetto Supabase è in pausa. I dati mostrati potrebbero non essere aggiornati.<br>
+      Per ripristinare: apri il <strong>dashboard Supabase</strong> e clicca <strong>Resume project</strong>.</div>
+    </div>
+
+    <!-- Turno corrente -->
+    <div class="turno-banner" id="turnoBanner">
+      <div class="tb-label">Turno in corso</div>
+      <div class="tb-ora" id="tbOra">—</div>
+      <div id="tbStats" class="tb-stats">
+        <div class="tb-stat"><span class="val" id="tbVenduti">0</span><span class="lab">venduti</span></div>
+        <div class="tb-stat"><span class="val" id="tbEntrati">0</span><span class="lab">entrati</span></div>
+        <div class="tb-stat"><span class="val" id="tbRimanenti">0</span><span class="lab">rimanenti</span></div>
+      </div>
+    </div>
+
+    <!-- Stats giornata -->
+    <div class="sec-label">Giornata</div>
+    <div class="day-stats" style="margin-bottom:16px;">
+      <div class="stat-card">
+        <span class="stat-val" id="statVend">0</span>
+        <span class="stat-lab">Venduti</span>
+      </div>
+      <div class="stat-card entrati">
+        <span class="stat-val" id="statEntr">0</span>
+        <span class="stat-lab">Entrati</span>
+      </div>
+      <div class="stat-card rimanenti">
+        <span class="stat-val" id="statRim">0</span>
+        <span class="stat-lab">Rimanenti</span>
+      </div>
+    </div>
+
+    <!-- Lista turni -->
+    <div class="sec-label">Turni di oggi</div>
+    <div class="turni-list" id="turniList"></div>
+
+  </div>
+</div>
+
+<div class="success-flash" id="successFlash"></div>
+
+<script>
+// ============================================================
+// SUPABASE
+// ============================================================
+const SUPABASE_URL = 'https://jhvuucvzhtuvybcsoxts.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpodnV1Y3Z6aHR1dnliY3NveHRzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2NDM2NTMsImV4cCI6MjA4ODIxOTY1M30.2at0j_pKSw3AbbEO0nfNKpHay43FW32tiBDmszaNInI';
+const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// ============================================================
+// CONFIG
+// ============================================================
+const ORARI = ['11:00','11:30','12:00','12:30','13:00','13:30','14:00','14:30',
+               '15:00','15:30','16:00','16:30','17:00','17:30','18:00'];
+
+function getPwCtrl() {
+  try {
+    const pw = JSON.parse(localStorage.getItem('scopello_passwords') || '{}');
+    return pw.ctrl || 'ctrl2024';
+  } catch(e) { return 'ctrl2024'; }
+}
+function getPwDir() {
+  try {
+    const pw = JSON.parse(localStorage.getItem('scopello_passwords') || '{}');
+    return pw.dir || 'scopello2024';
+  } catch(e) { return 'scopello2024'; }
+}
+function getNomiCasse() {
+  try {
+    const n = JSON.parse(localStorage.getItem('scopello_nomi') || '{}');
+    return { op1: n.op1 || 'Cassa 1', op2: n.op2 || 'Cassa 2' };
+  } catch(e) { return { op1: 'Cassa 1', op2: 'Cassa 2' }; }
+}
+
+// ============================================================
+// STATE
+// ============================================================
+let isOnline = navigator.onLine;
+let dbPaused = false;
+let vendite = [];
+let ingressi = {}; // { ticketNum: { ora } } — solo localStorage, per giornata
+
+function todayStr() {
+  return new Date().toLocaleDateString('it-IT', {
+    year:'numeric', month:'2-digit', day:'2-digit'
+  }).split('/').reverse().join('-');
+}
+
+// Carica ingressi da localStorage
+function caricaIngressiLocale() {
+  try {
+    const saved = JSON.parse(localStorage.getItem('scopello_ingressi_' + todayStr()) || '{}');
+    ingressi = saved;
+  } catch(e) { ingressi = {}; }
+}
+
+function salvaIngressiLocale() {
+  try {
+    localStorage.setItem('scopello_ingressi_' + todayStr(), JSON.stringify(ingressi));
+  } catch(e) {}
+}
+
+// ============================================================
+// ONLINE / OFFLINE
+// ============================================================
+window.addEventListener('online', async () => {
+  isOnline = true;
+  updateSyncBadge();
+  await loadVendite();
+  render();
+  startRealtime();
+});
+window.addEventListener('offline', () => {
+  isOnline = false;
+  updateSyncBadge();
+});
+
+function updateSyncBadge() {
+  const b = document.getElementById('syncBadge');
+  if (!b) return;
+  if (!isOnline || dbPaused) {
+    b.textContent = dbPaused ? '⚠️ DB pausa' : '📵 Offline';
+    b.style.background = 'var(--red-bg)';
+    b.style.color = 'var(--red)';
+    b.style.borderColor = 'var(--red-border)';
+  } else {
+    b.textContent = '✓ Online';
+    b.style.background = 'var(--green-bg)';
+    b.style.color = 'var(--green)';
+    b.style.borderColor = 'var(--green-border)';
+  }
+}
+
+// ============================================================
+// DATI
+// ============================================================
+async function loadVendite() {
+  if (!isOnline) return;
+  const { data, error } = await db
+    .from('vendite')
+    .select('turno,tipo,qty,pagamento,operatore,ora,ticket_num')
+    .eq('data', todayStr())
+    .order('created_at', { ascending: true });
+
+  if (error) {
+    // Supabase paused o altro errore
+    dbPaused = true;
+    document.getElementById('avisoPausa').style.display = 'block';
+    updateSyncBadge();
+    return;
+  }
+  dbPaused = false;
+  document.getElementById('avisoPausa').style.display = 'none';
+  updateSyncBadge();
+
+  vendite = (data || []).map(v => ({
+    turno: v.turno,
+    tipo: v.tipo,
+    qty: v.qty,
+    pagamento: v.pagamento,
+    operatore: v.operatore,
+    ora: v.ora,
+    ticketNum: v.ticket_num || '—'
+  }));
+}
+
+// ============================================================
+// LOGIN
+// ============================================================
+function doLogin() {
+  const pw = document.getElementById('loginPw').value.trim();
+  const err = document.getElementById('loginError');
+  if (pw === getPwCtrl() || pw === getPwDir()) {
+    document.getElementById('loginPw').value = '';
+    err.textContent = '';
+    showScreen('appScreen');
+    initApp();
+  } else {
+    err.textContent = 'Password non corretta.';
+    const box = document.querySelector('.login-box');
+    box.style.borderColor = 'var(--red)';
+    setTimeout(() => { box.style.borderColor = ''; }, 700);
+  }
+}
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => {
+    s.classList.remove('active');
+    s.style.display = '';
+  });
+  document.getElementById(id).classList.add('active');
+}
+
+async function initApp() {
+  caricaIngressiLocale();
+  updateClock();
+  updateSyncBadge();
+  await loadVendite();
+  render();
+  if (isOnline && !dbPaused) startRealtime();
+}
+
+// ============================================================
+// CLOCK
+// ============================================================
+function updateClock() {
+  const el = document.getElementById('topClock');
+  if (el) el.textContent = new Date().toLocaleTimeString('it-IT', { hour:'2-digit', minute:'2-digit' });
+}
+setInterval(updateClock, 1000);
+setInterval(() => {
+  if (document.getElementById('appScreen').classList.contains('active')) render();
+}, 60000);
+
+// ============================================================
+// HELPERS
+// ============================================================
+function tipoLabel(t) {
+  const m = { base:'Base', premium:'Premium', ridotto:'Ridotto', nopay:'Non pag.' };
+  return m[t] || t;
+}
+
+function getCurrentTurno() {
+  const now = new Date();
+  const nowMin = now.getHours() * 60 + now.getMinutes();
+  for (const ora of ORARI) {
+    const [h, m] = ora.split(':').map(Number);
+    if (nowMin >= h * 60 + m && nowMin < h * 60 + m + 30) return ora;
+  }
+  return null;
+}
+
+function getNextTurno() {
+  const now = new Date();
+  const nowMin = now.getHours() * 60 + now.getMinutes();
+  for (const ora of ORARI) {
+    const [h, m] = ora.split(':').map(Number);
+    if (h * 60 + m > nowMin) return ora;
+  }
+  return null;
+}
+
+// Raggruppa vendite per turno poi per ticketNum
+function groupByTurno() {
+  const map = {};
+  ORARI.forEach(o => { map[o] = {}; });
+  vendite.forEach(v => {
+    if (!map[v.turno]) return;
+    if (!map[v.turno][v.ticketNum]) map[v.turno][v.ticketNum] = [];
+    map[v.turno][v.ticketNum].push(v);
+  });
+  return map;
+}
+
+function countEntratiTurno(tickets) {
+  return Object.keys(tickets)
+    .filter(t => ingressi[t])
+    .reduce((a, t) => a + tickets[t].reduce((b, v) => b + v.qty, 0), 0);
+}
+function countVendutiTurno(tickets) {
+  return Object.keys(tickets).reduce((a, t) => a + tickets[t].reduce((b, v) => b + v.qty, 0), 0);
+}
+
+// ============================================================
+// RENDER
+// ============================================================
+function render() {
+  renderBanner();
+  renderStats();
+  renderTurni();
+}
+
+function renderBanner() {
+  const current = getCurrentTurno();
+  const banner = document.getElementById('turnoBanner');
+  const tbOra = document.getElementById('tbOra');
+  const tbStats = document.getElementById('tbStats');
+
+  if (!current) {
+    const next = getNextTurno();
+    banner.className = 'turno-banner nessuno';
+    tbOra.textContent = next ? `Prossimo: ${next}` : 'Chiusura';
+    tbStats.style.display = 'none';
+    return;
+  }
+
+  banner.className = 'turno-banner';
+  tbStats.style.display = 'flex';
+  tbOra.textContent = current;
+
+  const gruppo = groupByTurno()[current] || {};
+  const venduti = countVendutiTurno(gruppo);
+  const entrati = countEntratiTurno(gruppo);
+
+  document.getElementById('tbVenduti').textContent = venduti;
+  document.getElementById('tbEntrati').textContent = entrati;
+  document.getElementById('tbRimanenti').textContent = Math.max(0, venduti - entrati);
+}
+
+function renderStats() {
+  const byTurno = groupByTurno();
+  let totVend = 0, totEntr = 0;
+  ORARI.forEach(ora => {
+    const t = byTurno[ora] || {};
+    totVend += countVendutiTurno(t);
+    totEntr += countEntratiTurno(t);
+  });
+  document.getElementById('statVend').textContent = totVend;
+  document.getElementById('statEntr').textContent = totEntr;
+  document.getElementById('statRim').textContent = Math.max(0, totVend - totEntr);
+}
+
+function renderTurni() {
+  const now = new Date();
+  const nowMin = now.getHours() * 60 + now.getMinutes();
+  const current = getCurrentTurno();
+  const next = getNextTurno();
+  const byTurno = groupByTurno();
+  const nomi = getNomiCasse();
+
+  document.getElementById('turniList').innerHTML = ORARI.map(ora => {
+    const [h, m] = ora.split(':').map(Number);
+    const turnoMin = h * 60 + m;
+    const isPast = turnoMin + 30 <= nowMin;
+    const isCurrent = ora === current;
+    const isNext = ora === next;
+
+    const tickets = byTurno[ora] || {};
+    const ticketNums = Object.keys(tickets);
+    const venduti = countVendutiTurno(tickets);
+    const entrati = countEntratiTurno(tickets);
+
+    // Nascondi turni passati senza biglietti
+    if (venduti === 0 && isPast) return '';
+
+    const pct = venduti > 0 ? Math.min(100, (entrati / venduti) * 100) : 0;
+    const barColor = pct >= 100 ? 'var(--green)' : isCurrent ? 'var(--sea)' : 'var(--gold)';
+
+    let badgeClass, badgeLabel;
+    if (venduti === 0)              { badgeClass = 'badge-vuoto';    badgeLabel = 'Nessun biglietto'; }
+    else if (isCurrent)             { badgeClass = 'badge-corrente'; badgeLabel = 'In corso'; }
+    else if (isNext)                { badgeClass = 'badge-prossimo'; badgeLabel = 'Prossimo'; }
+    else if (isPast && pct >= 100)  { badgeClass = 'badge-completo'; badgeLabel = `${entrati}/${venduti} ✓`; }
+    else if (isPast)                { badgeClass = 'badge-passato';  badgeLabel = `${entrati}/${venduti}`; }
+    else                            { badgeClass = 'badge-futuro';   badgeLabel = `${venduti} biglietti`; }
+
+    const itemClass = ['turno-item', isCurrent ? 'corrente' : isNext ? 'prossimo' : ''].filter(Boolean).join(' ');
+    const detailId = 'det-' + ora.replace(':', '');
+
+    const ticketRowsHTML = ticketNums.length === 0
+      ? '<div class="detail-empty">Nessun biglietto venduto</div>'
+      : ticketNums.map(tNum => {
+          const righe = tickets[tNum];
+          const desc = righe.map(v => `${v.qty}× ${tipoLabel(v.tipo)}`).join(', ');
+          const totalQty = righe.reduce((a, v) => a + v.qty, 0);
+          const op = righe[0].operatore === 'dir' ? 'Dir' : (nomi[righe[0].operatore] || righe[0].operatore);
+          const entered = !!ingressi[tNum];
+          const entOra = entered ? ingressi[tNum].ora : '';
+
+          return `<div class="ticket-row${entered ? ' entrato' : ''}" id="row-${tNum}">
+            <span class="tr-num">${tNum}</span>
+            <div class="tr-info">
+              <div class="tr-desc">${desc}</div>
+              <div class="tr-meta">${totalQty} ${totalQty === 1 ? 'persona' : 'persone'} · ${op} · ${righe[0].ora}</div>
+            </div>
+            <div class="tr-azioni">
+              ${entered
+                ? `<span class="btn-entra-done">✓ ${entOra}</span>
+                   <button class="btn-undoentra" onclick="event.stopPropagation();undoIngresso('${tNum}')" title="Annulla ingresso">✕</button>`
+                : `<button class="btn-entra" onclick="event.stopPropagation();segnaIngresso('${tNum}')">ENTRA</button>`
+              }
+            </div>
+          </div>`;
+        }).join('');
+
+    return `<div class="${itemClass}">
+      <div class="turno-header" onclick="toggleDetail('${detailId}')">
+        <span class="th-ora">${ora}</span>
+        <div class="th-progress">
+          <div class="th-bar-wrap">
+            <div class="th-bar" style="width:${pct}%;background:${barColor}"></div>
+          </div>
+          <div class="th-nums">
+            <span>${entrati} entrati</span>
+            <span>${venduti} venduti</span>
+          </div>
+        </div>
+        <span class="th-badge ${badgeClass}">${badgeLabel}</span>
+      </div>
+      <div class="turno-detail${isCurrent ? ' open' : ''}" id="${detailId}">
+        ${ticketRowsHTML}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function toggleDetail(id) {
+  const el = document.getElementById(id);
+  if (el) el.classList.toggle('open');
+}
+
+// ============================================================
+// INGRESSI
+// ============================================================
+function segnaIngresso(ticketNum) {
+  const ora = new Date().toLocaleTimeString('it-IT', { hour:'2-digit', minute:'2-digit' });
+  ingressi[ticketNum] = { ora };
+  salvaIngressiLocale();
+  render();
+  showFlash(`✓ Ticket ${ticketNum} — ingresso segnato`);
+}
+
+function undoIngresso(ticketNum) {
+  delete ingressi[ticketNum];
+  salvaIngressiLocale();
+  render();
+}
+
+function showFlash(msg) {
+  const f = document.getElementById('successFlash');
+  f.textContent = msg;
+  f.classList.add('show');
+  setTimeout(() => f.classList.remove('show'), 2500);
+}
+
+// ============================================================
+// REALTIME
+// ============================================================
+let realtimeChannel = null;
+
+function startRealtime() {
+  if (realtimeChannel) return;
+  realtimeChannel = db
+    .channel('ctrl-live')
+    .on('postgres_changes', {
+      event: '*', schema: 'public', table: 'vendite',
+      filter: `data=eq.${todayStr()}`
+    }, async () => {
+      await loadVendite();
+      render();
+    })
+    .subscribe();
+}
+
+window.addEventListener('online', () => { if (!realtimeChannel) startRealtime(); });
+
+// ESC chiude dettagli
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape')
+    document.querySelectorAll('.turno-detail.open').forEach(d => d.classList.remove('open'));
+});
+</script>
+</body>
+</html>
