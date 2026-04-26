@@ -594,6 +594,90 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); min-he
   background: none; border: none; cursor: pointer; font-size: 0.85rem;
   padding: 2px 4px; margin-top: 2px; display: block;
 }
+
+/* ===== TAB INGRESSO ===== */
+.ingresso-banner {
+  background: var(--sea); color: #fff; border-radius: 16px;
+  padding: 16px 18px; margin-bottom: 14px;
+  box-shadow: 0 4px 12px rgba(21,101,160,0.25);
+}
+.ingresso-banner.nessuno { background: var(--text); box-shadow: none; }
+.ib-label { font-size: 0.6rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em; opacity: 0.75; margin-bottom: 2px; }
+.ib-ora { font-family: var(--fd); font-size: 2.2rem; font-weight: normal; line-height: 1.1; margin-bottom: 8px; }
+.ib-stats { display: flex; gap: 18px; }
+.ib-stat .val { font-size: 1.5rem; font-weight: 800; display: block; font-variant-numeric: tabular-nums; }
+.ib-stat .lab { font-size: 0.56rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; opacity: 0.75; }
+
+.ingresso-day-stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 14px; }
+.ids-card {
+  background: var(--white); border: 2px solid var(--border); border-radius: 12px;
+  padding: 10px 8px; text-align: center; box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+}
+.ids-card.entrati { border-color: var(--green-border); }
+.ids-card.entrati .ids-val { color: var(--green); }
+.ids-card.rimanenti { border-color: var(--red-border); }
+.ids-card.rimanenti .ids-val { color: var(--red); }
+.ids-val { font-family: var(--fd); font-size: 1.6rem; color: var(--text); display: block; }
+.ids-lab { font-size: 0.56rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+
+.ingresso-turni { display: flex; flex-direction: column; gap: 6px; }
+.it-item {
+  background: var(--white); border: 2px solid var(--border); border-radius: 14px;
+  overflow: hidden;
+}
+.it-item.corrente { border-color: var(--sea); }
+.it-item.prossimo { border-color: var(--gold-border); }
+.it-header {
+  display: flex; align-items: center; gap: 10px;
+  padding: 11px 14px; cursor: pointer; user-select: none;
+}
+.it-ora { font-family: var(--fd); font-size: 1.1rem; color: var(--text); min-width: 48px; flex-shrink: 0; }
+.it-bar-wrap { flex: 1; }
+.it-bg { background: var(--s1); border-radius: 99px; height: 5px; overflow: hidden; margin-bottom: 3px; }
+.it-fill { height: 100%; border-radius: 99px; transition: width 0.4s; }
+.it-nums { display: flex; justify-content: space-between; font-size: 0.58rem; color: var(--muted); font-weight: 600; }
+.it-badge {
+  font-size: 0.6rem; font-weight: 700; text-transform: uppercase;
+  padding: 3px 8px; border-radius: 8px; white-space: nowrap;
+  border: 1.5px solid var(--border); background: var(--s1); color: var(--muted);
+}
+.it-badge.corrente { background: var(--sea-bg); color: var(--sea); border-color: var(--sea-border); }
+.it-badge.prossimo { background: var(--gold-bg); color: var(--gold); border-color: var(--gold-border); }
+.it-badge.completo { background: var(--green-bg); color: var(--green); border-color: var(--green-border); }
+
+.it-detail { display: none; border-top: 2px solid var(--border); padding: 8px 12px; background: var(--bg); }
+.it-detail.open { display: block; }
+
+.biglietto-row {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--white); border: 2px solid var(--border); border-radius: 10px;
+  padding: 9px 11px; margin-bottom: 5px; transition: all 0.15s;
+}
+.biglietto-row:last-child { margin-bottom: 0; }
+.biglietto-row.entrato { background: var(--green-bg); border-color: var(--green-border); }
+.br-num { font-family: var(--fd); font-size: 1rem; color: var(--sea); font-weight: 700; min-width: 44px; flex-shrink: 0; }
+.br-info { flex: 1; }
+.br-desc { font-size: 0.82rem; font-weight: 700; color: var(--text); }
+.br-meta { font-size: 0.64rem; color: var(--muted); margin-top: 1px; font-weight: 600; }
+.br-azioni { display: flex; align-items: center; gap: 5px; flex-shrink: 0; }
+.btn-segna {
+  padding: 7px 12px; border-radius: 8px;
+  border: 2px solid var(--green-border); background: var(--green-bg); color: var(--green);
+  font-family: var(--fu); font-size: 0.74rem; font-weight: 800;
+  cursor: pointer; transition: all 0.15s; white-space: nowrap;
+}
+.btn-segna:active { background: var(--green); color: #fff; transform: scale(0.95); }
+.btn-segna-done {
+  padding: 5px 10px; border-radius: 8px; border: none;
+  background: var(--green); color: #fff;
+  font-family: var(--fu); font-size: 0.7rem; font-weight: 800; white-space: nowrap;
+}
+.btn-annulla-ingresso {
+  background: none; border: none; color: var(--muted); font-size: 0.88rem;
+  cursor: pointer; padding: 3px; line-height: 1;
+}
+.btn-annulla-ingresso:active { color: var(--red); }
+.ingresso-vuoto { text-align: center; padding: 16px; color: var(--muted); font-size: 0.8rem; font-weight: 600; }
 </style>
 </head>
 <body>
@@ -642,6 +726,7 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); min-he
     <button class="tab-btn" onclick="switchTab('turni')">🕐 Turni</button>
     <button class="tab-btn" onclick="switchTab('storico')">📋 Storico</button>
     <button class="tab-btn" onclick="switchTab('cassa')">💰 Cassa</button>
+    <button class="tab-btn" onclick="switchTab('ingresso')">🚪 Ingresso</button>
   </div>
 
   <!-- TAB VENDITA -->
@@ -831,13 +916,31 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); min-he
           </div>
         </div>
       </div>
-      <div class="sec-label" style="margin-bottom:8px;">App Controllo Ingressi</div>
-      <button class="btn-export" onclick="window.open('scopello-controllo.html','_blank')"
-        style="color:var(--purple);border-color:var(--purple-border);">🔍 Apri Controllo Ingressi</button>
       <div class="sec-label" style="margin-bottom:8px;">Esporta</div>
       <button class="btn-export" onclick="exportCSV()">📥 Esporta CSV giornata</button>
       <button class="btn-export" onclick="resetDay()" style="color:var(--red);border-color:var(--red-border);">🗑 Reset giornata</button>
     </div>
+  </div>
+
+  <!-- TAB INGRESSO -->
+  <div id="tab-ingresso" class="tab-content">
+    <div class="ingresso-banner" id="ingressoBanner">
+      <div class="ib-label">Turno in corso</div>
+      <div class="ib-ora" id="ibOra">—</div>
+      <div class="ib-stats" id="ibStats">
+        <div class="ib-stat"><span class="val" id="ibVenduti">0</span><span class="lab">venduti</span></div>
+        <div class="ib-stat"><span class="val" id="ibEntrati">0</span><span class="lab">entrati</span></div>
+        <div class="ib-stat"><span class="val" id="ibRimanenti">0</span><span class="lab">rimanenti</span></div>
+      </div>
+    </div>
+    <div class="sec-label">Giornata</div>
+    <div class="ingresso-day-stats">
+      <div class="ids-card"><span class="ids-val" id="idsVend">0</span><span class="ids-lab">Venduti</span></div>
+      <div class="ids-card entrati"><span class="ids-val" id="idsEntr">0</span><span class="ids-lab">Entrati</span></div>
+      <div class="ids-card rimanenti"><span class="ids-val" id="idsRim">0</span><span class="ids-lab">Rimanenti</span></div>
+    </div>
+    <div class="sec-label">Turni di oggi</div>
+    <div class="ingresso-turni" id="ingressoTurni"></div>
   </div>
 
   <!-- BOTTONE FLOTTANTE CAMBIO OPERATORE -->
@@ -1133,6 +1236,7 @@ async function loadTodayVendite() {
   if (document.getElementById('tab-storico').classList.contains('active')) renderStorico();
   if (document.getElementById('tab-cassa').classList.contains('active')) renderCassa();
   if (document.getElementById('tab-turni').classList.contains('active')) renderTurni();
+  if (document.getElementById('tab-ingresso').classList.contains('active')) renderIngresso();
 }
 
 // ============================================================
@@ -1160,15 +1264,25 @@ const CONFIG = {
     // Aggiorna bottoni login con nomi salvati
     document.getElementById('opBtn1').textContent = CONFIG.nomiCasse.op1;
     document.getElementById('opBtn2').textContent = CONFIG.nomiCasse.op2;
+    // Carica ingressi del giorno
+    const todayKey = 'scopello_ingressi_' + new Date().toLocaleDateString('it-IT',{year:'numeric',month:'2-digit',day:'2-digit'}).split('/').reverse().join('-');
+    const ingr = JSON.parse(localStorage.getItem(todayKey) || '{}');
+    if (ingr) state.ingressi = ingr;
   } catch(e) {}
 })();
+
+function saveIngressi() {
+  const todayKey = 'scopello_ingressi_' + new Date().toLocaleDateString('it-IT',{year:'numeric',month:'2-digit',day:'2-digit'}).split('/').reverse().join('-');
+  try { localStorage.setItem(todayKey, JSON.stringify(state.ingressi)); } catch(e) {}
+}
 
 let state = {
   operatore: null, isDir: false,
   turnoSel: null, paySel: null,
   vendite: [], turni: {},
   note: { op1: [], op2: [] },
-  rimborsi: []
+  rimborsi: [],
+  ingressi: {}  // { ticketNum: { ora } }
 };
 let cart = {};
 CONFIG.orari.forEach(o => { state.turni[o] = { prenotati: 0 }; });
@@ -1315,13 +1429,14 @@ setInterval(() => {
 }, 60000);
 
 function switchTab(name) {
-  document.querySelectorAll('.tab-btn').forEach((b,i) => b.classList.toggle('active', ['vendita','turni','storico','cassa'][i] === name));
+  document.querySelectorAll('.tab-btn').forEach((b,i) => b.classList.toggle('active', ['vendita','turni','storico','cassa','ingresso'][i] === name));
   document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
   document.getElementById('tab-'+name).classList.add('active');
-  if (name === 'vendita') { renderTurniVendita(); updateSummary(); }
-  if (name === 'turni') renderTurni();
-  if (name === 'storico') renderStorico();
-  if (name === 'cassa') renderCassa();
+  if (name === 'vendita')   { renderTurniVendita(); updateSummary(); }
+  if (name === 'turni')     renderTurni();
+  if (name === 'storico')   renderStorico();
+  if (name === 'cassa')     renderCassa();
+  if (name === 'ingresso')  renderIngresso();
 }
 
 // ============================================================
@@ -2198,6 +2313,7 @@ async function resetDay() {
   // Cancella dal DB se online, altrimenti salva il flag per farlo appena torna la connessione
   if (isOnline) {
     await db.from('vendite').delete().eq('data', today);
+    await db.from('ingressi').delete().eq('data', today).catch(() => {});
   } else {
     // Segna che va fatto un reset per questa data appena torna online
     localStorage.setItem('scopello_pending_reset', today);
@@ -2210,12 +2326,177 @@ async function resetDay() {
   // Azzera stato locale
   state.vendite = [];
   state.rimborsi = [];
+  state.ingressi = {};
   localStorage.removeItem('scopello_rimborsi');
+  saveIngressi();
   CONFIG.orari.forEach(o => { state.turni[o] = { prenotati: 0 }; });
   ticketCounter = 0;
   localStorage.setItem('scopello_ticket_counter', 0);
   const u = document.getElementById('undoBtn'); if (u) u.remove();
   renderCassa(); renderTurniVendita(); updateSummary();
+}
+
+// ============================================================
+// INGRESSO
+// ============================================================
+function getIngressoCurrentTurno() {
+  const now = new Date();
+  const nowMin = now.getHours() * 60 + now.getMinutes();
+  for (const ora of CONFIG.orari) {
+    const [h, m] = ora.split(':').map(Number);
+    if (nowMin >= h * 60 + m && nowMin < h * 60 + m + 30) return ora;
+  }
+  return null;
+}
+
+function getIngressoNextTurno() {
+  const now = new Date();
+  const nowMin = now.getHours() * 60 + now.getMinutes();
+  for (const ora of CONFIG.orari) {
+    const [h, m] = ora.split(':').map(Number);
+    if (h * 60 + m > nowMin) return ora;
+  }
+  return null;
+}
+
+function groupVenditePerIngresso() {
+  const map = {};
+  CONFIG.orari.forEach(o => { map[o] = {}; });
+  state.vendite.forEach(v => {
+    if (!map[v.turno]) return;
+    if (!map[v.turno][v.ticketNum]) map[v.turno][v.ticketNum] = [];
+    map[v.turno][v.ticketNum].push(v);
+  });
+  return map;
+}
+
+function countEntratiTurno(tickets) {
+  return Object.keys(tickets).filter(t => state.ingressi[t])
+    .reduce((a, t) => a + tickets[t].reduce((b, v) => b + v.qty, 0), 0);
+}
+function countVendutiTurno(tickets) {
+  return Object.keys(tickets).reduce((a, t) => a + tickets[t].reduce((b, v) => b + v.qty, 0), 0);
+}
+
+function renderIngresso() {
+  const now = new Date();
+  const nowMin = now.getHours() * 60 + now.getMinutes();
+  const current = getIngressoCurrentTurno();
+  const next = getIngressoNextTurno();
+  const byTurno = groupVenditePerIngresso();
+
+  // Banner turno corrente
+  const banner = document.getElementById('ingressoBanner');
+  const ibStats = document.getElementById('ibStats');
+  if (!current) {
+    banner.className = 'ingresso-banner nessuno';
+    document.getElementById('ibOra').textContent = next ? 'Prossimo: ' + next : 'Chiusura';
+    ibStats.style.display = 'none';
+  } else {
+    banner.className = 'ingresso-banner';
+    ibStats.style.display = 'flex';
+    document.getElementById('ibOra').textContent = current;
+    const t = byTurno[current] || {};
+    const vend = countVendutiTurno(t), entr = countEntratiTurno(t);
+    document.getElementById('ibVenduti').textContent = vend;
+    document.getElementById('ibEntrati').textContent = entr;
+    document.getElementById('ibRimanenti').textContent = Math.max(0, vend - entr);
+  }
+
+  // Stats giornata
+  let totV = 0, totE = 0;
+  CONFIG.orari.forEach(o => {
+    const t = byTurno[o] || {};
+    totV += countVendutiTurno(t);
+    totE += countEntratiTurno(t);
+  });
+  document.getElementById('idsVend').textContent = totV;
+  document.getElementById('idsEntr').textContent = totE;
+  document.getElementById('idsRim').textContent = Math.max(0, totV - totE);
+
+  // Lista turni
+  document.getElementById('ingressoTurni').innerHTML = CONFIG.orari.map(ora => {
+    const [h, m] = ora.split(':').map(Number);
+    const turnoMin = h * 60 + m;
+    const isPast = turnoMin + 30 <= nowMin;
+    const isCurrent = ora === current;
+    const isNext = ora === next;
+
+    const tickets = byTurno[ora] || {};
+    const ticketNums = Object.keys(tickets);
+    const venduti = countVendutiTurno(tickets);
+    const entrati = countEntratiTurno(tickets);
+
+    if (venduti === 0 && isPast) return '';
+
+    const pct = venduti > 0 ? Math.min(100, (entrati / venduti) * 100) : 0;
+    const fillColor = pct >= 100 ? 'var(--green)' : isCurrent ? 'var(--sea)' : 'var(--gold)';
+
+    let badgeClass = '', badgeLabel = venduti + ' bigl.';
+    if (venduti === 0)             { badgeClass = ''; badgeLabel = 'Vuoto'; }
+    else if (isCurrent)            { badgeClass = 'corrente'; badgeLabel = 'In corso'; }
+    else if (isNext)               { badgeClass = 'prossimo'; badgeLabel = 'Prossimo'; }
+    else if (isPast && pct >= 100) { badgeClass = 'completo'; badgeLabel = entrati + '/' + venduti + ' ✓'; }
+    else if (isPast)               { badgeClass = ''; badgeLabel = entrati + '/' + venduti; }
+
+    const detailId = 'ingdet-' + ora.replace(':', '');
+    const itemClass = 'it-item' + (isCurrent ? ' corrente' : isNext ? ' prossimo' : '');
+
+    const righeHTML = ticketNums.length === 0
+      ? '<div class="ingresso-vuoto">Nessun biglietto venduto</div>'
+      : ticketNums.map(tNum => {
+          const righe = tickets[tNum];
+          const desc = righe.map(v => v.qty + '× ' + tipoLabel(v.tipo)).join(', ');
+          const qty = righe.reduce((a, v) => a + v.qty, 0);
+          const op = righe[0].operatore === 'dir' ? 'Dir' : (CONFIG.nomiCasse[righe[0].operatore] || righe[0].operatore);
+          const entered = !!state.ingressi[tNum];
+          const entOra = entered ? state.ingressi[tNum].ora : '';
+          return `<div class="biglietto-row${entered ? ' entrato' : ''}">
+            <span class="br-num">${tNum}</span>
+            <div class="br-info">
+              <div class="br-desc">${desc}</div>
+              <div class="br-meta">${qty} ${qty === 1 ? 'persona' : 'persone'} · ${op} · ${righe[0].ora}</div>
+            </div>
+            <div class="br-azioni">
+              ${entered
+                ? `<span class="btn-segna-done">✓ ${entOra}</span>
+                   <button class="btn-annulla-ingresso" onclick="event.stopPropagation();undoIngressoBtn('${tNum}')" title="Annulla">✕</button>`
+                : `<button class="btn-segna" onclick="event.stopPropagation();segnaIngressoBtn('${tNum}')">ENTRA</button>`}
+            </div>
+          </div>`;
+        }).join('');
+
+    return `<div class="${itemClass}">
+      <div class="it-header" onclick="toggleItDetail('${detailId}')">
+        <span class="it-ora">${ora}</span>
+        <div class="it-bar-wrap">
+          <div class="it-bg"><div class="it-fill" style="width:${pct}%;background:${fillColor}"></div></div>
+          <div class="it-nums"><span>${entrati} entrati</span><span>${venduti} venduti</span></div>
+        </div>
+        <span class="it-badge ${badgeClass}">${badgeLabel}</span>
+      </div>
+      <div class="it-detail${isCurrent ? ' open' : ''}" id="${detailId}">${righeHTML}</div>
+    </div>`;
+  }).join('');
+}
+
+function toggleItDetail(id) {
+  const el = document.getElementById(id);
+  if (el) el.classList.toggle('open');
+}
+
+function segnaIngressoBtn(ticketNum) {
+  const ora = new Date().toLocaleTimeString('it-IT', {hour:'2-digit', minute:'2-digit'});
+  state.ingressi[ticketNum] = { ora };
+  saveIngressi();
+  renderIngresso();
+  showErrorToast('✓ Ticket ' + ticketNum + ' entrato alle ' + ora);
+}
+
+function undoIngressoBtn(ticketNum) {
+  delete state.ingressi[ticketNum];
+  saveIngressi();
+  renderIngresso();
 }
 
 function closeModal(id) { document.getElementById(id).classList.remove('visible'); }
