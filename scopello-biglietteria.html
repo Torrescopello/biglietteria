@@ -1049,6 +1049,9 @@ let pendingSync = (() => { try { return JSON.parse(localStorage.getItem('pending
 let _rimborsiStored = (() => { try { return JSON.parse(localStorage.getItem('scopello_rimborsi') || '[]'); } catch(e) { return []; } })();
 let isOnline = navigator.onLine;
 
+// Carica password da Supabase all'avvio (aggiorna localStorage se più recenti)
+if (isOnline) loadPasswordsFromDB();
+
 window.addEventListener('online', async () => {
   isOnline = true;
   updateSyncBadge();
@@ -1274,6 +1277,23 @@ const CONFIG = {
 function saveIngressi() {
   const todayKey = 'scopello_ingressi_' + new Date().toLocaleDateString('it-IT',{year:'numeric',month:'2-digit',day:'2-digit'}).split('/').reverse().join('-');
   try { localStorage.setItem(todayKey, JSON.stringify(state.ingressi)); } catch(e) {}
+}
+
+async function loadPasswordsFromDB() {
+  if (!isOnline) return;
+  const { data } = await db.from('config').select('value').eq('key', 'passwords').maybeSingle().catch(() => ({ data: null }));
+  if (data?.value) {
+    Object.assign(CONFIG.passwords, data.value);
+    try { localStorage.setItem('scopello_passwords', JSON.stringify(CONFIG.passwords)); } catch(e) {}
+  }
+}
+
+async function savePasswordsToDB() {
+  if (!isOnline) return;
+  await db.from('config').upsert(
+    { key: 'passwords', value: CONFIG.passwords },
+    { onConflict: 'key' }
+  ).catch(() => {});
 }
 
 let state = {
@@ -2265,8 +2285,9 @@ function changePassword(key) {
   if (val.length < 4) { alert('La password deve essere di almeno 4 caratteri.'); return; }
   CONFIG.passwords[key] = val;
   try { localStorage.setItem('scopello_passwords', JSON.stringify(CONFIG.passwords)); } catch(e) {}
+  savePasswordsToDB();
   document.getElementById(inputId).value = '';
-  alert('✓ Password aggiornata e salvata!');
+  alert('✓ Password aggiornata e salvata per tutti i dispositivi!');
 }
 
 function openDirPw() {
@@ -2553,15 +2574,16 @@ function startRealtime() {
   if (realtimeChannel) return; // già attivo
   const today = new Date().toLocaleDateString('it-IT', {year:'numeric',month:'2-digit',day:'2-digit'}).split('/').reverse().join('-');
   realtimeChannel = db
-    .channel('vendite-live')
+    .channel('live')
     .on('postgres_changes', {
-      event: '*',
-      schema: 'public',
-      table: 'vendite',
-      filter: `data=eq.${today}`
+      event: '*', schema: 'public', table: 'vendite', filter: `data=eq.${today}`
     }, () => {
-      // Ricarica silenziosamente i dati aggiornati
       if (state.operatore) loadTodayVendite();
+    })
+    .on('postgres_changes', {
+      event: '*', schema: 'public', table: 'config', filter: `key=eq.passwords`
+    }, () => {
+      loadPasswordsFromDB();
     })
     .subscribe();
 }
