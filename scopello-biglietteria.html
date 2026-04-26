@@ -2313,6 +2313,7 @@ async function resetDay() {
   // Cancella dal DB se online, altrimenti salva il flag per farlo appena torna la connessione
   if (isOnline) {
     await db.from('vendite').delete().eq('data', today);
+    await db.from('ingressi').delete().eq('data', today).catch(() => {});
   } else {
     // Segna che va fatto un reset per questa data appena torna online
     localStorage.setItem('scopello_pending_reset', today);
