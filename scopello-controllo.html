@@ -316,17 +316,16 @@ const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 const ORARI = ['11:00','11:30','12:00','12:30','13:00','13:30','14:00','14:30',
                '15:00','15:30','16:00','16:30','17:00','17:30','18:00'];
 
-function getPwCtrl() {
+function getAllPasswords() {
   try {
     const pw = JSON.parse(localStorage.getItem('scopello_passwords') || '{}');
-    return pw.ctrl || 'ctrl2024';
-  } catch(e) { return 'ctrl2024'; }
-}
-function getPwDir() {
-  try {
-    const pw = JSON.parse(localStorage.getItem('scopello_passwords') || '{}');
-    return pw.dir || 'scopello2024';
-  } catch(e) { return 'scopello2024'; }
+    return [
+      pw.ctrl || 'ctrl2024',
+      pw.dir  || 'scopello2024',
+      pw.op1  || '1234',
+      pw.op2  || '5678'
+    ];
+  } catch(e) { return ['ctrl2024', 'scopello2024', '1234', '5678']; }
 }
 function getNomiCasse() {
   try {
@@ -433,7 +432,7 @@ async function loadVendite() {
 function doLogin() {
   const pw = document.getElementById('loginPw').value.trim();
   const err = document.getElementById('loginError');
-  if (pw === getPwCtrl() || pw === getPwDir()) {
+  if (getAllPasswords().includes(pw)) {
     document.getElementById('loginPw').value = '';
     err.textContent = '';
     showScreen('appScreen');
