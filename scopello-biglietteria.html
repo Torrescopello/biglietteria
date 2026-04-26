@@ -823,7 +823,17 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); min-he
             <button class="note-save-btn" onclick="changePassword('dir')">Salva</button>
           </div>
         </div>
+        <div class="settings-row-item">
+          <span class="settings-row-label">Password Controllo Ingressi</span>
+          <div style="display:flex;gap:6px;align-items:center;">
+            <input type="password" class="name-input" id="newPwCtrl" placeholder="nuova pw" style="width:110px;">
+            <button class="note-save-btn" onclick="changePassword('ctrl')">Salva</button>
+          </div>
+        </div>
       </div>
+      <div class="sec-label" style="margin-bottom:8px;">App Controllo Ingressi</div>
+      <button class="btn-export" onclick="window.open('scopello-controllo.html','_blank')"
+        style="color:var(--purple);border-color:var(--purple-border);">🔍 Apri Controllo Ingressi</button>
       <div class="sec-label" style="margin-bottom:8px;">Esporta</div>
       <button class="btn-export" onclick="exportCSV()">📥 Esporta CSV giornata</button>
       <button class="btn-export" onclick="resetDay()" style="color:var(--red);border-color:var(--red-border);">🗑 Reset giornata</button>
@@ -1129,7 +1139,7 @@ async function loadTodayVendite() {
 // CONFIG & STATE
 // ============================================================
 const CONFIG = {
-  passwords: { op1: '1234', op2: '5678', dir: 'scopello2024' },
+  passwords: { op1: '1234', op2: '5678', dir: 'scopello2024', ctrl: 'ctrl2024' },
   prezzi: { base: 10, premium: 18, ridotto: 5, nopay: 0 },
   capMax: 22,
   orari: ['11:00','11:30','12:00','12:30','13:00','13:30','14:00','14:30','15:00','15:30','16:00','16:30','17:00','17:30','18:00'],
@@ -2134,7 +2144,7 @@ function updateCassaNames() {
 }
 
 function changePassword(key) {
-  const inputId = key === 'op1' ? 'newPw1' : key === 'op2' ? 'newPw2' : 'newPwDir';
+  const inputId = key === 'op1' ? 'newPw1' : key === 'op2' ? 'newPw2' : key === 'ctrl' ? 'newPwCtrl' : 'newPwDir';
   const val = document.getElementById(inputId).value.trim();
   if (!val) { alert('Inserisci una nuova password.'); return; }
   if (val.length < 4) { alert('La password deve essere di almeno 4 caratteri.'); return; }
