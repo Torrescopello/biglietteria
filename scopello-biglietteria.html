@@ -1532,9 +1532,11 @@ function applyTicketStart() {
 
 function addToCart(tipo) {
   if (!state.turnoSel) { alert('Seleziona prima un turno!'); return; }
-  // Controlla capienza
-  const liberi = CONFIG.capMax - state.turni[state.turnoSel].prenotati;
-  if (cartTotalQty() >= liberi) { alert(`Turno ${state.turnoSel}: solo ${liberi} posti disponibili.`); return; }
+  // Controlla capienza solo per turni con visita
+  if (state.turnoSel !== 'nessuna') {
+    const liberi = CONFIG.capMax - state.turni[state.turnoSel].prenotati;
+    if (cartTotalQty() >= liberi) { alert(`Turno ${state.turnoSel}: solo ${liberi} posti disponibili.`); return; }
+  }
   cart[tipo] = (cart[tipo] || 0) + 1;
   // Fix: se aggiungo biglietto a pagamento dopo nopay, reset paySel 'gratis'
   if (tipo !== 'nopay' && state.paySel === 'gratis') {
@@ -1610,7 +1612,13 @@ function renderTurniVendita() {
   const now = new Date();
   const nowMinutes = now.getHours() * 60 + now.getMinutes();
 
-  document.getElementById('turniScrollVendita').innerHTML = CONFIG.orari.map(ora => {
+  const noVisitaSel = state.turnoSel === 'nessuna';
+  const chipNoVisita = `<div class="turno-chip${noVisitaSel ? ' selected' : ''}" onclick="selectTurno('nessuna')">
+    <div class="t-ora" style="font-size:0.75rem;">No visita</div>
+    <div class="t-free">solo ingresso</div>
+  </div>`;
+
+  document.getElementById('turniScrollVendita').innerHTML = chipNoVisita + CONFIG.orari.map(ora => {
     const t = state.turni[ora];
     const liberi = CONFIG.capMax - t.prenotati;
     const full = liberi <= 0;
@@ -1712,7 +1720,7 @@ async function executeSale() {
     })
   );
 
-  state.turni[state.turnoSel].prenotati += totalQty;
+  if (state.turnoSel !== 'nessuna') state.turni[state.turnoSel].prenotati += totalQty;
   closeModal('modalConferma');
   showFlash(tot, tNum);
   resetSellForm();
@@ -1731,7 +1739,7 @@ function undoLastSale() {
 
 function doAnnullaVendita(vendita) {
   state.vendite = state.vendite.filter(v => v.id !== vendita.id);
-  state.turni[vendita.turno].prenotati = Math.max(0, state.turni[vendita.turno].prenotati - vendita.qty);
+  if (vendita.turno !== 'nessuna') state.turni[vendita.turno].prenotati = Math.max(0, state.turni[vendita.turno].prenotati - vendita.qty);
   deleteVendita(vendita);
   renderTurniVendita(); renderUndoBtn();
   if (document.getElementById('tab-storico').classList.contains('active')) renderStorico();
