@@ -2039,21 +2039,20 @@ function selCambiaPag(tipo) {
   document.getElementById('btnConfermaCambiaPag').disabled = false;
 }
 
-async function eseguiCambiaPagamento() {
+function eseguiCambiaPagamento() {
   if (!cambiaPagTicket || !cambiaPagSel) return;
-  document.getElementById('btnConfermaCambiaPag').disabled = true;
-  const righe = state.vendite.filter(v => v.ticketNum === cambiaPagTicket);
-  // Aggiorna stato locale
-  righe.forEach(v => { v.pagamento = cambiaPagSel; });
-  // Aggiorna Supabase
-  if (isOnline) {
-    const today = new Date().toLocaleDateString('it-IT',{year:'numeric',month:'2-digit',day:'2-digit'}).split('/').reverse().join('-');
-    await db.from('vendite').update({ pagamento: cambiaPagSel })
-      .eq('ticket_num', cambiaPagTicket).eq('data', today).catch(() => {});
-  }
+  // Aggiorna stato locale e chiudi subito
+  state.vendite.filter(v => v.ticketNum === cambiaPagTicket)
+    .forEach(v => { v.pagamento = cambiaPagSel; });
   closeModal('modalCambiaPag');
   updateSummary();
-  renderStorico();
+  if (document.getElementById('tab-storico').classList.contains('active')) renderStorico();
+  // Sync Supabase in background
+  if (isOnline) {
+    const today = new Date().toLocaleDateString('it-IT',{year:'numeric',month:'2-digit',day:'2-digit'}).split('/').reverse().join('-');
+    db.from('vendite').update({ pagamento: cambiaPagSel })
+      .eq('ticket_num', cambiaPagTicket).eq('data', today).catch(() => {});
+  }
 }
 
 // ============================================================
