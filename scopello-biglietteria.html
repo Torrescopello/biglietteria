@@ -1188,8 +1188,13 @@ async function syncPending() {
   savePending();
   for (const row of toSync) {
     const { localId, ...data } = row;
-    const { error } = await db.from('vendite').insert(data);
+    const { data: inserted, error } = await db.from('vendite').insert(data).select('id').single();
     if (error) { pendingSync.push(row); savePending(); }
+    else if (inserted && localId) {
+      // Aggiorna dbId sulla vendita in memoria così delete/update successivi funzionano
+      const v = state.vendite.find(x => x.id === localId);
+      if (v) v.dbId = inserted.id;
+    }
   }
   updateSyncBadge();
 }
@@ -2004,6 +2009,8 @@ function eseguiAnnullaDir() {
     saveRimborsi();
     modificaRimborsoIdx = null;
     closeModal('modalRimborso');
+    updateSummary();
+    if (document.getElementById('tab-storico').classList.contains('active')) renderStorico();
     if (document.getElementById('tab-cassa').classList.contains('active')) renderCassa();
     return;
   }
@@ -2086,7 +2093,16 @@ function eseguiCambiaPagamento() {
   if (isOnline) {
     const today = new Date().toLocaleDateString('it-IT',{year:'numeric',month:'2-digit',day:'2-digit'}).split('/').reverse().join('-');
     db.from('vendite').update({ pagamento: cambiaPagSel })
-      .eq('ticket_num', cambiaPagTicket).eq('data', today).catch(() => {});
+      .eq('ticket_num', cambiaPagTicket).eq('data', today)
+      .then(({ error }) => {
+        if (error) {
+          righeAggiornate.forEach(v => { if (v.dbId) { pendingUpdates.push({ dbId: v.dbId, pagamento: cambiaPagSel }); } });
+          savePendingUpdates(); updateSyncBadge();
+        }
+      }).catch(() => {
+        righeAggiornate.forEach(v => { if (v.dbId) { pendingUpdates.push({ dbId: v.dbId, pagamento: cambiaPagSel }); } });
+        savePendingUpdates(); updateSyncBadge();
+      });
   } else {
     righeAggiornate.forEach(v => { if (v.dbId) { pendingUpdates.push({ dbId: v.dbId, pagamento: cambiaPagSel }); } });
     savePendingUpdates(); updateSyncBadge();
@@ -2140,6 +2156,7 @@ async function eseguiSposta() {
 
   const turnoVecchio = righe[0].turno;
   const totalQty = righe.reduce((a,v)=>a+v.qty,0);
+  if (!state.turni[spostaNewTurno]) state.turni[spostaNewTurno] = { prenotati: 0 };
   const liberiNuovo = CONFIG.capMax - state.turni[spostaNewTurno].prenotati;
 
   if (liberiNuovo <= 0) {
@@ -2152,7 +2169,9 @@ async function eseguiSposta() {
 
   // Aggiorna in memoria
   righe.forEach(v => { v.turno = spostaNewTurno; });
-  state.turni[turnoVecchio].prenotati = Math.max(0, state.turni[turnoVecchio].prenotati - totalQty);
+  if (turnoVecchio !== 'nessuna' && state.turni[turnoVecchio]) {
+    state.turni[turnoVecchio].prenotati = Math.max(0, state.turni[turnoVecchio].prenotati - totalQty);
+  }
   state.turni[spostaNewTurno].prenotati += totalQty;
 
   // Aggiorna nel DB (online subito, offline in coda)
@@ -2307,7 +2326,7 @@ function renderCassa() {
       // Vendite attive
       const vendCashOp    = vv.filter(v=>v.pagamento==='cash').reduce((a,v)=>a+v.totale,0);
       const vendPosOp     = vv.filter(v=>v.pagamento==='pos').reduce((a,v)=>a+v.totale,0);
-      const vendPosPlus0p = vv.filter(v=>v.pagamento==='posplus').reduce((a,v)=>a+v.totale,0);
+      const vendPosPlusOp = vv.filter(v=>v.pagamento==='posplus').reduce((a,v)=>a+v.totale,0);
       // Reintegro annulli di questo operatore (come nei totali globali)
       const opRimb = rimborsi.filter(r=>r.operatoreCassa===op);
       const reintCashOp    = opRimb.filter(r=>r.pagamentoOriginale==='cash').reduce((a,r)=>a+r.totale,0);
@@ -2318,7 +2337,7 @@ function renderCassa() {
       const rimbPosPlusOp = opRimb.filter(r=>r.rimborsoCon==='posplus').reduce((a,r)=>a+r.totale,0);
       const cash    = vendCashOp    + reintCashOp    - rimbCashOp;
       const pos     = vendPosOp     + reintPosOp     - rimbPosOp;
-      const posplus = vendPosPlus0p + reintPosPlusOp - rimbPosPlusOp;
+      const posplus = vendPosPlusOp + reintPosPlusOp - rimbPosPlusOp;
       const base = vv.filter(v=>v.tipo==='base').reduce((a,v)=>a+v.qty,0);
       const prem = vv.filter(v=>v.tipo==='premium').reduce((a,v)=>a+v.qty,0);
       const ridotto = vv.filter(v=>v.tipo==='ridotto').reduce((a,v)=>a+v.qty,0);
@@ -2492,9 +2511,10 @@ async function resetDay() {
     localStorage.setItem('scopello_pending_reset', today);
   }
 
-  // Svuota la coda offline — niente da sincronizzare dopo un reset
-  pendingSync = [];
-  savePending();
+  // Svuota tutte le code offline — niente da sincronizzare dopo un reset
+  pendingSync = []; savePending();
+  pendingDeletes = []; savePendingDeletes();
+  pendingUpdates = []; savePendingUpdates();
 
   // Azzera stato locale
   state.vendite = [];
