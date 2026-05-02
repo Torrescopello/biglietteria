@@ -1052,8 +1052,8 @@ let pendingSync = (() => { try { return JSON.parse(localStorage.getItem('pending
 let _rimborsiStored = (() => { try { return JSON.parse(localStorage.getItem('scopello_rimborsi') || '[]'); } catch(e) { return []; } })();
 let isOnline = navigator.onLine;
 
-// Carica password da Supabase all'avvio (aggiorna localStorage se più recenti)
-if (isOnline) loadPasswordsFromDB();
+// Carica password da Supabase prima del login
+let _pwLoadPromise = isOnline ? loadPasswordsFromDB() : null;
 
 window.addEventListener('online', async () => {
   isOnline = true;
@@ -1321,7 +1321,8 @@ function selectOp(op) {
   document.getElementById('opBtnDir').classList.toggle('selected', op === 'dir');
 }
 
-function doLogin() {
+async function doLogin() {
+  if (_pwLoadPromise) { await _pwLoadPromise; _pwLoadPromise = null; }
   const pw = document.getElementById('loginPw').value.trim();
   const err = document.getElementById('loginError');
   const key = selectedOp === 1 ? 'op1' : selectedOp === 2 ? 'op2' : 'dir';
