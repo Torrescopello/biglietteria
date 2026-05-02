@@ -1010,6 +1010,23 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); min-he
   </div>
 </div>
 
+<!-- MODAL CAMBIA PAGAMENTO -->
+<div class="modal-overlay" id="modalCambiaPag">
+  <div class="modal">
+    <h2>Cambia modalità di pagamento</h2>
+    <p id="modalCambiaPagText"></p>
+    <div class="rimborso-pay-row">
+      <button class="rimborso-btn" id="cpCash"    onclick="selCambiaPag('cash')">💵 Contanti</button>
+      <button class="rimborso-btn" id="cpPos"     onclick="selCambiaPag('pos')">💳 POS</button>
+      <button class="rimborso-btn" id="cpPosPlus" onclick="selCambiaPag('posplus')">💳 POS+</button>
+    </div>
+    <div class="modal-btns">
+      <button class="btn-m btn-m-cancel" onclick="closeModal('modalCambiaPag')">Annulla</button>
+      <button class="btn-m btn-m-ok" id="btnConfermaCambiaPag" onclick="eseguiCambiaPagamento()" disabled>✓ Conferma</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL SELEZIONA TURNO -->
 <div class="modal-overlay" id="modalNoTurno">
   <div class="modal">
@@ -1888,6 +1905,8 @@ function renderStorico() {
 
     const annullaBtn = state.isDir
       ? `<button class="btn-annulla-dir" onclick="annullaDir(${prima.id})">🗑 Elimina</button>` : '';
+    const cambiaPagBtn = state.isDir
+      ? `<button class="btn-sposta" onclick="apriCambiaPagamento('${tNum}')">💳 Pagamento</button>` : '';
     const spostaBtn = `<button class="btn-sposta" onclick="apriSposta('${tNum}')">↔ Sposta</button>`;
 
     return `<div class="storico-group">
@@ -1901,6 +1920,7 @@ function renderStorico() {
         <span class="sg-total">€ ${totale.toFixed(2).replace('.',',')}</span>
         <div class="sg-actions">
           <span class="sg-pay ${payClass}">${pLabel}</span>
+          ${cambiaPagBtn}
           ${spostaBtn}
           ${annullaBtn}
         </div>
@@ -1988,6 +2008,52 @@ function eliminaPerErrore() {
   closeModal('modalRimborso');
   sameTicket.forEach(v => doAnnullaVendita(v));
   if (document.getElementById('tab-cassa').classList.contains('active')) renderCassa();
+}
+
+// ============================================================
+// CAMBIA PAGAMENTO
+// ============================================================
+let cambiaPagTicket = null;
+let cambiaPagSel = null;
+
+function apriCambiaPagamento(ticketNum) {
+  if (!state.isDir) return;
+  const righe = state.vendite.filter(v => v.ticketNum === ticketNum);
+  if (!righe.length) return;
+  cambiaPagTicket = ticketNum;
+  cambiaPagSel = null;
+  ['cpCash','cpPos','cpPosPlus'].forEach(id => document.getElementById(id).classList.remove('selected'));
+  document.getElementById('btnConfermaCambiaPag').disabled = true;
+  const totale = righe.reduce((a,v) => a + v.totale, 0);
+  const desc = righe.map(v => `${v.qty}× ${tipoLabel(v.tipo)}`).join(', ');
+  document.getElementById('modalCambiaPagText').innerHTML =
+    `Ticket <strong>${ticketNum}</strong> — ${desc}<br>Pagamento attuale: <strong>${payLabel(righe[0].pagamento)}</strong> · Totale: <strong>€ ${totale.toFixed(2).replace('.',',')}</strong>`;
+  document.getElementById('modalCambiaPag').classList.add('visible');
+}
+
+function selCambiaPag(tipo) {
+  cambiaPagSel = tipo;
+  ['cpCash','cpPos','cpPosPlus'].forEach(id => document.getElementById(id).classList.remove('selected'));
+  const map = { cash:'cpCash', pos:'cpPos', posplus:'cpPosPlus' };
+  document.getElementById(map[tipo]).classList.add('selected');
+  document.getElementById('btnConfermaCambiaPag').disabled = false;
+}
+
+async function eseguiCambiaPagamento() {
+  if (!cambiaPagTicket || !cambiaPagSel) return;
+  document.getElementById('btnConfermaCambiaPag').disabled = true;
+  const righe = state.vendite.filter(v => v.ticketNum === cambiaPagTicket);
+  // Aggiorna stato locale
+  righe.forEach(v => { v.pagamento = cambiaPagSel; });
+  // Aggiorna Supabase
+  if (isOnline) {
+    const today = new Date().toLocaleDateString('it-IT',{year:'numeric',month:'2-digit',day:'2-digit'}).split('/').reverse().join('-');
+    await db.from('vendite').update({ pagamento: cambiaPagSel })
+      .eq('ticket_num', cambiaPagTicket).eq('data', today).catch(() => {});
+  }
+  closeModal('modalCambiaPag');
+  updateSummary();
+  renderStorico();
 }
 
 // ============================================================
