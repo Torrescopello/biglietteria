@@ -1010,6 +1010,18 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); min-he
   </div>
 </div>
 
+<!-- MODAL SELEZIONA TURNO -->
+<div class="modal-overlay" id="modalNoTurno">
+  <div class="modal">
+    <h2>Nessun turno selezionato</h2>
+    <p>Scegli un orario dalla lista oppure procedi senza visita.</p>
+    <div class="modal-btns">
+      <button class="btn-m btn-m-cancel" onclick="closeModal('modalNoTurno')">← Scegli orario</button>
+      <button class="btn-m btn-m-ok" onclick="selectTurno('nessuna');closeModal('modalNoTurno');" style="background:var(--green);border-color:var(--green);">🚫 No visita</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL RIMBORSO -->
 <div class="modal-overlay" id="modalRimborso">
   <div class="modal">
@@ -1531,7 +1543,7 @@ function applyTicketStart() {
 // ============================================================
 
 function addToCart(tipo) {
-  if (!state.turnoSel) { alert('Seleziona prima un turno!'); return; }
+  if (!state.turnoSel) { document.getElementById('modalNoTurno').classList.add('visible'); return; }
   // Controlla capienza solo per turni con visita
   if (state.turnoSel !== 'nessuna') {
     const liberi = CONFIG.capMax - state.turni[state.turnoSel].prenotati;
