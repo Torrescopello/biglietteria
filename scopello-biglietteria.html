@@ -1981,12 +1981,14 @@ function eseguiAnnullaDir() {
   if (!vendita) return;
   const sameTicket = state.vendite.filter(v => v.ticketNum === vendita.ticketNum);
   const totale = sameTicket.reduce((a,v) => a + v.totale, 0);
+  const qtyTot = sameTicket.reduce((a,v) => a + v.qty, 0);
   if (!Array.isArray(state.rimborsi)) state.rimborsi = [];
   state.rimborsi.push({
     ticketNum: vendita.ticketNum,
     turno: vendita.turno,
     righe: sameTicket.map(v => `${v.qty}× ${tipoLabel(v.tipo)}`).join(', '),
     totale,
+    qty: qtyTot,
     pagamentoOriginale: vendita.pagamento,
     rimborsoCon: rimborsoSel,
     ora: new Date().toLocaleTimeString('it-IT', {hour:'2-digit', minute:'2-digit'}),
@@ -2212,7 +2214,8 @@ function renderCassa() {
   const totPos     = vendPos  + reintPos  - rimbPos;
   const totPosPlus = vendPosPlus + reintPosPlus - rimbPosPlus;
   const totAll     = totCash + totPos + totPosPlus;
-  const totVisit   = state.vendite.reduce((a,v)=>a+v.qty,0);
+  const totVisit   = state.vendite.reduce((a,v)=>a+v.qty,0)
+    + rimborsi.filter(r=>r.rimborsoCon==='no').reduce((a,r)=>a+(r.qty||0),0);
   const hasRimborsi = rimborsi.length > 0;
 
   const myVendite = state.vendite.filter(v=>v.operatore===state.operatore);
