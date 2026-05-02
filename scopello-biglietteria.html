@@ -1014,6 +1014,9 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); min-he
   <div class="modal">
     <h2>Annulla ticket</h2>
     <p id="modalRimborsoText"></p>
+    <div class="modal-btns" style="margin-bottom:10px;">
+      <button class="btn-m" onclick="eliminaPerErrore()" style="flex:1;border-color:var(--border);color:var(--muted);">🗑 Battuto per errore</button>
+    </div>
     <div class="sec-label" style="margin-top:4px;margin-bottom:0;">Il cliente è stato rimborsato?</div>
     <div class="rimborso-pay-row">
       <button class="rimborso-btn no-rimborso" id="rbNon" onclick="selectRimborso('no')">✕ Non rimborsato</button>
@@ -1941,6 +1944,17 @@ function eseguiAnnullaDir() {
     operatoreCassa: sameTicket[0].operatore
   });
   saveRimborsi();
+  closeModal('modalRimborso');
+  sameTicket.forEach(v => doAnnullaVendita(v));
+  if (document.getElementById('tab-cassa').classList.contains('active')) renderCassa();
+}
+
+function eliminaPerErrore() {
+  if (!annullaDirId) return;
+  const vendita = state.vendite.find(v => v.id === annullaDirId);
+  if (!vendita) return;
+  if (!confirm(`Eliminare il ticket ${vendita.ticketNum} come errore di cassa? Non verrà registrato nei rimborsi.`)) return;
+  const sameTicket = state.vendite.filter(v => v.ticketNum === vendita.ticketNum);
   closeModal('modalRimborso');
   sameTicket.forEach(v => doAnnullaVendita(v));
   if (document.getElementById('tab-cassa').classList.contains('active')) renderCassa();
