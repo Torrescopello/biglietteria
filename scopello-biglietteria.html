@@ -1077,8 +1077,10 @@ const SUPABASE_URL = 'https://jhvuucvzhtuvybcsoxts.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpodnV1Y3Z6aHR1dnliY3NveHRzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2NDM2NTMsImV4cCI6MjA4ODIxOTY1M30.2at0j_pKSw3AbbEO0nfNKpHay43FW32tiBDmszaNInI';
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// Coda offline
-let pendingSync = (() => { try { return JSON.parse(localStorage.getItem('pendingSync') || '[]'); } catch(e) { return []; } })();
+// Code offline
+let pendingSync    = (() => { try { return JSON.parse(localStorage.getItem('pendingSync')    || '[]'); } catch(e) { return []; } })();
+let pendingDeletes = (() => { try { return JSON.parse(localStorage.getItem('pendingDeletes') || '[]'); } catch(e) { return []; } })();
+let pendingUpdates = (() => { try { return JSON.parse(localStorage.getItem('pendingUpdates') || '[]'); } catch(e) { return []; } })();
 let _rimborsiStored = (() => { try { return JSON.parse(localStorage.getItem('scopello_rimborsi') || '[]'); } catch(e) { return []; } })();
 let isOnline = navigator.onLine;
 
@@ -1089,18 +1091,21 @@ window.addEventListener('online', async () => {
   isOnline = true;
   updateSyncBadge();
 
-  // Se era stato fatto un reset offline, cancella prima dal DB
+  // Reset offline pendente
   const pendingReset = localStorage.getItem('scopello_pending_reset');
   if (pendingReset) {
     await db.from('vendite').delete().eq('data', pendingReset);
+    await db.from('ingressi').delete().eq('data', pendingReset).catch(() => {});
+    await db.from('rimborsi_giornata').delete().eq('data', pendingReset).catch(() => {});
     localStorage.removeItem('scopello_pending_reset');
-    // NON svuotiamo pendingSync qui — reset_day lo ha già fatto al momento del reset.
-    // Le vendite ora in pending sono solo quelle fatte DOPO il reset: vanno sincronizzate.
   }
 
+  // Applica modifiche offline nell'ordine giusto prima di ricaricare dal DB
+  await syncPendingDeletes();
+  await syncPendingUpdates();
   await syncPending();
+  await syncRimborsiToDB();
 
-  // Ricarica dal DB se loggato
   if (state.operatore) {
     await loadTodayVendite();
   }
@@ -1115,8 +1120,9 @@ function updateSyncBadge() {
     badge.style.background = 'var(--red-bg)';
     badge.style.color = 'var(--red)';
     badge.style.borderColor = 'var(--red-border)';
-  } else if (pendingSync.length > 0) {
-    badge.textContent = `⏳ Sync (${pendingSync.length})`;
+  } else if (pendingSync.length + pendingDeletes.length + pendingUpdates.length > 0) {
+    const tot = pendingSync.length + pendingDeletes.length + pendingUpdates.length;
+    badge.textContent = `⏳ Sync (${tot})`;
     badge.style.background = '#fff3e0';
     badge.style.color = 'var(--orange)';
     badge.style.borderColor = '#ffcc80';
@@ -1168,7 +1174,10 @@ async function deleteVendita(vendita) {
   if (!vendita.dbId) return;
   if (isOnline) {
     const { error } = await db.from('vendite').delete().eq('id', vendita.dbId);
-    if (error) showErrorToast('Errore cancellazione DB: ' + error.message);
+    if (error) { pendingDeletes.push({ dbId: vendita.dbId }); savePendingDeletes(); }
+  } else {
+    pendingDeletes.push({ dbId: vendita.dbId });
+    savePendingDeletes();
   }
 }
 
@@ -1185,8 +1194,31 @@ async function syncPending() {
   updateSyncBadge();
 }
 
-function savePending() {
-  try { localStorage.setItem('pendingSync', JSON.stringify(pendingSync)); } catch(e) { showErrorToast('Spazio locale esaurito: dati offline non salvati'); }
+function savePending()        { try { localStorage.setItem('pendingSync',    JSON.stringify(pendingSync));    } catch(e) { showErrorToast('Spazio locale esaurito'); } }
+function savePendingDeletes() { try { localStorage.setItem('pendingDeletes', JSON.stringify(pendingDeletes)); } catch(e) {} }
+function savePendingUpdates() { try { localStorage.setItem('pendingUpdates', JSON.stringify(pendingUpdates)); } catch(e) {} }
+
+async function syncPendingDeletes() {
+  if (!pendingDeletes.length || !isOnline) return;
+  const toSync = [...pendingDeletes];
+  pendingDeletes = []; savePendingDeletes();
+  for (const { dbId } of toSync) {
+    const { error } = await db.from('vendite').delete().eq('id', dbId);
+    if (error) { pendingDeletes.push({ dbId }); savePendingDeletes(); }
+  }
+  updateSyncBadge();
+}
+
+async function syncPendingUpdates() {
+  if (!pendingUpdates.length || !isOnline) return;
+  const toSync = [...pendingUpdates];
+  pendingUpdates = []; savePendingUpdates();
+  for (const item of toSync) {
+    const { dbId, ...fields } = item;
+    const { error } = await db.from('vendite').update(fields).eq('id', dbId);
+    if (error) { pendingUpdates.push(item); savePendingUpdates(); }
+  }
+  updateSyncBadge();
 }
 function saveRimborsi() {
   try { localStorage.setItem('scopello_rimborsi', JSON.stringify(state.rimborsi)); } catch(e) { showErrorToast('Spazio locale esaurito: rimborsi non salvati'); }
@@ -2049,11 +2081,15 @@ function eseguiCambiaPagamento() {
   closeModal('modalCambiaPag');
   updateSummary();
   if (document.getElementById('tab-storico').classList.contains('active')) renderStorico();
-  // Sync Supabase in background
+  // Sync Supabase (online subito, offline in coda)
+  const righeAggiornate = state.vendite.filter(v => v.ticketNum === cambiaPagTicket);
   if (isOnline) {
     const today = new Date().toLocaleDateString('it-IT',{year:'numeric',month:'2-digit',day:'2-digit'}).split('/').reverse().join('-');
     db.from('vendite').update({ pagamento: cambiaPagSel })
       .eq('ticket_num', cambiaPagTicket).eq('data', today).catch(() => {});
+  } else {
+    righeAggiornate.forEach(v => { if (v.dbId) { pendingUpdates.push({ dbId: v.dbId, pagamento: cambiaPagSel }); } });
+    savePendingUpdates(); updateSyncBadge();
   }
 }
 
@@ -2119,14 +2155,17 @@ async function eseguiSposta() {
   state.turni[turnoVecchio].prenotati = Math.max(0, state.turni[turnoVecchio].prenotati - totalQty);
   state.turni[spostaNewTurno].prenotati += totalQty;
 
-  // Aggiorna nel DB
+  // Aggiorna nel DB (online subito, offline in coda)
   if (isOnline) {
     for (const v of righe) {
       if (v.dbId) {
         const { error } = await db.from('vendite').update({ turno: spostaNewTurno }).eq('id', v.dbId);
-        if (error) showErrorToast('Errore aggiornamento turno nel DB: ' + error.message);
+        if (error) { pendingUpdates.push({ dbId: v.dbId, turno: spostaNewTurno }); savePendingUpdates(); }
       }
     }
+  } else {
+    righe.forEach(v => { if (v.dbId) pendingUpdates.push({ dbId: v.dbId, turno: spostaNewTurno }); });
+    savePendingUpdates(); updateSyncBadge();
   }
 
   closeModal('modalSpostaTurno');
