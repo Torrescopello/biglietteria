@@ -703,6 +703,7 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); min-he
     <button class="btn-login" onclick="doLogin()">ENTRA</button>
     <div class="login-success-msg" id="loginSuccess">✓ Accesso effettuato!</div>
     <div class="login-error" id="loginError"></div>
+    <button onclick="resetPwLocale()" style="margin-top:16px;background:none;border:none;color:var(--muted);font-size:0.72rem;text-decoration:underline;cursor:pointer;">Password non riconosciuta? Reimposta</button>
   </div>
 </div>
 
@@ -1314,6 +1315,13 @@ CONFIG.orari.forEach(o => { state.turni[o] = { prenotati: 0 }; });
 // LOGIN / LOGOUT
 // ============================================================
 let selectedOp = 1;
+function resetPwLocale() {
+  localStorage.removeItem('scopello_passwords');
+  CONFIG.passwords = { op1: '1234', op2: '5678', dir: 'scopello2024', ctrl: 'ctrl2024' };
+  _pwLoadPromise = isOnline ? loadPasswordsFromDB() : null;
+  alert('Password reimpostate. Riprova ad entrare.');
+}
+
 function selectOp(op) {
   selectedOp = op;
   document.getElementById('opBtn1').classList.toggle('selected', op === 1);
