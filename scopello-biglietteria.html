@@ -1322,7 +1322,7 @@ function selectOp(op) {
 }
 
 async function doLogin() {
-  if (_pwLoadPromise) { await _pwLoadPromise; _pwLoadPromise = null; }
+  if (_pwLoadPromise) { await _pwLoadPromise.catch(() => {}); _pwLoadPromise = null; }
   const pw = document.getElementById('loginPw').value.trim();
   const err = document.getElementById('loginError');
   const key = selectedOp === 1 ? 'op1' : selectedOp === 2 ? 'op2' : 'dir';
