@@ -1950,6 +1950,7 @@ function eseguiAnnullaDir() {
 }
 
 function eliminaPerErrore() {
+  if (!state.isDir) return;
   if (!annullaDirId) return;
   const vendita = state.vendite.find(v => v.id === annullaDirId);
   if (!vendita) return;
