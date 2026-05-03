@@ -1373,11 +1373,17 @@ async function loadPasswordsFromDB() {
 }
 
 async function savePasswordsToDB() {
-  const { error } = await db.from('config').upsert(
-    { key: 'passwords', value: CONFIG.passwords },
-    { onConflict: 'key' }
-  ).catch(e => ({ error: e }));
-  return !error;
+  // Prima prova update, poi insert se non esiste ancora la riga
+  const { data, error } = await db.from('config')
+    .update({ value: CONFIG.passwords }).eq('key', 'passwords').select().catch(e => ({ data: null, error: e }));
+  if (error) return false;
+  if (!data || data.length === 0) {
+    // Riga non esiste ancora: inserisce
+    const { error: ie } = await db.from('config')
+      .insert({ key: 'passwords', value: CONFIG.passwords }).catch(e => ({ error: e }));
+    if (ie) return false;
+  }
+  return true;
 }
 
 let state = {
