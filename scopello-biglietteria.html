@@ -1359,18 +1359,25 @@ function saveIngressi() {
 }
 
 async function loadPasswordsFromDB() {
-  const { data } = await db.from('config').select('value').eq('key', 'passwords').maybeSingle().catch(() => ({ data: null }));
-  if (data?.value && typeof data.value === 'object') {
-    Object.assign(CONFIG.passwords, data.value);
+  const { data, error } = await db.from('config').select('value').eq('key', 'passwords').maybeSingle().catch(e => ({ data: null, error: e }));
+  if (error || !data) return false;
+  // Gestisce sia jsonb (oggetto) che text (stringa JSON)
+  let val = data.value;
+  if (typeof val === 'string') { try { val = JSON.parse(val); } catch(e) { return false; } }
+  if (val && typeof val === 'object') {
+    Object.assign(CONFIG.passwords, val);
     try { localStorage.setItem('scopello_passwords', JSON.stringify(CONFIG.passwords)); } catch(e) {}
+    return true;
   }
+  return false;
 }
 
 async function savePasswordsToDB() {
-  await db.from('config').upsert(
+  const { error } = await db.from('config').upsert(
     { key: 'passwords', value: CONFIG.passwords },
     { onConflict: 'key' }
-  ).catch(() => {});
+  ).catch(e => ({ error: e }));
+  return !error;
 }
 
 let state = {
@@ -1404,11 +1411,13 @@ function selectOp(op) {
 
 async function doLogin() {
   // Carica sempre le password aggiornate dal DB prima di verificare
-  await loadPasswordsFromDB().catch(() => {});
+  const dbOk = await loadPasswordsFromDB().catch(() => false);
   _pwLoadPromise = null;
   const pw = document.getElementById('loginPw').value.trim();
   const err = document.getElementById('loginError');
   const key = selectedOp === 1 ? 'op1' : selectedOp === 2 ? 'op2' : 'dir';
+  // Mostra info connessione DB solo se la password è sbagliata (aiuto debug)
+  const dbStatus = dbOk ? '🟢 DB connesso' : '🔴 DB non raggiunto — uso password locale';
   if (pw === CONFIG.passwords[key]) {
     state.operatore = key; state.isDir = (key === 'dir');
     document.getElementById('loginPw').value = '';
@@ -1437,7 +1446,7 @@ async function doLogin() {
       if (isOnline) startRealtime();
     }, 900);
   } else {
-    err.textContent = 'Password non corretta.';
+    err.textContent = `Password non corretta. (${dbStatus})`;
     const box = document.querySelector('.login-box');
     box.style.borderColor = 'var(--red)';
     setTimeout(() => { box.style.borderColor = ''; }, 800);
@@ -2458,16 +2467,20 @@ function updateCassaNames() {
   document.getElementById('opBtn2').textContent = CONFIG.nomiCasse.op2;
 }
 
-function changePassword(key) {
+async function changePassword(key) {
   const inputId = key === 'op1' ? 'newPw1' : key === 'op2' ? 'newPw2' : key === 'ctrl' ? 'newPwCtrl' : 'newPwDir';
   const val = document.getElementById(inputId).value.trim();
   if (!val) { alert('Inserisci una nuova password.'); return; }
   if (val.length < 4) { alert('La password deve essere di almeno 4 caratteri.'); return; }
   CONFIG.passwords[key] = val;
   try { localStorage.setItem('scopello_passwords', JSON.stringify(CONFIG.passwords)); } catch(e) {}
-  savePasswordsToDB();
+  const dbOk = await savePasswordsToDB();
   document.getElementById(inputId).value = '';
-  alert('✓ Password aggiornata e salvata per tutti i dispositivi!');
+  if (dbOk) {
+    alert('✓ Password aggiornata e salvata su tutti i dispositivi!');
+  } else {
+    alert('⚠️ Password aggiornata localmente ma NON salvata nel DB.\nControllare la connessione o le policy Supabase.');
+  }
 }
 
 function openDirPw() {
