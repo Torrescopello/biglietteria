@@ -608,16 +608,19 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); min-he
 .ib-stat .val { font-size: 1.5rem; font-weight: 800; display: block; font-variant-numeric: tabular-nums; }
 .ib-stat .lab { font-size: 0.56rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; opacity: 0.75; }
 
-.ingresso-day-stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 14px; }
+.ingr-tipo-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 6px; margin-bottom: 8px; }
+.ingr-pay-grid  { display: grid; grid-template-columns: repeat(3,1fr); gap: 6px; margin-bottom: 8px; }
+.ingr-tot-row   { display: flex; justify-content: space-between; align-items: center;
+  background: var(--white); border: 2px solid var(--border); border-radius: 12px;
+  padding: 10px 14px; margin-bottom: 14px; }
+.ingr-tot-label { font-size: 0.7rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.07em; }
+.ingr-tot-val   { font-family: var(--fd); font-size: 1.25rem; color: var(--text); }
 .ids-card {
   background: var(--white); border: 2px solid var(--border); border-radius: 12px;
   padding: 10px 8px; text-align: center; box-shadow: 0 1px 4px rgba(0,0,0,0.04);
 }
-.ids-card.entrati { border-color: var(--green-border); }
-.ids-card.entrati .ids-val { color: var(--green); }
-.ids-card.rimanenti { border-color: var(--red-border); }
-.ids-card.rimanenti .ids-val { color: var(--red); }
-.ids-val { font-family: var(--fd); font-size: 1.6rem; color: var(--text); display: block; }
+.ids-val { font-family: var(--fd); font-size: 1.5rem; color: var(--text); display: block; }
+.ids-val.euro { font-size: 1.1rem; }
 .ids-lab { font-size: 0.56rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
 
 .ingresso-turni { display: flex; flex-direction: column; gap: 6px; }
@@ -925,6 +928,17 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); min-he
 
   <!-- TAB INGRESSO -->
   <div id="tab-ingresso" class="tab-content">
+    <!-- Resoconto biglietti per tipo -->
+    <div class="sec-label">Biglietti</div>
+    <div class="ingr-tipo-grid" id="ingrTipi"></div>
+    <!-- Resoconto incasso -->
+    <div class="sec-label">Incasso</div>
+    <div class="ingr-pay-grid" id="ingrPay"></div>
+    <div class="ingr-tot-row" id="ingrTotale">
+      <span class="ingr-tot-label">Totale incasso</span>
+      <span class="ingr-tot-val" id="ingrTotVal">€ 0,00</span>
+    </div>
+    <!-- Banner turno corrente -->
     <div class="ingresso-banner" id="ingressoBanner">
       <div class="ib-label">Turno in corso</div>
       <div class="ib-ora" id="ibOra">—</div>
@@ -934,12 +948,7 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); min-he
         <div class="ib-stat"><span class="val" id="ibRimanenti">0</span><span class="lab">rimanenti</span></div>
       </div>
     </div>
-    <div class="sec-label">Giornata</div>
-    <div class="ingresso-day-stats">
-      <div class="ids-card"><span class="ids-val" id="idsVend">0</span><span class="ids-lab">Venduti</span></div>
-      <div class="ids-card entrati"><span class="ids-val" id="idsEntr">0</span><span class="ids-lab">Entrati</span></div>
-      <div class="ids-card rimanenti"><span class="ids-val" id="idsRim">0</span><span class="ids-lab">Rimanenti</span></div>
-    </div>
+    <!-- Turni -->
     <div class="sec-label">Turni di oggi</div>
     <div class="ingresso-turni" id="ingressoTurni"></div>
   </div>
@@ -2578,6 +2587,39 @@ function renderIngresso() {
   const next = getIngressoNextTurno();
   const byTurno = groupVenditePerIngresso();
 
+  // Resoconto biglietti per tipo
+  const tipi = ['base','premium','ridotto','nopay'];
+  const tipiLabel = { base:'Base', premium:'Premium', ridotto:'Ridotto', nopay:'Non Pag.' };
+  document.getElementById('ingrTipi').innerHTML = tipi.map(t => {
+    const qty = state.vendite.filter(v => v.tipo === t).reduce((a,v) => a + v.qty, 0);
+    return `<div class="ids-card">
+      <span class="ids-val">${qty}</span>
+      <span class="ids-lab">${tipiLabel[t]}</span>
+    </div>`;
+  }).join('');
+
+  // Resoconto incasso
+  const rimborsi = state.rimborsi || [];
+  const calcPay = (p) => {
+    const vend  = state.vendite.filter(v=>v.pagamento===p).reduce((a,v)=>a+v.totale,0);
+    const reint = rimborsi.filter(r=>r.pagamentoOriginale===p).reduce((a,r)=>a+r.totale,0);
+    const rimb  = rimborsi.filter(r=>r.rimborsoCon===p).reduce((a,r)=>a+r.totale,0);
+    return vend + reint - rimb;
+  };
+  const cash = calcPay('cash'), pos = calcPay('pos'), posplus = calcPay('posplus');
+  const totale = cash + pos + posplus;
+  document.getElementById('ingrPay').innerHTML = [
+    { p:'cash',    label:'Contanti', val:cash    },
+    { p:'pos',     label:'POS',      val:pos     },
+    { p:'posplus', label:'POS+',     val:posplus }
+  ].map(({label, val}) =>
+    `<div class="ids-card">
+      <span class="ids-val euro">€ ${val.toFixed(2).replace('.',',')}</span>
+      <span class="ids-lab">${label}</span>
+    </div>`
+  ).join('');
+  document.getElementById('ingrTotVal').textContent = '€ ' + totale.toFixed(2).replace('.',',');
+
   // Banner turno corrente
   const banner = document.getElementById('ingressoBanner');
   const ibStats = document.getElementById('ibStats');
@@ -2595,17 +2637,6 @@ function renderIngresso() {
     document.getElementById('ibEntrati').textContent = entr;
     document.getElementById('ibRimanenti').textContent = Math.max(0, vend - entr);
   }
-
-  // Stats giornata
-  let totV = 0, totE = 0;
-  CONFIG.orari.forEach(o => {
-    const t = byTurno[o] || {};
-    totV += countVendutiTurno(t);
-    totE += countEntratiTurno(t);
-  });
-  document.getElementById('idsVend').textContent = totV;
-  document.getElementById('idsEntr').textContent = totE;
-  document.getElementById('idsRim').textContent = Math.max(0, totV - totE);
 
   // Lista turni
   document.getElementById('ingressoTurni').innerHTML = CONFIG.orari.map(ora => {
