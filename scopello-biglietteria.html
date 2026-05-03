@@ -138,22 +138,22 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); min-he
 
 .sec-label {
   font-size: 0.66rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em;
-  color: var(--muted); margin-bottom: 10px; margin-top: 4px;
+  color: var(--muted); margin-bottom: 6px; margin-top: 2px;
 }
 
 /* ===== TURNI SCROLL ===== */
-.turni-scroll { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 6px; margin-bottom: 16px; }
+.turni-scroll { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; margin-bottom: 10px; }
 .turni-scroll::-webkit-scrollbar { height: 3px; }
 .turni-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 
 .turno-chip {
-  flex-shrink: 0; min-width: 76px; padding: 10px 12px; border-radius: 12px;
+  flex-shrink: 0; min-width: 70px; padding: 7px 10px; border-radius: 10px;
   border: 2px solid var(--border); background: var(--white); cursor: pointer;
   text-align: center; transition: all 0.15s;
   box-shadow: 0 1px 4px rgba(0,0,0,0.05);
 }
-.turno-chip .t-ora { font-size: 1rem; font-weight: 800; color: var(--text); }
-.turno-chip .t-free { font-size: 0.65rem; font-weight: 600; color: var(--muted); margin-top: 2px; }
+.turno-chip .t-ora { font-size: 0.9rem; font-weight: 800; color: var(--text); }
+.turno-chip .t-free { font-size: 0.6rem; font-weight: 600; color: var(--muted); margin-top: 1px; }
 .turno-chip.selected { background: var(--sea-bg); border-color: var(--sea); }
 .turno-chip.selected .t-ora { color: var(--sea); }
 .turno-chip.selected .t-free { color: var(--sea); }
@@ -164,16 +164,16 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); min-he
 .turno-chip.past .t-free { color: var(--muted); font-style: italic; }
 
 /* ===== TICKET CARDS — griglia 2x2 ===== */
-.ticket-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+.ticket-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
 .ticket-card {
-  background: var(--white); border: 3px solid var(--border); border-radius: 16px;
-  padding: 16px 10px; cursor: pointer; text-align: center; transition: all 0.15s;
+  background: var(--white); border: 3px solid var(--border); border-radius: 14px;
+  padding: 10px 8px; cursor: pointer; text-align: center; transition: all 0.15s;
   box-shadow: 0 1px 4px rgba(0,0,0,0.05);
 }
 .ticket-card:active { transform: scale(0.97); }
-.ticket-card .tc-icon { font-size: 1.6rem; margin-bottom: 4px; }
-.ticket-card .tc-name { font-size: 0.78rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text2); }
-.ticket-card .tc-price { font-family: var(--fd); font-size: 1.7rem; color: var(--text); margin-top: 2px; font-weight: normal; }
+.ticket-card .tc-icon { font-size: 1.2rem; margin-bottom: 2px; }
+.ticket-card .tc-name { font-size: 0.74rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text2); }
+.ticket-card .tc-price { font-family: var(--fd); font-size: 1.45rem; color: var(--text); margin-top: 1px; font-weight: normal; }
 .ticket-card.selected-base { background: var(--sea-bg); border-color: var(--sea); }
 .ticket-card.selected-base .tc-name { color: var(--sea); }
 .ticket-card.selected-base .tc-price { color: var(--sea); }
@@ -188,17 +188,17 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); min-he
 .ticket-card.selected-nopay .tc-price { color: var(--purple); }
 
 /* ===== PAGAMENTO ===== */
-.pay-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 14px; }
+.pay-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 8px; }
 .pay-btn {
-  padding: 16px 8px; border-radius: 14px; border: 3px solid var(--border); cursor: pointer;
-  font-family: var(--fu); font-size: 0.8rem; font-weight: 800; letter-spacing: 0.04em;
+  padding: 10px 8px; border-radius: 12px; border: 3px solid var(--border); cursor: pointer;
+  font-family: var(--fu); font-size: 0.75rem; font-weight: 800; letter-spacing: 0.04em;
   text-transform: uppercase; transition: all 0.15s;
-  display: flex; flex-direction: column; align-items: center; gap: 5px;
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
   background: var(--white); color: var(--text2);
   box-shadow: 0 1px 4px rgba(0,0,0,0.05);
 }
 .pay-btn:active { transform: scale(0.95); }
-.pay-btn .pay-icon { font-size: 1.6rem; }
+.pay-btn .pay-icon { font-size: 1.2rem; }
 .pay-cash.selected { background: var(--green-bg); border-color: var(--green); color: var(--green); }
 .pay-pos.selected { background: var(--sea-bg); border-color: var(--sea); color: var(--sea); }
 .pay-posplus.selected { background: var(--gold-bg); border-color: var(--gold); color: var(--gold); }
@@ -206,12 +206,12 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); min-he
 /* ===== SUMMARY ===== */
 .sell-summary {
   background: var(--white); border: 2px solid var(--border); border-radius: 14px;
-  padding: 14px 16px; margin-bottom: 14px;
+  padding: 10px 14px; margin-bottom: 8px;
   box-shadow: 0 1px 4px rgba(0,0,0,0.04);
 }
-.sum-row { display: flex; justify-content: space-between; align-items: center; padding: 5px 0; font-size: 0.86rem; color: var(--text2); border-bottom: 1px solid var(--s1); }
-.sum-row:last-child { border-bottom: none; padding-top: 10px; margin-top: 4px; border-top: 2px solid var(--border); }
-.sum-total { font-family: var(--fd); font-size: 1.8rem; color: var(--text); font-weight: normal; font-variant-numeric: tabular-nums; }
+.sum-row { display: flex; justify-content: space-between; align-items: center; padding: 3px 0; font-size: 0.82rem; color: var(--text2); border-bottom: 1px solid var(--s1); }
+.sum-row:last-child { border-bottom: none; padding-top: 7px; margin-top: 2px; border-top: 2px solid var(--border); }
+.sum-total { font-family: var(--fd); font-size: 1.55rem; color: var(--text); font-weight: normal; font-variant-numeric: tabular-nums; }
 .sum-ticket-auto { font-family: var(--fd); font-size: 1.2rem; color: var(--sea); font-weight: 700; }
 
 /* Badge quantità sulle card */
@@ -252,8 +252,8 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); min-he
 
 /* ===== CONFERMA BTN ===== */
 .btn-confirm {
-  width: 100%; padding: 20px; border-radius: 16px; border: none; cursor: pointer;
-  font-family: var(--fu); font-size: 1.1rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase;
+  width: 100%; padding: 14px; border-radius: 14px; border: none; cursor: pointer;
+  font-family: var(--fu); font-size: 1rem; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase;
   background: var(--green); color: #fff;
   box-shadow: 0 4px 12px rgba(26,140,78,0.3);
   transition: all 0.15s;
