@@ -1761,37 +1761,37 @@ function confirmSale() {
 }
 
 async function executeSale() {
-  await syncTicketCounterFromDB();
   const now = new Date();
   const tNum = getNextTicketNum();
   const pago = state.paySel || 'gratis';
   const tot = cartTotal();
   const totalQty = cartTotalQty();
 
-  // Salva una riga per ogni tipo nel carrello (await per garantire sync DB)
-  await Promise.all(
-    Object.entries(cart).filter(([,q])=>q>0).map(([tipo, qty]) => {
-      const prezzo = CONFIG.prezzi[tipo];
-      const subtot = prezzo * qty;
-      const vendita = {
-        id: Date.now() + Math.random(),
-        dbId: null,
-        ora: now.toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'}),
-        turno: state.turnoSel, tipo, qty,
-        prezzo, totale: subtot, pagamento: pago,
-        operatore: state.operatore, timestamp: now, ticketNum: tNum
-      };
-      state.vendite.push(vendita);
-      return saveVendita(vendita);
-    })
-  );
+  // Costruisce le righe e aggiorna stato locale immediatamente
+  const entries = Object.entries(cart).filter(([,q])=>q>0).map(([tipo, qty]) => {
+    const prezzo = CONFIG.prezzi[tipo];
+    return {
+      id: Date.now() + Math.random(),
+      dbId: null,
+      ora: now.toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'}),
+      turno: state.turnoSel, tipo, qty,
+      prezzo, totale: prezzo * qty, pagamento: pago,
+      operatore: state.operatore, timestamp: now, ticketNum: tNum
+    };
+  });
 
+  entries.forEach(v => state.vendite.push(v));
   if (state.turnoSel !== 'nessuna') state.turni[state.turnoSel].prenotati += totalQty;
+
+  // Aggiorna UI subito, senza aspettare il DB
   closeModal('modalConferma');
   showFlash(tot, tNum);
   resetSellForm();
   renderTurniVendita();
   renderUndoBtn();
+
+  // Sync DB in background (non blocca UI)
+  entries.forEach(v => saveVendita(v));
 }
 
 function undoLastSale() {
