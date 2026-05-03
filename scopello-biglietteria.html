@@ -1405,7 +1405,10 @@ function selectOp(op) {
 }
 
 async function doLogin() {
-  if (_pwLoadPromise) { await _pwLoadPromise.catch(() => {}); _pwLoadPromise = null; }
+  // Carica sempre le password aggiornate dal DB prima di verificare
+  if (isOnline) await loadPasswordsFromDB().catch(() => {});
+  else if (_pwLoadPromise) { await _pwLoadPromise.catch(() => {}); }
+  _pwLoadPromise = null;
   const pw = document.getElementById('loginPw').value.trim();
   const err = document.getElementById('loginError');
   const key = selectedOp === 1 ? 'op1' : selectedOp === 2 ? 'op2' : 'dir';
@@ -1468,7 +1471,8 @@ function switchSelectOp(op) {
   document.getElementById('swBtnDir').classList.toggle('selected', op === 'dir');
 }
 
-function doSwitchOp() {
+async function doSwitchOp() {
+  if (isOnline) await loadPasswordsFromDB().catch(() => {});
   const pw = document.getElementById('swPwInput').value.trim();
   const key = switchSelectedOp === 1 ? 'op1' : switchSelectedOp === 2 ? 'op2' : 'dir';
   if (pw === CONFIG.passwords[key]) {
