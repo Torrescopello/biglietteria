@@ -164,16 +164,16 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); min-he
 .turno-chip.past .t-free { color: var(--muted); font-style: italic; }
 
 /* ===== TICKET CARDS — griglia 2x2 ===== */
-.ticket-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
+.ticket-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 8px; }
 .ticket-card {
-  background: var(--white); border: 3px solid var(--border); border-radius: 14px;
-  padding: 10px 8px; cursor: pointer; text-align: center; transition: all 0.15s;
+  background: var(--white); border: 3px solid var(--border); border-radius: 12px;
+  padding: 7px 8px; cursor: pointer; text-align: center; transition: all 0.15s;
   box-shadow: 0 1px 4px rgba(0,0,0,0.05);
 }
 .ticket-card:active { transform: scale(0.97); }
-.ticket-card .tc-icon { font-size: 1.2rem; margin-bottom: 2px; }
-.ticket-card .tc-name { font-size: 0.74rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text2); }
-.ticket-card .tc-price { font-family: var(--fd); font-size: 1.45rem; color: var(--text); margin-top: 1px; font-weight: normal; }
+.ticket-card .tc-icon { display: none; }
+.ticket-card .tc-name { font-size: 0.72rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text2); }
+.ticket-card .tc-price { font-family: var(--fd); font-size: 1.25rem; color: var(--text); margin-top: 1px; font-weight: normal; }
 .ticket-card.selected-base { background: var(--sea-bg); border-color: var(--sea); }
 .ticket-card.selected-base .tc-name { color: var(--sea); }
 .ticket-card.selected-base .tc-price { color: var(--sea); }
