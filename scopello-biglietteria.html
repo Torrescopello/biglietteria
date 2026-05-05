@@ -393,6 +393,7 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); min-he
   background: var(--bg); font-family: var(--fu); font-size: 0.76rem; font-weight: 700;
   color: var(--text2); cursor: pointer; transition: all 0.15s;
 }
+.settings-row-item .note-save-btn { margin-top: 0; }
 .note-save-btn:active { background: var(--green-bg); border-color: var(--green); color: var(--green); }
 .note-saved-msg { font-size: 0.72rem; color: var(--green); margin-left: 8px; font-weight: 600; display: none; }
 .note-saved-msg.show { display: inline; }
@@ -885,7 +886,7 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); min-he
               style="width:70px;text-align:center;font-size:1.1rem;font-weight:800;
                      border:2px solid var(--border);border-radius:8px;padding:6px 8px;
                      background:var(--bg);font-family:var(--fu);color:var(--sea);outline:none;">
-            <button class="note-save-btn" onclick="applyTicketStart()" style="margin-left:4px;">✓ Imposta</button>
+            <button type="button" class="note-save-btn" onclick="applyTicketStart()" style="margin-left:4px;">✓ Imposta</button>
           </div>
         </div>
       </div>
@@ -895,28 +896,28 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); min-he
           <span class="settings-row-label" id="pwLabel1">Password Cassa 1</span>
           <div style="display:flex;gap:6px;align-items:center;">
             <input type="password" class="name-input" id="newPw1" placeholder="nuova pw" style="width:110px;">
-            <button class="note-save-btn" onclick="changePassword('op1')">Salva</button>
+            <button type="button" class="note-save-btn" onclick="changePassword('op1')">Salva</button>
           </div>
         </div>
         <div class="settings-row-item">
           <span class="settings-row-label" id="pwLabel2">Password Cassa 2</span>
           <div style="display:flex;gap:6px;align-items:center;">
             <input type="password" class="name-input" id="newPw2" placeholder="nuova pw" style="width:110px;">
-            <button class="note-save-btn" onclick="changePassword('op2')">Salva</button>
+            <button type="button" class="note-save-btn" onclick="changePassword('op2')">Salva</button>
           </div>
         </div>
         <div class="settings-row-item">
           <span class="settings-row-label">Password Direttore</span>
           <div style="display:flex;gap:6px;align-items:center;">
             <input type="password" class="name-input" id="newPwDir" placeholder="nuova pw" style="width:110px;">
-            <button class="note-save-btn" onclick="changePassword('dir')">Salva</button>
+            <button type="button" class="note-save-btn" onclick="changePassword('dir')">Salva</button>
           </div>
         </div>
         <div class="settings-row-item">
           <span class="settings-row-label">Password Controllo Ingressi</span>
           <div style="display:flex;gap:6px;align-items:center;">
             <input type="password" class="name-input" id="newPwCtrl" placeholder="nuova pw" style="width:110px;">
-            <button class="note-save-btn" onclick="changePassword('ctrl')">Salva</button>
+            <button type="button" class="note-save-btn" onclick="changePassword('ctrl')">Salva</button>
           </div>
         </div>
       </div>
