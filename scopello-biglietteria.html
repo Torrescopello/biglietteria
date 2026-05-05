@@ -2480,7 +2480,9 @@ async function changePassword(key) {
   if (val.length < 4) { alert('La password deve essere di almeno 4 caratteri.'); return; }
   CONFIG.passwords[key] = val;
   try { localStorage.setItem('scopello_passwords', JSON.stringify(CONFIG.passwords)); } catch(e) {}
+  _passwordChangePending = true;
   const dbOk = await savePasswordsToDB();
+  _passwordChangePending = false;
   document.getElementById(inputId).value = '';
   if (dbOk) {
     alert('✓ Password aggiornata e salvata su tutti i dispositivi!');
@@ -2792,6 +2794,7 @@ function apriModificaRimborso(idx) {
 // REALTIME — aggiornamento automatico quando un'altra cassa vende
 // ============================================================
 let realtimeChannel = null;
+let _passwordChangePending = false;
 
 function startRealtime() {
   if (realtimeChannel) return; // già attivo
@@ -2806,7 +2809,7 @@ function startRealtime() {
     .on('postgres_changes', {
       event: '*', schema: 'public', table: 'config', filter: `key=eq.passwords`
     }, async () => {
-      const oldPw = state.operatore ? CONFIG.passwords[state.operatore] : null;
+      const oldPw = (!_passwordChangePending && state.operatore) ? CONFIG.passwords[state.operatore] : null;
       await loadPasswordsFromDB();
       if (state.operatore && oldPw !== null && CONFIG.passwords[state.operatore] !== oldPw) {
         alert('⚠️ La password è stata cambiata. Effettua nuovamente il login.');
