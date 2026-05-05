@@ -51,7 +51,11 @@ self.addEventListener('fetch', e => {
           caches.open(CACHE).then(cache => cache.put(e.request, clone));
         }
         return response;
-      }).catch(() => caches.match('./scopello-biglietteria.html'));
+      }).catch(() => {
+        // Per richieste di navigazione (HTML) usa la shell app; per le altre fallisci gracefully
+        if (e.request.mode === 'navigate') return caches.match('./scopello-biglietteria.html');
+        return new Response('', { status: 503, statusText: 'Offline' });
+      });
     })
   );
 });

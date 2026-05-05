@@ -340,7 +340,6 @@ td.td-total { font-family: var(--fd); font-size: 1rem; color: var(--text); }
 <script>
 const SUPABASE_URL = 'https://jhvuucvzhtuvybcsoxts.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpodnV1Y3Z6aHR1dnliY3NveHRzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2NDM2NTMsImV4cCI6MjA4ODIxOTY1M30.2at0j_pKSw3AbbEO0nfNKpHay43FW32tiBDmszaNInI';
-const DIR_PW = 'scopello2024';
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let currentPeriod = 'today';
@@ -348,15 +347,24 @@ let allData = [];
 let chartGiorni = null, chartTipi = null;
 
 // ===== LOGIN =====
-function repLogin() {
+async function repLogin() {
   const pw = document.getElementById('repPw').value;
-  if (pw === DIR_PW) {
+  const err = document.getElementById('repErr');
+  err.textContent = '';
+
+  let dirPw = 'scopello2024'; // fallback locale
+  try {
+    const { data } = await db.from('config').select('value').eq('key','passwords').maybeSingle();
+    if (data?.value?.dir) dirPw = data.value.dir;
+  } catch(e) { /* usa fallback */ }
+
+  if (pw === dirPw) {
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('appScreen').style.display = 'block';
     initDates();
     loadData();
   } else {
-    document.getElementById('repErr').textContent = 'Password non corretta.';
+    err.textContent = 'Password non corretta.';
     document.getElementById('repPw').style.borderColor = 'var(--red)';
     setTimeout(() => { document.getElementById('repPw').style.borderColor = ''; }, 800);
   }
@@ -415,7 +423,10 @@ function getDateRange() {
 async function loadData() {
   const { from, to } = getDateRange();
   const { data, error } = await db.from('vendite').select('*').gte('data', from).lte('data', to).order('created_at', { ascending: true });
-  if (error) { console.error(error); return; }
+  if (error) {
+    document.getElementById('tableWrap').innerHTML = '<div class="loading" style="color:var(--red)">⚠️ Errore nel caricamento dati. Controlla la connessione.</div>';
+    return;
+  }
   allData = data || [];
   document.getElementById('lastUpdate').textContent = 'Aggiornato: ' + new Date().toLocaleTimeString('it-IT', {hour:'2-digit',minute:'2-digit'});
   renderAll();

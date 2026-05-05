@@ -311,6 +311,13 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // ============================================================
+// UTILITY
+// ============================================================
+function escHtml(s) {
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+// ============================================================
 // CONFIG
 // ============================================================
 const ORARI = ['11:00','11:30','12:00','12:30','13:00','13:30','14:00','14:30',
@@ -638,17 +645,17 @@ function renderTurni() {
           const entered = !!ingressi[tNum];
           const entOra = entered ? ingressi[tNum].ora : '';
 
-          return `<div class="ticket-row${entered ? ' entrato' : ''}" id="row-${tNum}">
-            <span class="tr-num">${tNum}</span>
+          return `<div class="ticket-row${entered ? ' entrato' : ''}" id="row-${escHtml(tNum)}">
+            <span class="tr-num">${escHtml(tNum)}</span>
             <div class="tr-info">
-              <div class="tr-desc">${desc}</div>
-              <div class="tr-meta">${totalQty} ${totalQty === 1 ? 'persona' : 'persone'} · ${op} · ${righe[0].ora}</div>
+              <div class="tr-desc">${escHtml(desc)}</div>
+              <div class="tr-meta">${totalQty} ${totalQty === 1 ? 'persona' : 'persone'} · ${escHtml(op)} · ${escHtml(righe[0].ora)}</div>
             </div>
             <div class="tr-azioni">
               ${entered
-                ? `<span class="btn-entra-done">✓ ${entOra}</span>
-                   <button class="btn-undoentra" onclick="event.stopPropagation();undoIngresso('${tNum}')" title="Annulla ingresso">✕</button>`
-                : `<button class="btn-entra" onclick="event.stopPropagation();segnaIngresso('${tNum}')">ENTRA</button>`
+                ? `<span class="btn-entra-done">✓ ${escHtml(entOra)}</span>
+                   <button class="btn-undoentra" data-tnum="${escHtml(tNum)}" onclick="event.stopPropagation();undoIngresso(this.dataset.tnum)" title="Annulla ingresso">✕</button>`
+                : `<button class="btn-entra" data-tnum="${escHtml(tNum)}" onclick="event.stopPropagation();segnaIngresso(this.dataset.tnum)">ENTRA</button>`
               }
             </div>
           </div>`;

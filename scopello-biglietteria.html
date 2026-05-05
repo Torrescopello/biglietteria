@@ -1081,6 +1081,17 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); min-he
 
 <script>
 // ============================================================
+// UTILITY
+// ============================================================
+function escHtml(s) {
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+function todayStr() {
+  return todayStr();
+}
+function opKey(n) { return n === 1 ? 'op1' : n === 2 ? 'op2' : 'dir'; }
+
+// ============================================================
 // SUPABASE CONFIG
 // ============================================================
 const SUPABASE_URL = 'https://jhvuucvzhtuvybcsoxts.supabase.co';
@@ -1104,10 +1115,11 @@ window.addEventListener('online', async () => {
   // Reset offline pendente
   const pendingReset = localStorage.getItem('scopello_pending_reset');
   if (pendingReset) {
-    await db.from('vendite').delete().eq('data', pendingReset);
+    const { error: erV } = await db.from('vendite').delete().eq('data', pendingReset);
     await db.from('ingressi').delete().eq('data', pendingReset).catch(() => {});
     await db.from('rimborsi_giornata').delete().eq('data', pendingReset).catch(() => {});
-    localStorage.removeItem('scopello_pending_reset');
+    if (erV) { showErrorToast('Reset giornata non completato sul DB — riprova.'); }
+    else { localStorage.removeItem('scopello_pending_reset'); }
   }
 
   // Applica modifiche offline nell'ordine giusto prima di ricaricare dal DB
@@ -1154,14 +1166,14 @@ async function saveVendita(vendita) {
     pagamento: vendita.pagamento,
     operatore: vendita.operatore,
     ora: vendita.ora,
-    data: new Date().toLocaleDateString('it-IT', {year:'numeric',month:'2-digit',day:'2-digit'}).split('/').reverse().join('-'),
+    data: todayStr(),
     ticket_num: vendita.ticketNum || null
   };
   if (isOnline) {
     const { data: inserted, error } = await db.from('vendite').insert(row).select('id').single();
     if (error) {
       // Se la colonna ticket_num non esiste ancora, riprova senza
-      if (error.message && error.message.includes('ticket_num')) {
+      if (error.message?.includes('ticket_num')) {
         const { ticket_num, ...rowNoTicket } = row;
         const { error: e2 } = await db.from('vendite').insert(rowNoTicket);
         if (e2) { pendingSync.push({...rowNoTicket, localId: vendita.id}); savePending(); }
@@ -1210,8 +1222,8 @@ async function syncPending() {
 }
 
 function savePending()        { try { localStorage.setItem('pendingSync',    JSON.stringify(pendingSync));    } catch(e) { showErrorToast('Spazio locale esaurito'); } }
-function savePendingDeletes() { try { localStorage.setItem('pendingDeletes', JSON.stringify(pendingDeletes)); } catch(e) {} }
-function savePendingUpdates() { try { localStorage.setItem('pendingUpdates', JSON.stringify(pendingUpdates)); } catch(e) {} }
+function savePendingDeletes() { try { localStorage.setItem('pendingDeletes', JSON.stringify(pendingDeletes)); } catch(e) { showErrorToast('Spazio locale esaurito'); } }
+function savePendingUpdates() { try { localStorage.setItem('pendingUpdates', JSON.stringify(pendingUpdates)); } catch(e) { showErrorToast('Spazio locale esaurito'); } }
 
 async function syncPendingDeletes() {
   if (!pendingDeletes.length || !isOnline) return;
@@ -1241,7 +1253,7 @@ function saveRimborsi() {
 }
 
 async function syncRimborsiToDB() {
-  const today = new Date().toLocaleDateString('it-IT', {year:'numeric',month:'2-digit',day:'2-digit'}).split('/').reverse().join('-');
+  const today = todayStr();
   const row = { data: today, payload: JSON.stringify(state.rimborsi) };
   // Upsert: crea o aggiorna il record dei rimborsi del giorno
   await db.from('rimborsi_giornata').upsert(row, { onConflict: 'data' }).catch(() => {});
@@ -1249,7 +1261,7 @@ async function syncRimborsiToDB() {
 
 async function loadRimborsiFromDB() {
   if (!isOnline) return;
-  const today = new Date().toLocaleDateString('it-IT', {year:'numeric',month:'2-digit',day:'2-digit'}).split('/').reverse().join('-');
+  const today = todayStr();
   const { data, error } = await db.from('rimborsi_giornata').select('payload').eq('data', today).single();
   if (error || !data) return;
   try {
@@ -1266,7 +1278,7 @@ async function loadRimborsiFromDB() {
 async function loadTodayVendite() {
   if (!isOnline) return;
   const storedRimborsi = (() => { try { return JSON.parse(localStorage.getItem('scopello_rimborsi') || '[]'); } catch(e) { return []; } })();
-  const today = new Date().toLocaleDateString('it-IT', {year:'numeric',month:'2-digit',day:'2-digit'}).split('/').reverse().join('-');
+  const today = todayStr();
   const { data, error } = await db.from('vendite').select('*').eq('data', today).order('created_at', { ascending: true });
   if (error || !data) return;
 
@@ -1348,14 +1360,14 @@ const CONFIG = {
     document.getElementById('opBtn1').textContent = CONFIG.nomiCasse.op1;
     document.getElementById('opBtn2').textContent = CONFIG.nomiCasse.op2;
     // Carica ingressi del giorno
-    const todayKey = 'scopello_ingressi_' + new Date().toLocaleDateString('it-IT',{year:'numeric',month:'2-digit',day:'2-digit'}).split('/').reverse().join('-');
+    const todayKey = 'scopello_ingressi_' + todayStr();
     const ingr = JSON.parse(localStorage.getItem(todayKey) || '{}');
     if (ingr) state.ingressi = ingr;
   } catch(e) {}
 })();
 
 function saveIngressi() {
-  const todayKey = 'scopello_ingressi_' + new Date().toLocaleDateString('it-IT',{year:'numeric',month:'2-digit',day:'2-digit'}).split('/').reverse().join('-');
+  const todayKey = 'scopello_ingressi_' + todayStr();
   try { localStorage.setItem(todayKey, JSON.stringify(state.ingressi)); } catch(e) {}
 }
 
@@ -1422,7 +1434,7 @@ async function doLogin() {
   _pwLoadPromise = null;
   const pw = document.getElementById('loginPw').value.trim();
   const err = document.getElementById('loginError');
-  const key = selectedOp === 1 ? 'op1' : selectedOp === 2 ? 'op2' : 'dir';
+  const key = opKey(selectedOp);
   // Mostra info connessione DB solo se la password è sbagliata (aiuto debug)
   const dbStatus = dbOk ? '🟢 DB connesso' : '🔴 DB non raggiunto — uso password locale';
   if (pw === CONFIG.passwords[key]) {
@@ -1487,7 +1499,7 @@ function switchSelectOp(op) {
 async function doSwitchOp() {
   await loadPasswordsFromDB().catch(() => {});
   const pw = document.getElementById('swPwInput').value.trim();
-  const key = switchSelectedOp === 1 ? 'op1' : switchSelectedOp === 2 ? 'op2' : 'dir';
+  const key = opKey(switchSelectedOp);
   if (pw === CONFIG.passwords[key]) {
     state.operatore = key;
     state.isDir = (key === 'dir');
@@ -1570,7 +1582,7 @@ let ticketCounter = 0;
 
 async function syncTicketCounterFromDB() {
   if (!isOnline) return;
-  const today = new Date().toLocaleDateString('it-IT', {year:'numeric',month:'2-digit',day:'2-digit'}).split('/').reverse().join('-');
+  const today = todayStr();
   const { data } = await db.from('vendite').select('ticket_num').eq('data', today).not('ticket_num', 'is', null);
   if (!data) return;
   let max = ticketCounter;
@@ -1725,8 +1737,8 @@ function renderTurniVendita() {
     const chipClass = ['turno-chip', full ? 'full' : '', past && !full ? 'past' : '', sel ? 'selected' : ''].filter(Boolean).join(' ');
     const subLabel = full ? 'Esaurito' : past ? 'Passato' : liberi + ' posti';
 
-    return `<div class="${chipClass}" onclick="${disabled ? '' : "selectTurno('" + ora + "')"}">
-      <div class="t-ora">${ora}</div>
+    return `<div class="${chipClass}" data-ora="${escHtml(ora)}" onclick="${disabled ? '' : 'selectTurno(this.dataset.ora)'}">
+      <div class="t-ora">${escHtml(ora)}</div>
       <div class="t-free">${subLabel}</div>
     </div>`;
   }).join('');
@@ -1848,7 +1860,7 @@ function renderUndoBtn() {
   btn.id = 'undoBtn';
   btn.className = 'btn-export';
   btn.style.cssText = 'color:var(--red);border-color:var(--red-border);margin-top:10px;';
-  btn.innerHTML = `↩ Annulla ultima (${myLast.ticketNum} turno ${myLast.turno})`;
+  btn.innerHTML = `↩ Annulla ultima (${escHtml(myLast.ticketNum)} turno ${escHtml(myLast.turno)})`;
   btn.onclick = undoLastSale;
   document.getElementById('btnConferma').insertAdjacentElement('afterend', btn);
 }
@@ -1861,12 +1873,14 @@ function resetSellForm() {
   updateSummary(); renderTurniVendita();
 }
 
+let _flashTimer = null;
 function showFlash(tot, tNum) {
   const f = document.getElementById('successFlash');
   document.getElementById('flashAmount').textContent = '€ ' + tot.toFixed(2).replace('.',',');
   document.getElementById('flashNum').textContent = tNum;
   f.classList.add('show');
-  setTimeout(() => f.classList.remove('show'), 3000);
+  if (_flashTimer) clearTimeout(_flashTimer);
+  _flashTimer = setTimeout(() => { f.classList.remove('show'); _flashTimer = null; }, 3000);
 }
 
 let _errorToastTimer = null;
@@ -1969,15 +1983,15 @@ function renderStorico() {
     const annullaBtn = state.isDir
       ? `<button class="btn-annulla-dir" onclick="annullaDir(${prima.id})">🗑 Elimina</button>` : '';
     const cambiaPagBtn = state.isDir
-      ? `<button class="btn-sposta" onclick="apriCambiaPagamento('${tNum}')">💳 Pagamento</button>` : '';
-    const spostaBtn = `<button class="btn-sposta" onclick="apriSposta('${tNum}')">↔ Sposta</button>`;
+      ? `<button class="btn-sposta" data-tnum="${escHtml(tNum)}" onclick="apriCambiaPagamento(this.dataset.tnum)">💳 Pagamento</button>` : '';
+    const spostaBtn = `<button class="btn-sposta" data-tnum="${escHtml(tNum)}" onclick="apriSposta(this.dataset.tnum)">↔ Sposta</button>`;
 
     return `<div class="storico-group">
       <div class="sg-header">
-        <span class="sg-ticket">${tNum}</span>
-        <span class="sg-turno">⏰ ${prima.turno}</span>
+        <span class="sg-ticket">${escHtml(tNum)}</span>
+        <span class="sg-turno">⏰ ${escHtml(prima.turno)}</span>
       </div>
-      <div class="sg-meta">${prima.ora} · ${opLabel}</div>
+      <div class="sg-meta">${escHtml(prima.ora)} · ${escHtml(opLabel)}</div>
       <div class="sg-righe">${righeHTML}</div>
       <div class="sg-footer">
         <span class="sg-total">€ ${totale.toFixed(2).replace('.',',')}</span>
@@ -2011,8 +2025,8 @@ function annullaDir(id) {
   const totale = sameTicket.reduce((a,v) => a + v.totale, 0);
   const pagOrig = payLabel(vendita.pagamento);
   document.getElementById('modalRimborsoText').innerHTML =
-    `Ticket <strong>${vendita.ticketNum}</strong> — ${righe}<br>
-     Turno: <strong>${vendita.turno}</strong> · Pagato con: <strong>${pagOrig}</strong><br>
+    `Ticket <strong>${escHtml(vendita.ticketNum)}</strong> — ${escHtml(righe)}<br>
+     Turno: <strong>${escHtml(vendita.turno)}</strong> · Pagato con: <strong>${escHtml(pagOrig)}</strong><br>
      Totale: <strong style="color:var(--red)">€ ${totale.toFixed(2).replace('.',',')}</strong>`;
   document.getElementById('modalRimborso').classList.add('visible');
 }
@@ -2094,7 +2108,7 @@ function apriCambiaPagamento(ticketNum) {
   const totale = righe.reduce((a,v) => a + v.totale, 0);
   const desc = righe.map(v => `${v.qty}× ${tipoLabel(v.tipo)}`).join(', ');
   document.getElementById('modalCambiaPagText').innerHTML =
-    `Ticket <strong>${ticketNum}</strong> — ${desc}<br>Pagamento attuale: <strong>${payLabel(righe[0].pagamento)}</strong> · Totale: <strong>€ ${totale.toFixed(2).replace('.',',')}</strong>`;
+    `Ticket <strong>${escHtml(ticketNum)}</strong> — ${escHtml(desc)}<br>Pagamento attuale: <strong>${escHtml(payLabel(righe[0].pagamento))}</strong> · Totale: <strong>€ ${totale.toFixed(2).replace('.',',')}</strong>`;
   document.getElementById('modalCambiaPag').classList.add('visible');
 }
 
@@ -2117,7 +2131,7 @@ function eseguiCambiaPagamento() {
   // Sync Supabase (online subito, offline in coda)
   const righeAggiornate = state.vendite.filter(v => v.ticketNum === cambiaPagTicket);
   if (isOnline) {
-    const today = new Date().toLocaleDateString('it-IT',{year:'numeric',month:'2-digit',day:'2-digit'}).split('/').reverse().join('-');
+    const today = todayStr();
     db.from('vendite').update({ pagamento: cambiaPagSel })
       .eq('ticket_num', cambiaPagTicket).eq('data', today)
       .then(({ error }) => {
@@ -2150,7 +2164,7 @@ function apriSposta(ticketNum) {
   spostaNewTurno = null;
 
   document.getElementById('modalSpostaText').innerHTML =
-    `Ticket <strong>${ticketNum}</strong> — ${desc}<br>Turno attuale: <strong>${turnoAttuale}</strong><br><br>Seleziona il nuovo turno:`;
+    `Ticket <strong>${escHtml(ticketNum)}</strong> — ${escHtml(desc)}<br>Turno attuale: <strong>${escHtml(turnoAttuale)}</strong><br><br>Seleziona il nuovo turno:`;
 
   // Costruisce griglia orari
   document.getElementById('orariGrid').innerHTML = CONFIG.orari.map(ora => {
@@ -2202,12 +2216,14 @@ async function eseguiSposta() {
 
   // Aggiorna nel DB (online subito, offline in coda)
   if (isOnline) {
+    let dbFail = false;
     for (const v of righe) {
       if (v.dbId) {
         const { error } = await db.from('vendite').update({ turno: spostaNewTurno }).eq('id', v.dbId);
-        if (error) { pendingUpdates.push({ dbId: v.dbId, turno: spostaNewTurno }); savePendingUpdates(); }
+        if (error) { pendingUpdates.push({ dbId: v.dbId, turno: spostaNewTurno }); savePendingUpdates(); dbFail = true; }
       }
     }
+    if (dbFail) showErrorToast('Spostamento non salvato nel DB — verrà sincronizzato al ritorno online.');
   } else {
     righe.forEach(v => { if (v.dbId) pendingUpdates.push({ dbId: v.dbId, turno: spostaNewTurno }); });
     savePendingUpdates(); updateSyncBadge();
@@ -2253,9 +2269,9 @@ function renderNoteList() {
   if (!note.length) { el.innerHTML = ''; return; }
   el.innerHTML = note.map((n, i) => `
     <div class="note-item">
-      <span class="note-item-text">${n.testo}</span>
-      <span class="note-item-meta">${n.ora}</span>
-      <button class="note-item-del" onclick="deleteNote('${op}',${i})" title="Elimina">✕</button>
+      <span class="note-item-text">${escHtml(n.testo)}</span>
+      <span class="note-item-meta">${escHtml(n.ora)}</span>
+      <button class="note-item-del" data-op="${escHtml(op)}" data-idx="${i}" onclick="deleteNote(this.dataset.op,Number(this.dataset.idx))" title="Elimina">✕</button>
     </div>`).join('');
 }
 
@@ -2404,14 +2420,14 @@ function renderCassa() {
         : `<span class="rimborso-amount" style="color:var(--muted);font-size:0.8rem;">non rimb.</span>`;
       const idx = state.rimborsi.indexOf(r);
       return `<div class="rimborso-row">
-        <span class="rimborso-ticket">${r.ticketNum}</span>
+        <span class="rimborso-ticket">${escHtml(r.ticketNum)}</span>
         <div class="rimborso-desc">
-          <span>${r.righe} · turno ${r.turno} · ${opLabel} · ${r.ora}</span>
-          <span class="rimborso-pagorig">pagato: ${pagOrigLabel}</span>
+          <span>${escHtml(r.righe)} · turno ${escHtml(r.turno)} · ${escHtml(opLabel)} · ${escHtml(r.ora)}</span>
+          <span class="rimborso-pagorig">pagato: ${escHtml(pagOrigLabel)}</span>
         </div>
         <div class="rimborso-meta">
           ${amountHtml}
-          <span class="rimborso-badge ${rbClass}">${rbLabel}</span>
+          <span class="rimborso-badge ${rbClass}">${escHtml(rbLabel)}</span>
           <button class="rimborso-edit-btn" onclick="apriModificaRimborso(${idx})" title="Modifica rimborso">✏️</button>
         </div>
       </div>`;
@@ -2531,7 +2547,7 @@ function exportCSV() {
 async function resetDay() {
   if (!confirm('Sei sicuro di voler resettare tutti i dati della giornata?')) return;
 
-  const today = new Date().toLocaleDateString('it-IT', {year:'numeric',month:'2-digit',day:'2-digit'}).split('/').reverse().join('-');
+  const today = todayStr();
 
   // Cancella dal DB se online, altrimenti salva il flag per farlo appena torna la connessione
   if (isOnline) {
@@ -2785,9 +2801,9 @@ function apriModificaRimborso(idx) {
   // Testo riepilogo
   const pagOrigLabel = payLabel(r.pagamentoOriginale);
   document.getElementById('modalRimborsoText').innerHTML =
-    `Modifica rimborso ticket <strong>${r.ticketNum}</strong><br>
-     ${r.righe} · turno <strong>${r.turno}</strong><br>
-     Pagato con: <strong>${pagOrigLabel}</strong> · Totale: <strong style="color:var(--red)">€ ${r.totale.toFixed(2).replace('.',',')}</strong>`;
+    `Modifica rimborso ticket <strong>${escHtml(r.ticketNum)}</strong><br>
+     ${escHtml(r.righe)} · turno <strong>${escHtml(r.turno)}</strong><br>
+     Pagato con: <strong>${escHtml(pagOrigLabel)}</strong> · Totale: <strong style="color:var(--red)">€ ${r.totale.toFixed(2).replace('.',',')}</strong>`;
   document.getElementById('modalRimborso').classList.add('visible');
 }
 
@@ -2799,7 +2815,7 @@ let _passwordChangePending = false;
 
 function startRealtime() {
   if (realtimeChannel) return; // già attivo
-  const today = new Date().toLocaleDateString('it-IT', {year:'numeric',month:'2-digit',day:'2-digit'}).split('/').reverse().join('-');
+  const today = todayStr();
   realtimeChannel = db
     .channel('live')
     .on('postgres_changes', {
