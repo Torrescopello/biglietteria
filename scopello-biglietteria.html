@@ -2805,8 +2805,13 @@ function startRealtime() {
     })
     .on('postgres_changes', {
       event: '*', schema: 'public', table: 'config', filter: `key=eq.passwords`
-    }, () => {
-      loadPasswordsFromDB();
+    }, async () => {
+      const oldPw = state.operatore ? CONFIG.passwords[state.operatore] : null;
+      await loadPasswordsFromDB();
+      if (state.operatore && oldPw !== null && CONFIG.passwords[state.operatore] !== oldPw) {
+        alert('⚠️ La password è stata cambiata. Effettua nuovamente il login.');
+        doLogout();
+      }
     })
     .subscribe();
 }

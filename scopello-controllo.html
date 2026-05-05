@@ -394,6 +394,23 @@ function updateSyncBadge() {
 }
 
 // ============================================================
+// PASSWORDS
+// ============================================================
+let currentLoginPw = null;
+
+async function loadPasswordsFromDB() {
+  if (!isOnline) return;
+  const { data, error } = await db.from('config').select('value').eq('key', 'passwords').maybeSingle();
+  if (error || !data) return;
+  try {
+    const pw = data.value;
+    if (pw && typeof pw === 'object') {
+      localStorage.setItem('scopello_passwords', JSON.stringify(pw));
+    }
+  } catch(e) {}
+}
+
+// ============================================================
 // DATI
 // ============================================================
 async function loadVendite() {
@@ -433,6 +450,7 @@ function doLogin() {
   const pw = document.getElementById('loginPw').value.trim();
   const err = document.getElementById('loginError');
   if (getAllPasswords().includes(pw)) {
+    currentLoginPw = pw;
     document.getElementById('loginPw').value = '';
     err.textContent = '';
     showScreen('appScreen');
@@ -457,6 +475,7 @@ async function initApp() {
   caricaIngressiLocale();
   updateClock();
   updateSyncBadge();
+  await loadPasswordsFromDB();
   await loadVendite();
   render();
   if (isOnline && !dbPaused) startRealtime();
@@ -700,6 +719,16 @@ function startRealtime() {
     }, async () => {
       await loadVendite();
       render();
+    })
+    .on('postgres_changes', {
+      event: '*', schema: 'public', table: 'config', filter: `key=eq.passwords`
+    }, async () => {
+      await loadPasswordsFromDB();
+      if (currentLoginPw && !getAllPasswords().includes(currentLoginPw)) {
+        currentLoginPw = null;
+        alert('⚠️ La password è stata cambiata. Effettua nuovamente il login.');
+        showScreen('loginScreen');
+      }
     })
     .subscribe();
 }
