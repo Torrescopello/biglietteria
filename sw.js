@@ -1,4 +1,4 @@
-const CACHE = 'biglietteria-v27';
+const CACHE = 'biglietteria-v28';
 const ASSETS = [
   './scopello-biglietteria.html',
   './manifest.json',
@@ -41,7 +41,25 @@ self.addEventListener('fetch', e => {
     return;
   }
 
-  // Tutto il resto: cache-first
+  // HTML principale: network-first per avere sempre versioni aggiornate
+  const isHTML = e.request.mode === 'navigate' ||
+                 url.pathname.endsWith('.html') ||
+                 url.pathname === '/' ||
+                 url.pathname.endsWith('/');
+  if (isHTML) {
+    e.respondWith(
+      fetch(e.request).then(response => {
+        if (response.ok) {
+          const clone = response.clone();
+          caches.open(CACHE).then(cache => cache.put(e.request, clone));
+        }
+        return response;
+      }).catch(() => caches.match(e.request).then(c => c || caches.match('./scopello-biglietteria.html')))
+    );
+    return;
+  }
+
+  // Altri asset (icone, manifest, librerie): cache-first
   e.respondWith(
     caches.match(e.request).then(cached => {
       if (cached) return cached;
