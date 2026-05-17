@@ -105,10 +105,9 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); min-he
 .login-error { font-size: 0.76rem; color: var(--red); text-align: center; margin-top: 8px; min-height: 16px; font-weight: 600; }
 
 /* ===== TOP BAR ===== */
-#appScreen { min-height: 100vh; background: var(--bg); }
-.sticky-header {
-  position: sticky; top: 0; z-index: 50;
-}
+#appScreen { height: 100vh; background: var(--bg); display: flex; flex-direction: column; overflow: hidden; }
+.sticky-header { flex-shrink: 0; z-index: 50; }
+.tab-scroll-area { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; position: relative; }
 .topbar {
   background: var(--white); border-bottom: 2px solid var(--border);
   padding: 10px 16px; display: flex; align-items: center; justify-content: space-between;
@@ -737,6 +736,8 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); min-he
     </div>
   </div>
 
+  <div class="tab-scroll-area">
+
   <!-- TAB VENDITA -->
   <div id="tab-vendita" class="tab-content active">
 
@@ -956,6 +957,8 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); min-he
     <div class="sec-label">Turni di oggi</div>
     <div class="ingresso-turni" id="ingressoTurni"></div>
   </div>
+
+  </div><!-- /tab-scroll-area -->
 
   <!-- BOTTONE FLOTTANTE CAMBIO OPERATORE -->
   <button class="fab-switch" onclick="openSwitchOp()" title="Cambia operatore">
