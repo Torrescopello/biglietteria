@@ -367,6 +367,13 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); }
 .orario-btn.current { opacity: 0.4; cursor: not-allowed; }
 
 /* ===== BOTTONE FLOTTANTE CAMBIO OPERATORE ===== */
+.update-banner {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 9999;
+  background: var(--sea); color: #fff; text-align: center;
+  padding: 12px 16px; font-size: 0.85rem; font-weight: 700;
+  cursor: pointer; display: none;
+}
+.update-banner.show { display: block; }
 .fab-switch {
   position: fixed; bottom: 24px; right: 20px; z-index: 100;
   display: flex; align-items: center; gap: 6px;
@@ -1093,6 +1100,7 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); }
   <span class="sf-amount" id="flashAmount">€ 0,00</span>
   <span class="sf-num" id="flashNum">#001</span>
 </div>
+<div class="update-banner" id="updateBanner" onclick="window.location.reload(true)">🔄 Nuova versione disponibile — tocca per aggiornare</div>
 <div class="error-toast" id="errorToast"></div>
 <div class="info-toast" id="infoToast"></div>
 
@@ -2860,7 +2868,21 @@ window.addEventListener('offline', stopRealtime);
 // Registra Service Worker per funzionamento offline (PWA)
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js').catch(() => {});
+    navigator.serviceWorker.register('./sw.js').then(reg => {
+      // Quando il SW trova un aggiornamento, mostra il banner
+      reg.addEventListener('updatefound', () => {
+        const newSW = reg.installing;
+        newSW.addEventListener('statechange', () => {
+          if (newSW.state === 'installed' && navigator.serviceWorker.controller) {
+            document.getElementById('updateBanner').classList.add('show');
+          }
+        });
+      });
+    }).catch(() => {});
+    // Se il SW ha già preso controllo (update già installato), ricarica
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      window.location.reload();
+    });
   });
 }
 </script>
