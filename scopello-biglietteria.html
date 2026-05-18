@@ -735,7 +735,7 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); }
     <div class="topbar">
       <div class="topbar-brand">
         <h1>Torre di Scopello</h1>
-        <p>Percorso Storico Naturalistico</p>
+        <p>Percorso Storico Naturalistico <span style="font-size:0.5rem;color:var(--muted);">v32</span></p>
       </div>
       <div class="topbar-right">
         <span class="op-badge" id="syncBadge" style="font-size:0.65rem;">✓ Online</span>
@@ -912,6 +912,7 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); }
         </div>
       </div>
       <div class="sec-label" style="margin-bottom:8px;margin-top:14px;">🔑 Modifica password</div>
+      <div id="pwFeedback" style="font-size:0.8rem;font-weight:700;margin-bottom:8px;min-height:18px;"></div>
       <div class="settings-section">
         <div class="settings-row-item">
           <span class="settings-row-label" id="pwLabel1">Password Cassa 1</span>
@@ -2520,16 +2521,18 @@ function updateCassaNames() {
 async function changePassword(key) {
   const inputId = key === 'op1' ? 'newPw1' : key === 'op2' ? 'newPw2' : key === 'ctrl' ? 'newPwCtrl' : 'newPwDir';
   const val = document.getElementById(inputId).value.trim();
-  if (!val) { showErrorToast('Inserisci una nuova password.'); return; }
-  if (val.length < 4) { showErrorToast('Password di almeno 4 caratteri.'); return; }
+  const fb = document.getElementById('pwFeedback');
+  if (!val) { if(fb) { fb.textContent = '⚠ Inserisci una password.'; fb.style.color = 'var(--red)'; } return; }
+  if (val.length < 4) { if(fb) { fb.textContent = '⚠ Minimo 4 caratteri.'; fb.style.color = 'var(--red)'; } return; }
+  if (fb) { fb.textContent = '⏳ Salvataggio...'; fb.style.color = 'var(--muted)'; }
   CONFIG.passwords[key] = val;
   try { localStorage.setItem('scopello_passwords', JSON.stringify(CONFIG.passwords)); } catch(e) {}
   const dbOk = await savePasswordsToDB();
   document.getElementById(inputId).value = '';
-  if (dbOk) {
-    showInfoToast('✓ Password salvata su tutti i dispositivi');
-  } else {
-    showErrorToast('Password salvata solo qui — DB non raggiunto');
+  if (fb) {
+    fb.textContent = dbOk ? '✓ Password salvata su tutti i dispositivi' : '⚠ Salvata solo qui — DB non raggiunto';
+    fb.style.color = dbOk ? 'var(--green)' : 'var(--red)';
+    setTimeout(() => { if(fb) fb.textContent = ''; }, 5000);
   }
 }
 
