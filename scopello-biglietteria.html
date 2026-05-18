@@ -106,9 +106,9 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); }
 .login-error { font-size: 0.76rem; color: var(--red); text-align: center; margin-top: 8px; min-height: 16px; font-weight: 600; }
 
 /* ===== TOP BAR ===== */
-#appScreen { height: 100%; background: var(--bg); display: flex; flex-direction: column; overflow: hidden; }
-.sticky-header { flex-shrink: 0; z-index: 50; }
-.tab-scroll-area { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; position: relative; }
+#appScreen { height: 100%; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; background: var(--bg); }
+.sticky-header { position: sticky; top: 0; z-index: 50; }
+.tab-scroll-area { display: contents; }
 .topbar {
   background: var(--white); border-bottom: 2px solid var(--border);
   padding: 10px 16px; display: flex; align-items: center; justify-content: space-between;
@@ -1381,17 +1381,16 @@ async function loadPasswordsFromDB() {
 }
 
 async function savePasswordsToDB() {
-  // Prima prova update, poi insert se non esiste ancora la riga
-  const { data, error } = await db.from('config')
-    .update({ value: CONFIG.passwords }).eq('key', 'passwords').select().catch(e => ({ data: null, error: e }));
-  if (error) return false;
-  if (!data || data.length === 0) {
-    // Riga non esiste ancora: inserisce
-    const { error: ie } = await db.from('config')
-      .insert({ key: 'passwords', value: CONFIG.passwords }).catch(e => ({ error: e }));
-    if (ie) return false;
-  }
-  return true;
+  // Update senza .select() — evita falsi negativi con RLS che blocca la lettura post-update
+  const { error } = await db.from('config')
+    .update({ value: CONFIG.passwords }).eq('key', 'passwords')
+    .catch(e => ({ error: e }));
+  if (!error) return true;
+  // Update fallito: la riga probabilmente non esiste ancora, prova insert
+  const { error: ie } = await db.from('config')
+    .insert({ key: 'passwords', value: CONFIG.passwords })
+    .catch(e => ({ error: e }));
+  return !ie;
 }
 
 let state = {
