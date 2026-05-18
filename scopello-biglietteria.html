@@ -700,6 +700,44 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); }
 }
 .btn-annulla-ingresso:active { color: var(--red); }
 .ingresso-vuoto { text-align: center; padding: 16px; color: var(--muted); font-size: 0.8rem; font-weight: 600; }
+
+/* ===== PANORAMICA ISTANTANEA ===== */
+.panoramica-card {
+  background: linear-gradient(135deg, #1a4a7a 0%, #0f3357 100%);
+  color: #fff; border-radius: 18px; padding: 14px 16px; margin-bottom: 14px;
+  box-shadow: 0 4px 16px rgba(21,101,160,0.28);
+}
+.pan-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.pan-title { font-size: 0.62rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em; opacity: 0.82; }
+.pan-live { display: flex; align-items: center; gap: 5px; font-size: 0.62rem; font-weight: 700; opacity: 0.82; }
+.pan-dot { width: 7px; height: 7px; border-radius: 50%; background: #6effa8; animation: blink 1.4s infinite; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+.pan-slots { display: flex; gap: 0; align-items: stretch; }
+.pan-slot { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 0 6px; }
+.pan-slot-divider { width: 1px; background: rgba(255,255,255,0.2); margin: 0 4px; }
+.pan-slot-label { font-size: 0.6rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; opacity: 0.75; margin-bottom: 4px; }
+.pan-slot-count { font-family: var(--fd); font-size: 2.6rem; font-weight: normal; line-height: 1; font-variant-numeric: tabular-nums; }
+.pan-slot-count.esaurito { color: #ff8080; }
+.pan-slot-count.scarso { color: #ffd080; }
+.pan-slot-sub { font-size: 0.6rem; opacity: 0.75; font-weight: 600; margin-bottom: 6px; }
+.pan-slot-adj { display: flex; align-items: center; gap: 6px; }
+.pan-adj-btn {
+  width: 24px; height: 24px; border-radius: 50%; border: 1.5px solid rgba(255,255,255,0.4);
+  background: rgba(255,255,255,0.12); color: #fff; font-size: 1rem; line-height: 1;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  font-weight: 700; transition: background 0.15s;
+}
+.pan-adj-btn:active { background: rgba(255,255,255,0.3); }
+.pan-adj-cap { font-size: 0.72rem; font-weight: 700; opacity: 0.85; min-width: 28px; text-align: center; }
+
+.btn-esci {
+  padding: 7px 12px; border-radius: 8px;
+  border: 2px solid rgba(192,57,43,0.4); background: rgba(192,57,43,0.12); color: var(--red);
+  font-family: var(--fu); font-size: 0.72rem; font-weight: 800;
+  cursor: pointer; transition: all 0.15s; white-space: nowrap;
+}
+.btn-esci:active { background: var(--red); color: #fff; transform: scale(0.95); }
+.biglietto-row.uscito { background: #f5f5f5; border-color: var(--border); opacity: 0.65; }
 </style>
 </head>
 <body>
@@ -736,7 +774,7 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); }
     <div class="topbar">
       <div class="topbar-brand">
         <h1>Torre di Scopello</h1>
-        <p>Percorso Storico Naturalistico <span style="font-size:0.5rem;color:var(--muted);">v39</span></p>
+        <p>Percorso Storico Naturalistico <span style="font-size:0.5rem;color:var(--muted);">v42</span></p>
       </div>
       <div class="topbar-right">
         <span class="op-badge" id="syncBadge" style="font-size:0.65rem;">✓ Online</span>
@@ -968,6 +1006,43 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); }
 
   <!-- TAB INGRESSO -->
   <div id="tab-ingresso" class="tab-content">
+    <!-- Panoramica istantanea -->
+    <div class="panoramica-card">
+      <div class="pan-header">
+        <span class="pan-title">Disponibilità giornaliera</span>
+        <span class="pan-live"><span class="pan-dot"></span>Live</span>
+      </div>
+      <div class="pan-slots">
+        <div class="pan-slot">
+          <div class="pan-slot-label">Lettini</div>
+          <div class="pan-slot-count" id="panRimPremium">—</div>
+          <div class="pan-slot-sub" id="panSubPremium">liberi</div>
+          <div class="pan-slot-adj">
+            <button class="pan-adj-btn" onclick="changeCapPremium(-1)">−</button>
+            <span class="pan-adj-cap" id="panCapPremium">30</span>
+            <button class="pan-adj-btn" onclick="changeCapPremium(1)">+</button>
+          </div>
+        </div>
+        <div class="pan-slot-divider"></div>
+        <div class="pan-slot">
+          <div class="pan-slot-label">Base</div>
+          <div class="pan-slot-count" id="panRimBase">—</div>
+          <div class="pan-slot-sub" id="panSubBase">liberi</div>
+          <div class="pan-slot-adj">
+            <button class="pan-adj-btn" onclick="changeCapBase(-1)">−</button>
+            <span class="pan-adj-cap" id="panCapBase">105</span>
+            <button class="pan-adj-btn" onclick="changeCapBase(1)">+</button>
+          </div>
+        </div>
+        <div class="pan-slot-divider"></div>
+        <div class="pan-slot">
+          <div class="pan-slot-label">Dentro ora</div>
+          <div class="pan-slot-count" id="panDentro">0</div>
+          <div class="pan-slot-sub">persone</div>
+          <div style="height:28px"></div>
+        </div>
+      </div>
+    </div>
     <!-- Resoconto biglietti per tipo -->
     <div class="sec-label">Biglietti</div>
     <div class="ingr-tipo-grid" id="ingrTipi"></div>
@@ -1396,16 +1471,24 @@ const CONFIG = {
     // Aggiorna bottoni login con nomi salvati
     document.getElementById('opBtn1').textContent = CONFIG.nomiCasse.op1;
     document.getElementById('opBtn2').textContent = CONFIG.nomiCasse.op2;
-    // Carica ingressi del giorno
+    // Carica ingressi e usciti del giorno
     const todayKey = 'scopello_ingressi_' + new Date().toLocaleDateString('it-IT',{year:'numeric',month:'2-digit',day:'2-digit'}).split('/').reverse().join('-');
     const ingr = JSON.parse(localStorage.getItem(todayKey) || '{}');
     if (ingr) state.ingressi = ingr;
+    const uscitiKey = 'scopello_usciti_' + new Date().toLocaleDateString('it-IT',{year:'numeric',month:'2-digit',day:'2-digit'}).split('/').reverse().join('-');
+    const usc = JSON.parse(localStorage.getItem(uscitiKey) || '{}');
+    if (usc) state.usciti = usc;
   } catch(e) {}
 })();
 
 function saveIngressi() {
   const todayKey = 'scopello_ingressi_' + new Date().toLocaleDateString('it-IT',{year:'numeric',month:'2-digit',day:'2-digit'}).split('/').reverse().join('-');
   try { localStorage.setItem(todayKey, JSON.stringify(state.ingressi)); } catch(e) {}
+}
+
+function saveUsciti() {
+  const uscitiKey = 'scopello_usciti_' + new Date().toLocaleDateString('it-IT',{year:'numeric',month:'2-digit',day:'2-digit'}).split('/').reverse().join('-');
+  try { localStorage.setItem(uscitiKey, JSON.stringify(state.usciti)); } catch(e) {}
 }
 
 async function loadPasswordsFromDB() {
@@ -1452,7 +1535,8 @@ let state = {
   vendite: [], turni: {},
   note: { op1: [], op2: [] },
   rimborsi: [],
-  ingressi: {}  // { ticketNum: { ora } }
+  ingressi: {},  // { ticketNum: { ora } }
+  usciti: {}     // { ticketNum: { ora } }
 };
 let cart = {};
 CONFIG.orari.forEach(o => { state.turni[o] = { prenotati: 0 }; });
@@ -1708,6 +1792,22 @@ function addToCart(tipo) {
     const inCarrello = cart['base'] || 0;
     if (netti + inCarrello >= CONFIG.capBase) {
       showErrorToast(`Ticket base esauriti — max ${CONFIG.capBase}`); return;
+    }
+  }
+  // Controllo limite giornaliero lettini
+  if (tipo === 'premium') {
+    const netti = venditeNettePerTipo('premium');
+    const inCarrello = cart['premium'] || 0;
+    if (netti + inCarrello >= CONFIG.capPremium) {
+      showErrorToast(`Lettini esauriti — max ${CONFIG.capPremium} al giorno`); return;
+    }
+  }
+  // Controllo limite giornaliero base (include ridotto e nopay)
+  if (tipo === 'base' || tipo === 'ridotto' || tipo === 'nopay') {
+    const netti = venditeNettePerTipo('base') + venditeNettePerTipo('ridotto') + venditeNettePerTipo('nopay');
+    const inCarrello = (cart['base'] || 0) + (cart['ridotto'] || 0) + (cart['nopay'] || 0);
+    if (netti + inCarrello >= CONFIG.capBase) {
+      showErrorToast(`Posti esauriti — max ${CONFIG.capBase} al giorno`); return;
     }
   }
   cart[tipo] = (cart[tipo] || 0) + 1;
@@ -2565,15 +2665,33 @@ function changeCap(d) {
 }
 
 function changeCapPremium(d) {
-  CONFIG.capPremium = Math.max(1, Math.min(200, CONFIG.capPremium + d));
-  document.getElementById('capPremiumSet').textContent = CONFIG.capPremium;
+  CONFIG.capPremium = Math.max(0, CONFIG.capPremium + d);
   try { localStorage.setItem('scopello_cappremium', CONFIG.capPremium); } catch(e) {}
+  updateCartUI();
+  if (document.getElementById('tab-ingresso').classList.contains('active')) renderIngresso();
 }
 
 function changeCapBase(d) {
-  CONFIG.capBase = Math.max(1, Math.min(500, CONFIG.capBase + d));
-  document.getElementById('capBaseSet').textContent = CONFIG.capBase;
+  CONFIG.capBase = Math.max(0, CONFIG.capBase + d);
   try { localStorage.setItem('scopello_capbase', CONFIG.capBase); } catch(e) {}
+  updateCartUI();
+  if (document.getElementById('tab-ingresso').classList.contains('active')) renderIngresso();
+}
+
+function venditeNettePerTipo(tipo) {
+  const rimborsati = new Set((state.rimborsi || []).map(r => r.ticketNum));
+  return state.vendite
+    .filter(v => v.tipo === tipo && !rimborsati.has(v.ticketNum))
+    .reduce((a, v) => a + v.qty, 0);
+}
+
+// Persone di un certo tipo attualmente dentro (entrate ma non uscite)
+function personeDentroPerTipo(tipo) {
+  const rimborsati = new Set((state.rimborsi || []).map(r => r.ticketNum));
+  return state.vendite
+    .filter(v => v.tipo === tipo && !rimborsati.has(v.ticketNum)
+                 && state.ingressi[v.ticketNum] && !state.usciti[v.ticketNum])
+    .reduce((a, v) => a + v.qty, 0);
 }
 
 function updateCassaNames() {
@@ -2663,8 +2781,10 @@ async function resetDay() {
   state.vendite = [];
   state.rimborsi = [];
   state.ingressi = {};
+  state.usciti = {};
   localStorage.removeItem('scopello_rimborsi');
   saveIngressi();
+  saveUsciti();
   CONFIG.orari.forEach(o => { state.turni[o] = { prenotati: 0 }; });
   ticketCounter = 0;
   localStorage.setItem('scopello_ticket_counter', 0);
@@ -2720,6 +2840,30 @@ function renderIngresso() {
   const current = getIngressoCurrentTurno();
   const next = getIngressoNextTurno();
   const byTurno = groupVenditePerIngresso();
+
+  // Panoramica istantanea
+  const totEntrati = Object.keys(state.ingressi).length;
+  const totUsciti = Object.keys(state.usciti).length;
+  const dentroOra = Math.max(0, totEntrati - totUsciti);
+  document.getElementById('panDentro').textContent = dentroOra;
+
+  const rimPremium = Math.max(0, CONFIG.capPremium - personeDentroPerTipo('premium'));
+  // base + ridotto + nopay occupano tutti posti base
+  const dentroBase = personeDentroPerTipo('base') + personeDentroPerTipo('ridotto') + personeDentroPerTipo('nopay');
+  const rimBase = Math.max(0, CONFIG.capBase - dentroBase);
+
+  const elRP = document.getElementById('panRimPremium');
+  elRP.textContent = rimPremium;
+  elRP.className = 'pan-slot-count' + (rimPremium === 0 ? ' esaurito' : rimPremium <= 5 ? ' scarso' : '');
+  document.getElementById('panSubPremium').textContent = rimPremium === 0 ? 'ESAURITI' : 'liberi';
+
+  const elRB = document.getElementById('panRimBase');
+  elRB.textContent = rimBase;
+  elRB.className = 'pan-slot-count' + (rimBase === 0 ? ' esaurito' : rimBase <= 10 ? ' scarso' : '');
+  document.getElementById('panSubBase').textContent = rimBase === 0 ? 'ESAURITI' : 'liberi';
+
+  document.getElementById('panCapPremium').textContent = CONFIG.capPremium;
+  document.getElementById('panCapBase').textContent = CONFIG.capBase;
 
   // Resoconto biglietti per tipo
   const tipi = ['base','premium','ridotto','nopay'];
@@ -2808,18 +2952,27 @@ function renderIngresso() {
           const qty = righe.reduce((a, v) => a + v.qty, 0);
           const op = righe[0].operatore === 'dir' ? 'Dir' : (CONFIG.nomiCasse[righe[0].operatore] || righe[0].operatore);
           const entered = !!state.ingressi[tNum];
+          const exited = !!state.usciti[tNum];
           const entOra = entered ? state.ingressi[tNum].ora : '';
-          return `<div class="biglietto-row${entered ? ' entrato' : ''}">
+          const uscOra = exited ? state.usciti[tNum].ora : '';
+          let rowClass = 'biglietto-row';
+          if (exited) rowClass += ' uscito';
+          else if (entered) rowClass += ' entrato';
+          return `<div class="${rowClass}">
             <span class="br-num">${tNum}</span>
             <div class="br-info">
               <div class="br-desc">${desc}</div>
               <div class="br-meta">${qty} ${qty === 1 ? 'persona' : 'persone'} · ${op} · ${righe[0].ora}</div>
             </div>
             <div class="br-azioni">
-              ${entered
-                ? `<span class="btn-segna-done">✓ ${entOra}</span>
-                   <button class="btn-annulla-ingresso" onclick="event.stopPropagation();undoIngressoBtn('${tNum}')" title="Annulla">✕</button>`
-                : `<button class="btn-segna" onclick="event.stopPropagation();segnaIngressoBtn('${tNum}')">ENTRA</button>`}
+              ${exited
+                ? `<span class="btn-segna-done" style="background:var(--muted)">↩ ${uscOra}</span>
+                   <button class="btn-annulla-ingresso" onclick="event.stopPropagation();undoUscitaBtn('${tNum}')" title="Annulla uscita">✕</button>`
+                : entered
+                  ? `<span class="btn-segna-done">✓ ${entOra}</span>
+                     <button class="btn-esci" onclick="event.stopPropagation();segnaUscitaBtn('${tNum}')">ESCI</button>
+                     <button class="btn-annulla-ingresso" onclick="event.stopPropagation();undoIngressoBtn('${tNum}')" title="Annulla">✕</button>`
+                  : `<button class="btn-segna" onclick="event.stopPropagation();segnaIngressoBtn('${tNum}')">ENTRA</button>`}
             </div>
           </div>`;
         }).join('');
@@ -2853,7 +3006,23 @@ function segnaIngressoBtn(ticketNum) {
 
 function undoIngressoBtn(ticketNum) {
   delete state.ingressi[ticketNum];
+  delete state.usciti[ticketNum];
   saveIngressi();
+  saveUsciti();
+  renderIngresso();
+}
+
+function segnaUscitaBtn(ticketNum) {
+  const ora = new Date().toLocaleTimeString('it-IT', {hour:'2-digit', minute:'2-digit'});
+  state.usciti[ticketNum] = { ora };
+  saveUsciti();
+  renderIngresso();
+  showErrorToast('↩ Ticket ' + ticketNum + ' uscito alle ' + ora);
+}
+
+function undoUscitaBtn(ticketNum) {
+  delete state.usciti[ticketNum];
+  saveUsciti();
   renderIngresso();
 }
 
