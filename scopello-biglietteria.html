@@ -735,7 +735,7 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); }
     <div class="topbar">
       <div class="topbar-brand">
         <h1>Torre di Scopello</h1>
-        <p>Percorso Storico Naturalistico <span style="font-size:0.5rem;color:var(--muted);">v35</span></p>
+        <p>Percorso Storico Naturalistico <span style="font-size:0.5rem;color:var(--muted);">v36</span></p>
       </div>
       <div class="topbar-right">
         <span class="op-badge" id="syncBadge" style="font-size:0.65rem;">✓ Online</span>
@@ -1400,21 +1400,20 @@ async function loadPasswordsFromDB() {
 }
 
 async function savePasswordsToDB() {
-  const timeout = new Promise(resolve => setTimeout(() => resolve(null), 8000));
-  // Leggi prima se la riga esiste (con timeout 8s)
-  const existingResult = await Promise.race([
-    db.from('app_config').select('key').eq('key', 'passwords').maybeSingle().catch(() => ({ data: null })),
-    timeout
-  ]);
-  const existing = existingResult ? existingResult.data : null;
-  const op = existing
-    ? db.from('app_config').update({ value: CONFIG.passwords }).eq('key', 'passwords')
-    : db.from('app_config').insert({ key: 'passwords', value: CONFIG.passwords });
-  const result = await Promise.race([
-    op.catch(e => ({ error: e })),
-    new Promise(resolve => setTimeout(() => resolve({ error: 'timeout' }), 8000))
-  ]);
-  return !result.error;
+  const t = ms => new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), ms));
+  try {
+    const { data: existing } = await Promise.race([
+      db.from('app_config').select('key').eq('key', 'passwords').maybeSingle(),
+      t(6000)
+    ]);
+    const write = existing
+      ? db.from('app_config').update({ value: CONFIG.passwords }).eq('key', 'passwords')
+      : db.from('app_config').insert({ key: 'passwords', value: CONFIG.passwords });
+    const { error } = await Promise.race([write, t(6000)]);
+    return !error;
+  } catch(e) {
+    return false;
+  }
 }
 
 let state = {
