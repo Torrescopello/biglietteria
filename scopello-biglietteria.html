@@ -776,7 +776,7 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); }
     <div class="topbar">
       <div class="topbar-brand">
         <h1>Torre di Scopello</h1>
-        <p>Percorso Storico Naturalistico <span style="font-size:0.5rem;color:var(--muted);">v45</span></p>
+        <p>Percorso Storico Naturalistico <span style="font-size:0.5rem;color:var(--muted);">v46</span></p>
       </div>
       <div class="topbar-right">
         <span class="op-badge" id="syncBadge" style="font-size:0.65rem;">✓ Online</span>
@@ -1790,21 +1790,6 @@ function addToCart(tipo) {
   if (state.turnoSel !== 'nessuna') {
     const liberi = CONFIG.capMax - state.turni[state.turnoSel].prenotati;
     if (cartTotalQty() >= liberi) { showErrorToast(`Turno ${state.turnoSel}: solo ${liberi} posti disponibili.`); return; }
-  }
-  // Controlla limite giornaliero base e premium (al netto dei rimborsi)
-  if (tipo === 'premium') {
-    const netti = venditeNettePerTipo('premium');
-    const inCarrello = cart['premium'] || 0;
-    if (netti + inCarrello >= CONFIG.capPremium) {
-      showErrorToast(`Lettini esauriti — max ${CONFIG.capPremium} (${CONFIG.capPremium - netti} rimasti)`); return;
-    }
-  }
-  if (tipo === 'base') {
-    const netti = venditeNettePerTipo('base');
-    const inCarrello = cart['base'] || 0;
-    if (netti + inCarrello >= CONFIG.capBase) {
-      showErrorToast(`Ticket base esauriti — max ${CONFIG.capBase}`); return;
-    }
   }
   // Controllo limite giornaliero lettini
   if (tipo === 'premium') {
