@@ -735,7 +735,7 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); }
     <div class="topbar">
       <div class="topbar-brand">
         <h1>Torre di Scopello</h1>
-        <p>Percorso Storico Naturalistico <span style="font-size:0.5rem;color:var(--muted);">v32</span></p>
+        <p>Percorso Storico Naturalistico <span style="font-size:0.5rem;color:var(--muted);">v35</span></p>
       </div>
       <div class="topbar-right">
         <span class="op-badge" id="syncBadge" style="font-size:0.65rem;">✓ Online</span>
@@ -1386,7 +1386,7 @@ function saveIngressi() {
 }
 
 async function loadPasswordsFromDB() {
-  const { data, error } = await db.from('config').select('value').eq('key', 'passwords').maybeSingle().catch(e => ({ data: null, error: e }));
+  const { data, error } = await db.from('app_config').select('value').eq('key', 'passwords').maybeSingle().catch(e => ({ data: null, error: e }));
   if (error || !data) return false;
   // Gestisce sia jsonb (oggetto) che text (stringa JSON)
   let val = data.value;
@@ -1403,13 +1403,13 @@ async function savePasswordsToDB() {
   const timeout = new Promise(resolve => setTimeout(() => resolve(null), 8000));
   // Leggi prima se la riga esiste (con timeout 8s)
   const existingResult = await Promise.race([
-    db.from('config').select('key').eq('key', 'passwords').maybeSingle().catch(() => ({ data: null })),
+    db.from('app_config').select('key').eq('key', 'passwords').maybeSingle().catch(() => ({ data: null })),
     timeout
   ]);
   const existing = existingResult ? existingResult.data : null;
   const op = existing
-    ? db.from('config').update({ value: CONFIG.passwords }).eq('key', 'passwords')
-    : db.from('config').insert({ key: 'passwords', value: CONFIG.passwords });
+    ? db.from('app_config').update({ value: CONFIG.passwords }).eq('key', 'passwords')
+    : db.from('app_config').insert({ key: 'passwords', value: CONFIG.passwords });
   const result = await Promise.race([
     op.catch(e => ({ error: e })),
     new Promise(resolve => setTimeout(() => resolve({ error: 'timeout' }), 8000))
@@ -2849,7 +2849,7 @@ function startRealtime() {
       if (state.operatore) loadTodayVendite();
     })
     .on('postgres_changes', {
-      event: '*', schema: 'public', table: 'config', filter: `key=eq.passwords`
+      event: '*', schema: 'public', table: 'app_config', filter: `key=eq.passwords`
     }, () => {
       loadPasswordsFromDB();
     })
