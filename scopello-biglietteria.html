@@ -538,6 +538,15 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); }
   white-space: nowrap;
 }
 .error-toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+.info-toast {
+  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px);
+  background: var(--green); color: #fff; border-radius: 12px; padding: 12px 24px;
+  z-index: 300; font-size: 0.88rem; font-weight: 700;
+  box-shadow: 0 4px 16px rgba(26,140,78,0.4);
+  transition: transform 0.3s ease, opacity 0.3s; pointer-events: none; opacity: 0;
+  white-space: nowrap;
+}
+.info-toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
 
 /* ===== MODAL RIMBORSO ===== */
 .rimborso-pay-row { display: flex; gap: 8px; margin: 14px 0; }
@@ -1085,6 +1094,7 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); }
   <span class="sf-num" id="flashNum">#001</span>
 </div>
 <div class="error-toast" id="errorToast"></div>
+<div class="info-toast" id="infoToast"></div>
 
 <script>
 // ============================================================
@@ -1423,8 +1433,11 @@ function selectOp(op) {
 }
 
 async function doLogin() {
-  // Carica sempre le password aggiornate dal DB prima di verificare
-  const dbOk = await loadPasswordsFromDB().catch(() => false);
+  // Carica password dal DB con timeout 5s per non bloccare il login offline
+  const dbOk = await Promise.race([
+    loadPasswordsFromDB().catch(() => false),
+    new Promise(resolve => setTimeout(() => resolve(false), 5000))
+  ]);
   _pwLoadPromise = null;
   const pw = document.getElementById('loginPw').value.trim();
   const err = document.getElementById('loginError');
@@ -1883,6 +1896,15 @@ function showErrorToast(msg) {
   t.classList.add('show');
   if (_errorToastTimer) clearTimeout(_errorToastTimer);
   _errorToastTimer = setTimeout(() => t.classList.remove('show'), 4000);
+}
+let _infoToastTimer = null;
+function showInfoToast(msg) {
+  const t = document.getElementById('infoToast');
+  if (!t) return;
+  t.textContent = msg;
+  t.classList.add('show');
+  if (_infoToastTimer) clearTimeout(_infoToastTimer);
+  _infoToastTimer = setTimeout(() => t.classList.remove('show'), 4000);
 }
 
 // ============================================================
@@ -2483,16 +2505,16 @@ function updateCassaNames() {
 async function changePassword(key) {
   const inputId = key === 'op1' ? 'newPw1' : key === 'op2' ? 'newPw2' : key === 'ctrl' ? 'newPwCtrl' : 'newPwDir';
   const val = document.getElementById(inputId).value.trim();
-  if (!val) { alert('Inserisci una nuova password.'); return; }
-  if (val.length < 4) { alert('La password deve essere di almeno 4 caratteri.'); return; }
+  if (!val) { showErrorToast('Inserisci una nuova password.'); return; }
+  if (val.length < 4) { showErrorToast('Password di almeno 4 caratteri.'); return; }
   CONFIG.passwords[key] = val;
   try { localStorage.setItem('scopello_passwords', JSON.stringify(CONFIG.passwords)); } catch(e) {}
   const dbOk = await savePasswordsToDB();
   document.getElementById(inputId).value = '';
   if (dbOk) {
-    alert('✓ Password aggiornata e salvata su tutti i dispositivi!');
+    showInfoToast('✓ Password salvata su tutti i dispositivi');
   } else {
-    alert('⚠️ Password aggiornata localmente ma NON salvata nel DB.\nControllare la connessione o le policy Supabase.');
+    showErrorToast('Password salvata solo qui — DB non raggiunto');
   }
 }
 
