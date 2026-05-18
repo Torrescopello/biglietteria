@@ -1400,23 +1400,21 @@ async function loadPasswordsFromDB() {
 }
 
 async function savePasswordsToDB() {
-  // Leggi prima se la riga esiste
-  const { data: existing } = await db.from('config')
-    .select('key').eq('key', 'passwords').maybeSingle()
-    .catch(() => ({ data: null }));
-  if (existing) {
-    // Riga esiste: aggiorna
-    const { error } = await db.from('config')
-      .update({ value: CONFIG.passwords }).eq('key', 'passwords')
-      .catch(e => ({ error: e }));
-    return !error;
-  } else {
-    // Riga non esiste: inserisci
-    const { error } = await db.from('config')
-      .insert({ key: 'passwords', value: CONFIG.passwords })
-      .catch(e => ({ error: e }));
-    return !error;
-  }
+  const timeout = new Promise(resolve => setTimeout(() => resolve(null), 8000));
+  // Leggi prima se la riga esiste (con timeout 8s)
+  const existingResult = await Promise.race([
+    db.from('config').select('key').eq('key', 'passwords').maybeSingle().catch(() => ({ data: null })),
+    timeout
+  ]);
+  const existing = existingResult ? existingResult.data : null;
+  const op = existing
+    ? db.from('config').update({ value: CONFIG.passwords }).eq('key', 'passwords')
+    : db.from('config').insert({ key: 'passwords', value: CONFIG.passwords });
+  const result = await Promise.race([
+    op.catch(e => ({ error: e })),
+    new Promise(resolve => setTimeout(() => resolve({ error: 'timeout' }), 8000))
+  ]);
+  return !result.error;
 }
 
 let state = {
