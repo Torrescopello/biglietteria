@@ -173,6 +173,7 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); }
   box-shadow: 0 1px 4px rgba(0,0,0,0.05);
 }
 .ticket-card:active { transform: scale(0.97); }
+.ticket-card.card-esaurito { opacity: 0.5; border-color: var(--red-border); }
 .ticket-card .tc-icon { display: none; }
 .ticket-card .tc-name { font-size: 0.72rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text2); }
 .ticket-card .tc-price { font-family: var(--fd); font-size: 1.25rem; color: var(--text); margin-top: 1px; font-weight: normal; }
@@ -735,7 +736,7 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); }
     <div class="topbar">
       <div class="topbar-brand">
         <h1>Torre di Scopello</h1>
-        <p>Percorso Storico Naturalistico <span style="font-size:0.5rem;color:var(--muted);">v38</span></p>
+        <p>Percorso Storico Naturalistico <span style="font-size:0.5rem;color:var(--muted);">v39</span></p>
       </div>
       <div class="topbar-right">
         <span class="op-badge" id="syncBadge" style="font-size:0.65rem;">✓ Online</span>
@@ -897,6 +898,14 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); }
             <button class="s-btn" onclick="changeCapPremium(-1)">−</button>
             <span class="s-val" id="capPremiumSet">30</span>
             <button class="s-btn" onclick="changeCapPremium(+1)">+</button>
+          </div>
+        </div>
+        <div class="settings-row-item">
+          <span class="settings-row-label">Max ticket Base (giorn.)</span>
+          <div class="settings-val-row">
+            <button class="s-btn" onclick="changeCapBase(-1)">−</button>
+            <span class="s-val" id="capBaseSet">105</span>
+            <button class="s-btn" onclick="changeCapBase(+1)">+</button>
           </div>
         </div>
         <div class="settings-row-item">
@@ -1364,6 +1373,7 @@ const CONFIG = {
   prezzi: { base: 10, premium: 18, ridotto: 5, nopay: 0 },
   capMax: 22,
   capPremium: 30,
+  capBase: 105,
   orari: ['11:00','11:30','12:00','12:30','13:00','13:30','14:00','14:30','15:00','15:30','16:00','16:30','17:00','17:30','18:00'],
   nomiCasse: { op1: 'Cassa 1', op2: 'Cassa 2' }
 };
@@ -1381,6 +1391,8 @@ const CONFIG = {
     if (!isNaN(cap) && cap > 0) CONFIG.capMax = cap;
     const capP = parseInt(localStorage.getItem('scopello_cappremium'));
     if (!isNaN(capP) && capP > 0) CONFIG.capPremium = capP;
+    const capB = parseInt(localStorage.getItem('scopello_capbase'));
+    if (!isNaN(capB) && capB > 0) CONFIG.capBase = capB;
     // Aggiorna bottoni login con nomi salvati
     document.getElementById('opBtn1').textContent = CONFIG.nomiCasse.op1;
     document.getElementById('opBtn2').textContent = CONFIG.nomiCasse.op2;
@@ -1669,6 +1681,13 @@ function applyTicketStart() {
 // CARRELLO
 // ============================================================
 
+function venditeNettePerTipo(tipo) {
+  const rimborsati = new Set((state.rimborsi || []).map(r => r.ticketNum));
+  return state.vendite
+    .filter(v => v.tipo === tipo && !rimborsati.has(v.ticketNum))
+    .reduce((a, v) => a + v.qty, 0);
+}
+
 function addToCart(tipo) {
   if (!state.turnoSel) { document.getElementById('modalNoTurno').classList.add('visible'); return; }
   // Controlla capienza solo per turni con visita
@@ -1676,12 +1695,19 @@ function addToCart(tipo) {
     const liberi = CONFIG.capMax - state.turni[state.turnoSel].prenotati;
     if (cartTotalQty() >= liberi) { showErrorToast(`Turno ${state.turnoSel}: solo ${liberi} posti disponibili.`); return; }
   }
-  // Controlla limite lettini premium (totale giornaliero)
+  // Controlla limite giornaliero base e premium (al netto dei rimborsi)
   if (tipo === 'premium') {
-    const vendPremiumOggi = state.vendite.filter(v => v.tipo === 'premium').reduce((a, v) => a + v.qty, 0);
+    const netti = venditeNettePerTipo('premium');
     const inCarrello = cart['premium'] || 0;
-    if (vendPremiumOggi + inCarrello >= CONFIG.capPremium) {
-      showErrorToast(`Lettini esauriti — max ${CONFIG.capPremium} giornalieri`); return;
+    if (netti + inCarrello >= CONFIG.capPremium) {
+      showErrorToast(`Lettini esauriti — max ${CONFIG.capPremium} (${CONFIG.capPremium - netti} rimasti)`); return;
+    }
+  }
+  if (tipo === 'base') {
+    const netti = venditeNettePerTipo('base');
+    const inCarrello = cart['base'] || 0;
+    if (netti + inCarrello >= CONFIG.capBase) {
+      showErrorToast(`Ticket base esauriti — max ${CONFIG.capBase}`); return;
     }
   }
   cart[tipo] = (cart[tipo] || 0) + 1;
@@ -1726,12 +1752,19 @@ function updateCartUI() {
   const labels = { base:'Base', premium:'Premium', ridotto:'Ridotto', nopay:'Non pagante' };
 
   // Badge sulle card
+  const rimPrem = CONFIG.capPremium - venditeNettePerTipo('premium');
+  const rimBase = CONFIG.capBase - venditeNettePerTipo('base');
   types.forEach(t => {
     const badge = document.getElementById('badge' + t.charAt(0).toUpperCase() + t.slice(1));
     const qty = cart[t] || 0;
-    badge.innerHTML = qty > 0 ? `<span class="tc-badge-val">${qty}</span>` : '';
+    let badgeHtml = qty > 0 ? `<span class="tc-badge-val">${qty}</span>` : '';
+    if (t === 'premium') badgeHtml += `<span style="font-size:0.6rem;color:${rimPrem<=5?'var(--red)':'var(--muted)'}"> ${rimPrem} rimasti</span>`;
+    if (t === 'base') badgeHtml += `<span style="font-size:0.6rem;color:${rimBase<=10?'var(--red)':'var(--muted)'}"> ${rimBase} rimasti</span>`;
+    badge.innerHTML = badgeHtml;
     const card = document.getElementById('card' + t.charAt(0).toUpperCase() + t.slice(1));
-    card.className = 'ticket-card' + (qty > 0 ? ` selected-${t}` : '');
+    card.className = 'ticket-card' + (qty > 0 ? ` selected-${t}` : '')
+      + (t === 'premium' && rimPrem <= 0 ? ' card-esaurito' : '')
+      + (t === 'base' && rimBase <= 0 ? ' card-esaurito' : '');
   });
 
   if (cartTotalQty() === 0) {
@@ -2501,6 +2534,7 @@ function renderCassa() {
     document.getElementById('priceRidottoSet').textContent = CONFIG.prezzi.ridotto;
     document.getElementById('capSet').textContent = CONFIG.capMax;
     document.getElementById('capPremiumSet').textContent = CONFIG.capPremium;
+    document.getElementById('capBaseSet').textContent = CONFIG.capBase;
     document.getElementById('nameCassa1').value = CONFIG.nomiCasse.op1;
     document.getElementById('nameCassa2').value = CONFIG.nomiCasse.op2;
     document.getElementById('pwLabel1').textContent = 'Password ' + CONFIG.nomiCasse.op1;
@@ -2534,6 +2568,12 @@ function changeCapPremium(d) {
   CONFIG.capPremium = Math.max(1, Math.min(200, CONFIG.capPremium + d));
   document.getElementById('capPremiumSet').textContent = CONFIG.capPremium;
   try { localStorage.setItem('scopello_cappremium', CONFIG.capPremium); } catch(e) {}
+}
+
+function changeCapBase(d) {
+  CONFIG.capBase = Math.max(1, Math.min(500, CONFIG.capBase + d));
+  document.getElementById('capBaseSet').textContent = CONFIG.capBase;
+  try { localStorage.setItem('scopello_capbase', CONFIG.capBase); } catch(e) {}
 }
 
 function updateCassaNames() {
