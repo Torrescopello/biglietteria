@@ -735,7 +735,7 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); }
     <div class="topbar">
       <div class="topbar-brand">
         <h1>Torre di Scopello</h1>
-        <p>Percorso Storico Naturalistico <span style="font-size:0.5rem;color:var(--muted);">v36</span></p>
+        <p>Percorso Storico Naturalistico <span style="font-size:0.5rem;color:var(--muted);">v37</span></p>
       </div>
       <div class="topbar-right">
         <span class="op-badge" id="syncBadge" style="font-size:0.65rem;">✓ Online</span>
@@ -1386,7 +1386,14 @@ function saveIngressi() {
 }
 
 async function loadPasswordsFromDB() {
-  const { data, error } = await db.from('app_config').select('value').eq('key', 'passwords').maybeSingle().catch(e => ({ data: null, error: e }));
+  const t = ms => new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), ms));
+  let data, error;
+  try {
+    ({ data, error } = await Promise.race([
+      db.from('app_config').select('value').eq('key', 'passwords').maybeSingle(),
+      t(8000)
+    ]));
+  } catch(e) { return false; }
   if (error || !data) return false;
   // Gestisce sia jsonb (oggetto) che text (stringa JSON)
   let val = data.value;
@@ -1447,10 +1454,7 @@ function selectOp(op) {
 
 async function doLogin() {
   // Carica password dal DB con timeout 5s per non bloccare il login offline
-  const dbOk = await Promise.race([
-    loadPasswordsFromDB().catch(() => false),
-    new Promise(resolve => setTimeout(() => resolve(false), 5000))
-  ]);
+  const dbOk = await loadPasswordsFromDB().catch(() => false);
   _pwLoadPromise = null;
   const pw = document.getElementById('loginPw').value.trim();
   const err = document.getElementById('loginError');
