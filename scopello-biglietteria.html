@@ -702,20 +702,32 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); }
 
 /* ===== PANORAMICA ISTANTANEA ===== */
 .panoramica-card {
-  background: linear-gradient(135deg, #1a8c4e 0%, #0f6a3a 100%);
-  color: #fff; border-radius: 18px; padding: 16px 18px; margin-bottom: 14px;
-  box-shadow: 0 4px 16px rgba(26,140,78,0.3);
+  background: linear-gradient(135deg, #1a4a7a 0%, #0f3357 100%);
+  color: #fff; border-radius: 18px; padding: 14px 16px; margin-bottom: 14px;
+  box-shadow: 0 4px 16px rgba(21,101,160,0.28);
 }
-.pan-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.pan-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
 .pan-title { font-size: 0.62rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em; opacity: 0.82; }
 .pan-live { display: flex; align-items: center; gap: 5px; font-size: 0.62rem; font-weight: 700; opacity: 0.82; }
 .pan-dot { width: 7px; height: 7px; border-radius: 50%; background: #6effa8; animation: blink 1.4s infinite; }
 @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
-.pan-count { font-family: var(--fd); font-size: 3.4rem; font-weight: normal; line-height: 1; margin-bottom: 4px; }
-.pan-label { font-size: 0.72rem; opacity: 0.82; font-weight: 600; margin-bottom: 12px; }
-.pan-stats { display: flex; gap: 16px; }
-.pan-stat .pval { font-size: 1.3rem; font-weight: 800; display: block; font-variant-numeric: tabular-nums; }
-.pan-stat .plab { font-size: 0.56rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; opacity: 0.75; }
+.pan-slots { display: flex; gap: 0; align-items: stretch; }
+.pan-slot { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 0 6px; }
+.pan-slot-divider { width: 1px; background: rgba(255,255,255,0.2); margin: 0 4px; }
+.pan-slot-label { font-size: 0.6rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; opacity: 0.75; margin-bottom: 4px; }
+.pan-slot-count { font-family: var(--fd); font-size: 2.6rem; font-weight: normal; line-height: 1; font-variant-numeric: tabular-nums; }
+.pan-slot-count.esaurito { color: #ff8080; }
+.pan-slot-count.scarso { color: #ffd080; }
+.pan-slot-sub { font-size: 0.6rem; opacity: 0.75; font-weight: 600; margin-bottom: 6px; }
+.pan-slot-adj { display: flex; align-items: center; gap: 6px; }
+.pan-adj-btn {
+  width: 24px; height: 24px; border-radius: 50%; border: 1.5px solid rgba(255,255,255,0.4);
+  background: rgba(255,255,255,0.12); color: #fff; font-size: 1rem; line-height: 1;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  font-weight: 700; transition: background 0.15s;
+}
+.pan-adj-btn:active { background: rgba(255,255,255,0.3); }
+.pan-adj-cap { font-size: 0.72rem; font-weight: 700; opacity: 0.85; min-width: 28px; text-align: center; }
 
 .btn-esci {
   padding: 7px 12px; border-radius: 8px;
@@ -761,7 +773,7 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); }
     <div class="topbar">
       <div class="topbar-brand">
         <h1>Torre di Scopello</h1>
-        <p>Percorso Storico Naturalistico <span style="font-size:0.5rem;color:var(--muted);">v40</span></p>
+        <p>Percorso Storico Naturalistico <span style="font-size:0.5rem;color:var(--muted);">v41</span></p>
       </div>
       <div class="topbar-right">
         <span class="op-badge" id="syncBadge" style="font-size:0.65rem;">✓ Online</span>
@@ -977,16 +989,40 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); }
   <!-- TAB INGRESSO -->
   <div id="tab-ingresso" class="tab-content">
     <!-- Panoramica istantanea -->
-    <div class="panoramica-card" id="panoramicaCard">
+    <div class="panoramica-card">
       <div class="pan-header">
-        <span class="pan-title">Panoramica istantanea</span>
+        <span class="pan-title">Disponibilità giornaliera</span>
         <span class="pan-live"><span class="pan-dot"></span>Live</span>
       </div>
-      <div class="pan-count" id="panDentro">0</div>
-      <div class="pan-label">persone dentro ora</div>
-      <div class="pan-stats">
-        <div class="pan-stat"><span class="pval" id="panEntrati">0</span><span class="plab">entrate oggi</span></div>
-        <div class="pan-stat"><span class="pval" id="panUsciti">0</span><span class="plab">uscite oggi</span></div>
+      <div class="pan-slots">
+        <div class="pan-slot">
+          <div class="pan-slot-label">Lettini</div>
+          <div class="pan-slot-count" id="panRimPremium">—</div>
+          <div class="pan-slot-sub" id="panSubPremium">liberi</div>
+          <div class="pan-slot-adj">
+            <button class="pan-adj-btn" onclick="changeCapPremium(-1)">−</button>
+            <span class="pan-adj-cap" id="panCapPremium">30</span>
+            <button class="pan-adj-btn" onclick="changeCapPremium(1)">+</button>
+          </div>
+        </div>
+        <div class="pan-slot-divider"></div>
+        <div class="pan-slot">
+          <div class="pan-slot-label">Base</div>
+          <div class="pan-slot-count" id="panRimBase">—</div>
+          <div class="pan-slot-sub" id="panSubBase">liberi</div>
+          <div class="pan-slot-adj">
+            <button class="pan-adj-btn" onclick="changeCapBase(-1)">−</button>
+            <span class="pan-adj-cap" id="panCapBase">105</span>
+            <button class="pan-adj-btn" onclick="changeCapBase(1)">+</button>
+          </div>
+        </div>
+        <div class="pan-slot-divider"></div>
+        <div class="pan-slot">
+          <div class="pan-slot-label">Dentro ora</div>
+          <div class="pan-slot-count" id="panDentro">0</div>
+          <div class="pan-slot-sub">persone</div>
+          <div style="height:28px"></div>
+        </div>
       </div>
     </div>
     <!-- Resoconto biglietti per tipo -->
@@ -1393,6 +1429,8 @@ const CONFIG = {
   passwords: { op1: '1234', op2: '5678', dir: 'scopello2024', ctrl: 'ctrl2024' },
   prezzi: { base: 10, premium: 18, ridotto: 5, nopay: 0 },
   capMax: 22,
+  capPremium: 30,
+  capBase: 105,
   orari: ['11:00','11:30','12:00','12:30','13:00','13:30','14:00','14:30','15:00','15:30','16:00','16:30','17:00','17:30','18:00'],
   nomiCasse: { op1: 'Cassa 1', op2: 'Cassa 2' }
 };
@@ -1408,6 +1446,10 @@ const CONFIG = {
     if (prezzi) Object.assign(CONFIG.prezzi, prezzi);
     const cap = parseInt(localStorage.getItem('scopello_capmax'));
     if (!isNaN(cap) && cap > 0) CONFIG.capMax = cap;
+    const capP = parseInt(localStorage.getItem('scopello_cappremium'));
+    if (!isNaN(capP) && capP > 0) CONFIG.capPremium = capP;
+    const capB = parseInt(localStorage.getItem('scopello_capbase'));
+    if (!isNaN(capB) && capB > 0) CONFIG.capBase = capB;
     // Aggiorna bottoni login con nomi salvati
     document.getElementById('opBtn1').textContent = CONFIG.nomiCasse.op1;
     document.getElementById('opBtn2').textContent = CONFIG.nomiCasse.op2;
@@ -1710,6 +1752,22 @@ function addToCart(tipo) {
   if (state.turnoSel !== 'nessuna') {
     const liberi = CONFIG.capMax - state.turni[state.turnoSel].prenotati;
     if (cartTotalQty() >= liberi) { alert(`Turno ${state.turnoSel}: solo ${liberi} posti disponibili.`); return; }
+  }
+  // Controllo limite giornaliero lettini
+  if (tipo === 'premium') {
+    const netti = venditeNettePerTipo('premium');
+    const inCarrello = cart['premium'] || 0;
+    if (netti + inCarrello >= CONFIG.capPremium) {
+      showErrorToast(`Lettini esauriti — max ${CONFIG.capPremium} al giorno`); return;
+    }
+  }
+  // Controllo limite giornaliero base
+  if (tipo === 'base') {
+    const netti = venditeNettePerTipo('base');
+    const inCarrello = cart['base'] || 0;
+    if (netti + inCarrello >= CONFIG.capBase) {
+      showErrorToast(`Ticket base esauriti — max ${CONFIG.capBase} al giorno`); return;
+    }
   }
   cart[tipo] = (cart[tipo] || 0) + 1;
   // Fix: se aggiungo biglietto a pagamento dopo nopay, reset paySel 'gratis'
@@ -2556,6 +2614,27 @@ function changeCap(d) {
   try { localStorage.setItem('scopello_capmax', CONFIG.capMax); } catch(e) {}
 }
 
+function changeCapPremium(d) {
+  CONFIG.capPremium = Math.max(0, CONFIG.capPremium + d);
+  try { localStorage.setItem('scopello_cappremium', CONFIG.capPremium); } catch(e) {}
+  updateCartUI();
+  if (document.getElementById('tab-ingresso').classList.contains('active')) renderIngresso();
+}
+
+function changeCapBase(d) {
+  CONFIG.capBase = Math.max(0, CONFIG.capBase + d);
+  try { localStorage.setItem('scopello_capbase', CONFIG.capBase); } catch(e) {}
+  updateCartUI();
+  if (document.getElementById('tab-ingresso').classList.contains('active')) renderIngresso();
+}
+
+function venditeNettePerTipo(tipo) {
+  const rimborsati = new Set((state.rimborsi || []).map(r => r.ticketNum));
+  return state.vendite
+    .filter(v => v.tipo === tipo && !rimborsati.has(v.ticketNum))
+    .reduce((a, v) => a + v.qty, 0);
+}
+
 function updateCassaNames() {
   CONFIG.nomiCasse.op1 = document.getElementById('nameCassa1').value || 'Cassa 1';
   CONFIG.nomiCasse.op2 = document.getElementById('nameCassa2').value || 'Cassa 2';
@@ -2706,8 +2785,24 @@ function renderIngresso() {
   const totUsciti = Object.keys(state.usciti).length;
   const dentroOra = Math.max(0, totEntrati - totUsciti);
   document.getElementById('panDentro').textContent = dentroOra;
-  document.getElementById('panEntrati').textContent = totEntrati;
-  document.getElementById('panUsciti').textContent = totUsciti;
+
+  const vendPremium = venditeNettePerTipo('premium');
+  const vendBase = venditeNettePerTipo('base');
+  const rimPremium = Math.max(0, CONFIG.capPremium - vendPremium);
+  const rimBase = Math.max(0, CONFIG.capBase - vendBase);
+
+  const elRP = document.getElementById('panRimPremium');
+  elRP.textContent = rimPremium;
+  elRP.className = 'pan-slot-count' + (rimPremium === 0 ? ' esaurito' : rimPremium <= 5 ? ' scarso' : '');
+  document.getElementById('panSubPremium').textContent = rimPremium === 0 ? 'ESAURITI' : 'liberi';
+
+  const elRB = document.getElementById('panRimBase');
+  elRB.textContent = rimBase;
+  elRB.className = 'pan-slot-count' + (rimBase === 0 ? ' esaurito' : rimBase <= 10 ? ' scarso' : '');
+  document.getElementById('panSubBase').textContent = rimBase === 0 ? 'ESAURITI' : 'liberi';
+
+  document.getElementById('panCapPremium').textContent = CONFIG.capPremium;
+  document.getElementById('panCapBase').textContent = CONFIG.capBase;
 
   // Resoconto biglietti per tipo
   const tipi = ['base','premium','ridotto','nopay'];
