@@ -720,24 +720,17 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); }
 .pan-slot-count.esaurito { color: #ff8080; }
 .pan-slot-count.scarso { color: #ffd080; }
 .pan-slot-sub { font-size: 0.6rem; opacity: 0.75; font-weight: 600; margin-bottom: 6px; }
-.pan-slot-adj { display: flex; align-items: center; gap: 6px; }
-.pan-adj-btn {
-  width: 24px; height: 24px; border-radius: 50%; border: 1.5px solid rgba(255,255,255,0.4);
-  background: rgba(255,255,255,0.12); color: #fff; font-size: 1rem; line-height: 1;
+.pan-extra-row { display: flex; align-items: center; gap: 6px; margin-top: 4px; }
+.pan-extra-btn {
+  width: 24px; height: 24px; border-radius: 50%; border: 1.5px solid rgba(255,255,255,0.35);
+  background: rgba(255,255,255,0.1); color: #fff; font-size: 1rem; line-height: 1;
   cursor: pointer; display: flex; align-items: center; justify-content: center;
   font-weight: 700; transition: background 0.15s;
 }
-.pan-adj-btn:active { background: rgba(255,255,255,0.3); }
-.pan-adj-cap { font-size: 0.72rem; font-weight: 700; opacity: 0.85; min-width: 28px; text-align: center; }
+.pan-extra-btn:active { background: rgba(255,255,255,0.3); }
+.pan-extra-label { font-size: 0.6rem; font-weight: 700; opacity: 0.7; letter-spacing: 0.06em; text-transform: uppercase; }
+.pan-extra-val { font-size: 0.64rem; font-weight: 700; color: #a0ffcc; min-height: 14px; margin-top: 2px; text-align: center; }
 
-.btn-esci {
-  padding: 7px 12px; border-radius: 8px;
-  border: 2px solid rgba(192,57,43,0.4); background: rgba(192,57,43,0.12); color: var(--red);
-  font-family: var(--fu); font-size: 0.72rem; font-weight: 800;
-  cursor: pointer; transition: all 0.15s; white-space: nowrap;
-}
-.btn-esci:active { background: var(--red); color: #fff; transform: scale(0.95); }
-.biglietto-row.uscito { background: #f5f5f5; border-color: var(--border); opacity: 0.65; }
 </style>
 </head>
 <body>
@@ -774,7 +767,7 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); }
     <div class="topbar">
       <div class="topbar-brand">
         <h1>Torre di Scopello</h1>
-        <p>Percorso Storico Naturalistico <span style="font-size:0.5rem;color:var(--muted);">v42</span></p>
+        <p>Percorso Storico Naturalistico <span style="font-size:0.5rem;color:var(--muted);">v43</span></p>
       </div>
       <div class="topbar-right">
         <span class="op-badge" id="syncBadge" style="font-size:0.65rem;">✓ Online</span>
@@ -1009,7 +1002,7 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); }
     <!-- Panoramica istantanea -->
     <div class="panoramica-card">
       <div class="pan-header">
-        <span class="pan-title">Disponibilità giornaliera</span>
+        <span class="pan-title">Disponibilità</span>
         <span class="pan-live"><span class="pan-dot"></span>Live</span>
       </div>
       <div class="pan-slots">
@@ -1017,29 +1010,31 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); }
           <div class="pan-slot-label">Lettini</div>
           <div class="pan-slot-count" id="panRimPremium">—</div>
           <div class="pan-slot-sub" id="panSubPremium">liberi</div>
-          <div class="pan-slot-adj">
-            <button class="pan-adj-btn" onclick="changeCapPremium(-1)">−</button>
-            <span class="pan-adj-cap" id="panCapPremium">30</span>
-            <button class="pan-adj-btn" onclick="changeCapPremium(1)">+</button>
+          <div class="pan-extra-row">
+            <button class="pan-extra-btn" onclick="addExtra('premium',-1)">−</button>
+            <span class="pan-extra-label">extra</span>
+            <button class="pan-extra-btn" onclick="addExtra('premium',1)">+</button>
           </div>
+          <div class="pan-extra-val" id="panExtraPremium"></div>
         </div>
         <div class="pan-slot-divider"></div>
         <div class="pan-slot">
           <div class="pan-slot-label">Base</div>
           <div class="pan-slot-count" id="panRimBase">—</div>
           <div class="pan-slot-sub" id="panSubBase">liberi</div>
-          <div class="pan-slot-adj">
-            <button class="pan-adj-btn" onclick="changeCapBase(-1)">−</button>
-            <span class="pan-adj-cap" id="panCapBase">105</span>
-            <button class="pan-adj-btn" onclick="changeCapBase(1)">+</button>
+          <div class="pan-extra-row">
+            <button class="pan-extra-btn" onclick="addExtra('base',-1)">−</button>
+            <span class="pan-extra-label">extra</span>
+            <button class="pan-extra-btn" onclick="addExtra('base',1)">+</button>
           </div>
+          <div class="pan-extra-val" id="panExtraBase"></div>
         </div>
         <div class="pan-slot-divider"></div>
         <div class="pan-slot">
           <div class="pan-slot-label">Dentro ora</div>
           <div class="pan-slot-count" id="panDentro">0</div>
           <div class="pan-slot-sub">persone</div>
-          <div style="height:28px"></div>
+          <div style="height:46px"></div>
         </div>
       </div>
     </div>
@@ -1475,9 +1470,9 @@ const CONFIG = {
     const todayKey = 'scopello_ingressi_' + new Date().toLocaleDateString('it-IT',{year:'numeric',month:'2-digit',day:'2-digit'}).split('/').reverse().join('-');
     const ingr = JSON.parse(localStorage.getItem(todayKey) || '{}');
     if (ingr) state.ingressi = ingr;
-    const uscitiKey = 'scopello_usciti_' + new Date().toLocaleDateString('it-IT',{year:'numeric',month:'2-digit',day:'2-digit'}).split('/').reverse().join('-');
-    const usc = JSON.parse(localStorage.getItem(uscitiKey) || '{}');
-    if (usc) state.usciti = usc;
+    const extraKey = 'scopello_extra_' + new Date().toLocaleDateString('it-IT',{year:'numeric',month:'2-digit',day:'2-digit'}).split('/').reverse().join('-');
+    const extra = JSON.parse(localStorage.getItem(extraKey) || 'null');
+    if (extra) state.extraPosti = extra;
   } catch(e) {}
 })();
 
@@ -1486,9 +1481,9 @@ function saveIngressi() {
   try { localStorage.setItem(todayKey, JSON.stringify(state.ingressi)); } catch(e) {}
 }
 
-function saveUsciti() {
-  const uscitiKey = 'scopello_usciti_' + new Date().toLocaleDateString('it-IT',{year:'numeric',month:'2-digit',day:'2-digit'}).split('/').reverse().join('-');
-  try { localStorage.setItem(uscitiKey, JSON.stringify(state.usciti)); } catch(e) {}
+function saveExtra() {
+  const extraKey = 'scopello_extra_' + new Date().toLocaleDateString('it-IT',{year:'numeric',month:'2-digit',day:'2-digit'}).split('/').reverse().join('-');
+  try { localStorage.setItem(extraKey, JSON.stringify(state.extraPosti)); } catch(e) {}
 }
 
 async function loadPasswordsFromDB() {
@@ -1536,7 +1531,7 @@ let state = {
   note: { op1: [], op2: [] },
   rimborsi: [],
   ingressi: {},  // { ticketNum: { ora } }
-  usciti: {}     // { ticketNum: { ora } }
+  extraPosti: { premium: 0, base: 0 }
 };
 let cart = {};
 CONFIG.orari.forEach(o => { state.turni[o] = { prenotati: 0 }; });
@@ -1677,6 +1672,13 @@ function updateClock() {
   document.getElementById('topClock').textContent = new Date().toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'});
 }
 setInterval(updateClock, 1000); updateClock();
+
+// Aggiornamento live panoramica ogni 3 secondi
+setInterval(() => {
+  if (document.getElementById('tab-ingresso') && document.getElementById('tab-ingresso').classList.contains('active')) {
+    renderIngresso();
+  }
+}, 3000);
 
 // Ogni minuto ricontrolla i turni: aggiorna chip e deseleziona se il turno selezionato è passato
 setInterval(() => {
@@ -2006,6 +2008,9 @@ async function executeSale() {
 
   // Sync DB in background (non blocca UI)
   entries.forEach(v => saveVendita(v));
+
+  // Aggiorna panoramica se aperta
+  if (document.getElementById('tab-ingresso').classList.contains('active')) renderIngresso();
 }
 
 function undoLastSale() {
@@ -2664,18 +2669,30 @@ function changeCap(d) {
   try { localStorage.setItem('scopello_capmax', CONFIG.capMax); } catch(e) {}
 }
 
+function addExtra(tipo, d) {
+  if (tipo === 'premium') {
+    state.extraPosti.premium = Math.max(0, state.extraPosti.premium + d);
+  } else {
+    state.extraPosti.base = Math.max(0, state.extraPosti.base + d);
+  }
+  saveExtra();
+  renderIngresso();
+}
+
 function changeCapPremium(d) {
   CONFIG.capPremium = Math.max(0, CONFIG.capPremium + d);
   try { localStorage.setItem('scopello_cappremium', CONFIG.capPremium); } catch(e) {}
-  updateCartUI();
-  if (document.getElementById('tab-ingresso').classList.contains('active')) renderIngresso();
+  const el = document.getElementById('capPremiumSet');
+  if (el) el.textContent = CONFIG.capPremium;
+  renderIngresso();
 }
 
 function changeCapBase(d) {
   CONFIG.capBase = Math.max(0, CONFIG.capBase + d);
   try { localStorage.setItem('scopello_capbase', CONFIG.capBase); } catch(e) {}
-  updateCartUI();
-  if (document.getElementById('tab-ingresso').classList.contains('active')) renderIngresso();
+  const el = document.getElementById('capBaseSet');
+  if (el) el.textContent = CONFIG.capBase;
+  renderIngresso();
 }
 
 function venditeNettePerTipo(tipo) {
@@ -2685,14 +2702,6 @@ function venditeNettePerTipo(tipo) {
     .reduce((a, v) => a + v.qty, 0);
 }
 
-// Persone di un certo tipo attualmente dentro (entrate ma non uscite)
-function personeDentroPerTipo(tipo) {
-  const rimborsati = new Set((state.rimborsi || []).map(r => r.ticketNum));
-  return state.vendite
-    .filter(v => v.tipo === tipo && !rimborsati.has(v.ticketNum)
-                 && state.ingressi[v.ticketNum] && !state.usciti[v.ticketNum])
-    .reduce((a, v) => a + v.qty, 0);
-}
 
 function updateCassaNames() {
   CONFIG.nomiCasse.op1 = document.getElementById('nameCassa1').value || 'Cassa 1';
@@ -2781,10 +2790,10 @@ async function resetDay() {
   state.vendite = [];
   state.rimborsi = [];
   state.ingressi = {};
-  state.usciti = {};
+  state.extraPosti = { premium: 0, base: 0 };
   localStorage.removeItem('scopello_rimborsi');
   saveIngressi();
-  saveUsciti();
+  saveExtra();
   CONFIG.orari.forEach(o => { state.turni[o] = { prenotati: 0 }; });
   ticketCounter = 0;
   localStorage.setItem('scopello_ticket_counter', 0);
@@ -2842,15 +2851,14 @@ function renderIngresso() {
   const byTurno = groupVenditePerIngresso();
 
   // Panoramica istantanea
-  const totEntrati = Object.keys(state.ingressi).length;
-  const totUsciti = Object.keys(state.usciti).length;
-  const dentroOra = Math.max(0, totEntrati - totUsciti);
+  const dentroOra = Object.keys(state.ingressi).length;
   document.getElementById('panDentro').textContent = dentroOra;
 
-  const rimPremium = Math.max(0, CONFIG.capPremium - personeDentroPerTipo('premium'));
-  // base + ridotto + nopay occupano tutti posti base
-  const dentroBase = personeDentroPerTipo('base') + personeDentroPerTipo('ridotto') + personeDentroPerTipo('nopay');
-  const rimBase = Math.max(0, CONFIG.capBase - dentroBase);
+  // Posti liberi = cap + extra - vendite nette (ridotto+nopay contano come base)
+  const vendPrem = venditeNettePerTipo('premium');
+  const vendBase = venditeNettePerTipo('base') + venditeNettePerTipo('ridotto') + venditeNettePerTipo('nopay');
+  const rimPremium = Math.max(0, CONFIG.capPremium + state.extraPosti.premium - vendPrem);
+  const rimBase    = Math.max(0, CONFIG.capBase    + state.extraPosti.base    - vendBase);
 
   const elRP = document.getElementById('panRimPremium');
   elRP.textContent = rimPremium;
@@ -2862,8 +2870,10 @@ function renderIngresso() {
   elRB.className = 'pan-slot-count' + (rimBase === 0 ? ' esaurito' : rimBase <= 10 ? ' scarso' : '');
   document.getElementById('panSubBase').textContent = rimBase === 0 ? 'ESAURITI' : 'liberi';
 
-  document.getElementById('panCapPremium').textContent = CONFIG.capPremium;
-  document.getElementById('panCapBase').textContent = CONFIG.capBase;
+  const ep = state.extraPosti.premium;
+  document.getElementById('panExtraPremium').textContent = ep > 0 ? '+' + ep + ' extra' : '';
+  const eb = state.extraPosti.base;
+  document.getElementById('panExtraBase').textContent = eb > 0 ? '+' + eb + ' extra' : '';
 
   // Resoconto biglietti per tipo
   const tipi = ['base','premium','ridotto','nopay'];
@@ -2952,27 +2962,18 @@ function renderIngresso() {
           const qty = righe.reduce((a, v) => a + v.qty, 0);
           const op = righe[0].operatore === 'dir' ? 'Dir' : (CONFIG.nomiCasse[righe[0].operatore] || righe[0].operatore);
           const entered = !!state.ingressi[tNum];
-          const exited = !!state.usciti[tNum];
           const entOra = entered ? state.ingressi[tNum].ora : '';
-          const uscOra = exited ? state.usciti[tNum].ora : '';
-          let rowClass = 'biglietto-row';
-          if (exited) rowClass += ' uscito';
-          else if (entered) rowClass += ' entrato';
-          return `<div class="${rowClass}">
+          return `<div class="biglietto-row${entered ? ' entrato' : ''}">
             <span class="br-num">${tNum}</span>
             <div class="br-info">
               <div class="br-desc">${desc}</div>
               <div class="br-meta">${qty} ${qty === 1 ? 'persona' : 'persone'} · ${op} · ${righe[0].ora}</div>
             </div>
             <div class="br-azioni">
-              ${exited
-                ? `<span class="btn-segna-done" style="background:var(--muted)">↩ ${uscOra}</span>
-                   <button class="btn-annulla-ingresso" onclick="event.stopPropagation();undoUscitaBtn('${tNum}')" title="Annulla uscita">✕</button>`
-                : entered
-                  ? `<span class="btn-segna-done">✓ ${entOra}</span>
-                     <button class="btn-esci" onclick="event.stopPropagation();segnaUscitaBtn('${tNum}')">ESCI</button>
-                     <button class="btn-annulla-ingresso" onclick="event.stopPropagation();undoIngressoBtn('${tNum}')" title="Annulla">✕</button>`
-                  : `<button class="btn-segna" onclick="event.stopPropagation();segnaIngressoBtn('${tNum}')">ENTRA</button>`}
+              ${entered
+                ? `<span class="btn-segna-done">✓ ${entOra}</span>
+                   <button class="btn-annulla-ingresso" onclick="event.stopPropagation();undoIngressoBtn('${tNum}')" title="Annulla">✕</button>`
+                : `<button class="btn-segna" onclick="event.stopPropagation();segnaIngressoBtn('${tNum}')">ENTRA</button>`}
             </div>
           </div>`;
         }).join('');
@@ -3006,23 +3007,7 @@ function segnaIngressoBtn(ticketNum) {
 
 function undoIngressoBtn(ticketNum) {
   delete state.ingressi[ticketNum];
-  delete state.usciti[ticketNum];
   saveIngressi();
-  saveUsciti();
-  renderIngresso();
-}
-
-function segnaUscitaBtn(ticketNum) {
-  const ora = new Date().toLocaleTimeString('it-IT', {hour:'2-digit', minute:'2-digit'});
-  state.usciti[ticketNum] = { ora };
-  saveUsciti();
-  renderIngresso();
-  showErrorToast('↩ Ticket ' + ticketNum + ' uscito alle ' + ora);
-}
-
-function undoUscitaBtn(ticketNum) {
-  delete state.usciti[ticketNum];
-  saveUsciti();
   renderIngresso();
 }
 
