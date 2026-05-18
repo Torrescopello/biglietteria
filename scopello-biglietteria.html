@@ -555,6 +555,15 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); }
   white-space: nowrap;
 }
 .info-toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+.warn-toast {
+  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px);
+  background: var(--orange); color: #fff; border-radius: 12px; padding: 12px 20px;
+  z-index: 300; font-size: 0.88rem; font-weight: 700;
+  box-shadow: 0 4px 16px rgba(211,84,0,0.4);
+  transition: transform 0.3s ease, opacity 0.3s; pointer-events: none; opacity: 0;
+  white-space: nowrap; max-width: 90vw; text-align: center;
+}
+.warn-toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
 
 /* ===== MODAL RIMBORSO ===== */
 .rimborso-pay-row { display: flex; gap: 8px; margin: 14px 0; }
@@ -767,7 +776,7 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); }
     <div class="topbar">
       <div class="topbar-brand">
         <h1>Torre di Scopello</h1>
-        <p>Percorso Storico Naturalistico <span style="font-size:0.5rem;color:var(--muted);">v44</span></p>
+        <p>Percorso Storico Naturalistico <span style="font-size:0.5rem;color:var(--muted);">v45</span></p>
       </div>
       <div class="topbar-right">
         <span class="op-badge" id="syncBadge" style="font-size:0.65rem;">✓ Online</span>
@@ -1191,6 +1200,7 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); }
 <div class="update-banner" id="updateBanner" onclick="window.location.reload(true)">🔄 Nuova versione disponibile — tocca per aggiornare</div>
 <div class="error-toast" id="errorToast"></div>
 <div class="info-toast" id="infoToast"></div>
+<div class="warn-toast" id="warnToast"></div>
 
 <script>
 // ============================================================
@@ -2009,6 +2019,9 @@ async function executeSale() {
   // Sync DB in background (non blocca UI)
   entries.forEach(v => saveVendita(v));
 
+  // Avviso disponibilità bassa
+  checkCapAlert();
+
   // Aggiorna panoramica se aperta
   if (document.getElementById('tab-ingresso').classList.contains('active')) renderIngresso();
 }
@@ -2079,6 +2092,28 @@ function showInfoToast(msg) {
   t.classList.add('show');
   if (_infoToastTimer) clearTimeout(_infoToastTimer);
   _infoToastTimer = setTimeout(() => t.classList.remove('show'), 4000);
+}
+let _warnToastTimer = null;
+function showWarnToast(msg) {
+  const t = document.getElementById('warnToast');
+  if (!t) return;
+  t.textContent = msg;
+  t.classList.add('show');
+  if (_warnToastTimer) clearTimeout(_warnToastTimer);
+  _warnToastTimer = setTimeout(() => t.classList.remove('show'), 6000);
+}
+
+function checkCapAlert() {
+  const vendPrem = venditeNettePerTipo('premium');
+  const vendBase = venditeNettePerTipo('base') + venditeNettePerTipo('ridotto') + venditeNettePerTipo('nopay');
+  const rimPrem = CONFIG.capPremium + state.extraPosti.premium - vendPrem;
+  const rimBase = CONFIG.capBase + state.extraPosti.base - vendBase;
+
+  if (rimPrem === 0) showWarnToast('🚫 Lettini ESAURITI');
+  else if (rimPrem <= 5) showWarnToast('⚠️ Lettini quasi esauriti — ' + rimPrem + ' rimasti');
+
+  if (rimBase === 0) showWarnToast('🚫 Posti base ESAURITI');
+  else if (rimBase <= 10) showWarnToast('⚠️ Posti base quasi esauriti — ' + rimBase + ' rimasti');
 }
 
 // ============================================================
