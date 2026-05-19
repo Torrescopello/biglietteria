@@ -156,6 +156,7 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); }
 }
 .turno-chip .t-ora { font-size: 0.9rem; font-weight: 800; color: var(--text); }
 .turno-chip .t-free { font-size: 0.6rem; font-weight: 600; color: var(--muted); margin-top: 1px; }
+.turno-chip .t-lang { font-size: 0.78rem; line-height: 1; margin-bottom: 2px; }
 .turno-chip.selected { background: var(--sea-bg); border-color: var(--sea); }
 .turno-chip.selected .t-ora { color: var(--sea); }
 .turno-chip.selected .t-free { color: var(--sea); }
@@ -775,7 +776,7 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); }
     <div class="topbar">
       <div class="topbar-brand">
         <h1>Torre di Scopello</h1>
-        <p>Percorso Storico Naturalistico <span style="font-size:0.5rem;color:var(--muted);">v56</span></p>
+        <p>Percorso Storico Naturalistico <span style="font-size:0.5rem;color:var(--muted);">v57</span></p>
       </div>
       <div class="topbar-right">
         <span class="op-badge" id="syncBadge" style="font-size:0.65rem;">✓ Online</span>
@@ -968,6 +969,13 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); }
             </div>
           </div>
           <div id="orariPreview" style="font-size:0.72rem;color:var(--text2);background:var(--s1);padding:7px 9px;border-radius:8px;line-height:1.5;"></div>
+          <div style="margin-top:6px;">
+            <div style="font-size:0.66rem;color:var(--muted);margin-bottom:5px;font-weight:600;">Prima visita in lingua (poi si alternano)</div>
+            <div style="display:flex;gap:6px;">
+              <button class="op-btn" id="linguaItBtn" onclick="setPrimaLingua('it')" style="flex:1;padding:9px 6px;">🇮🇹 Italiano</button>
+              <button class="op-btn" id="linguaEnBtn" onclick="setPrimaLingua('en')" style="flex:1;padding:9px 6px;">🇬🇧 Inglese</button>
+            </div>
+          </div>
         </div>
         <div class="settings-row-item">
           <span class="settings-row-label">Nome Cassa 1</span>
@@ -1477,6 +1485,7 @@ const CONFIG = {
   pausaInizio: '13:30',
   pausaFine: '15:00',
   ultima: '18:00',
+  primaLingua: 'it',  // 'it' o 'en' — le altre si alternano
   orari: ['11:00','11:30','12:00','12:30','13:00','15:00','15:30','16:00','16:30','17:00','17:30','18:00'],
   nomiCasse: { op1: 'Cassa 1', op2: 'Cassa 2' }
 };
@@ -1495,6 +1504,15 @@ function generaOrari() {
   }
   return out;
 }
+
+// Lingua del turno: alternanza da primaLingua, indipendente dalla pausa pranzo
+function linguaTurno(ora) {
+  const idx = CONFIG.orari.indexOf(ora);
+  if (idx < 0) return CONFIG.primaLingua;
+  const altro = CONFIG.primaLingua === 'it' ? 'en' : 'it';
+  return (idx % 2 === 0) ? CONFIG.primaLingua : altro;
+}
+function bandieraLingua(lang) { return lang === 'it' ? '🇮🇹' : '🇬🇧'; }
 
 // Ripristina impostazioni salvate
 (function loadSavedConfig() {
@@ -1520,6 +1538,8 @@ function generaOrari() {
       CONFIG.pausaFine = orariSaved.pausaFine;
       CONFIG.orari = generaOrari();
     }
+    const lingua = localStorage.getItem('scopello_prima_lingua');
+    if (lingua === 'it' || lingua === 'en') CONFIG.primaLingua = lingua;
     // Aggiorna bottoni login con nomi salvati
     document.getElementById('opBtn1').textContent = CONFIG.nomiCasse.op1;
     document.getElementById('opBtn2').textContent = CONFIG.nomiCasse.op2;
@@ -1965,7 +1985,9 @@ function renderTurniVendita() {
     const chipClass = ['turno-chip', full ? 'full' : '', past && !full ? 'past' : '', sel ? 'selected' : ''].filter(Boolean).join(' ');
     const subLabel = full ? 'Esaurito' : past ? 'Passato' : liberi + ' posti';
 
+    const lang = linguaTurno(ora);
     return `<div class="${chipClass}" onclick="${disabled ? '' : "selectTurno('" + ora + "')"}">
+      <div class="t-lang" title="${lang === 'it' ? 'Italiano' : 'English'}">${bandieraLingua(lang)}</div>
       <div class="t-ora">${ora}</div>
       <div class="t-free">${subLabel}</div>
     </div>`;
@@ -2193,9 +2215,10 @@ function renderTurni() {
           </div>`;
         }).join('');
 
+    const lang = linguaTurno(ora);
     return `<div class="turno-card" onclick="toggleTurnoDetail('detail-${ora.replace(':','')}')">
       <div class="turno-card-header">
-        <span class="turno-ora">${ora}</span>
+        <span class="turno-ora">${bandieraLingua(lang)} ${ora}</span>
         <span class="t-badge ${badgeClass}">${badgeLabel}</span>
       </div>
       <div class="t-bar-wrap"><div class="t-bar" style="width:${pct}%;background:${barColor}"></div></div>
@@ -2725,6 +2748,7 @@ function renderCassa() {
     document.getElementById('pwLabel2').textContent = 'Password ' + CONFIG.nomiCasse.op2;
     document.getElementById('ticketStartSet').value = ticketCounter + 1 > 100 ? 1 : ticketCounter + 1;
     popolaSelectOrari();
+    updateLinguaButtons();
   }
 }
 
@@ -2805,7 +2829,13 @@ function refreshOrariPreview() {
   if (slots.length === 0) {
     prev.innerHTML = '<span style="color:var(--red)">⚠ Nessun turno generato — controlla orari</span>';
   } else {
-    prev.innerHTML = `<strong>${slots.length} turni:</strong> ${slots.join(' · ')}`;
+    // Mostra bandiera lingua a fianco di ogni orario
+    const altro = CONFIG.primaLingua === 'it' ? 'en' : 'it';
+    const slotsHtml = slots.map((s, i) => {
+      const lang = (i % 2 === 0) ? CONFIG.primaLingua : altro;
+      return `${bandieraLingua(lang)} ${s}`;
+    }).join(' · ');
+    prev.innerHTML = `<strong>${slots.length} turni:</strong> ${slotsHtml}`;
   }
 }
 
@@ -2854,6 +2884,24 @@ function changeOrari() {
   renderTurniVendita();
   if (document.getElementById('tab-turni').classList.contains('active')) renderTurni();
   if (document.getElementById('tab-ingresso').classList.contains('active')) renderIngresso();
+}
+
+function setPrimaLingua(lang) {
+  if (lang !== 'it' && lang !== 'en') return;
+  CONFIG.primaLingua = lang;
+  try { localStorage.setItem('scopello_prima_lingua', lang); } catch(e) {}
+  updateLinguaButtons();
+  refreshOrariPreview();
+  renderTurniVendita();
+  if (document.getElementById('tab-turni').classList.contains('active')) renderTurni();
+  if (document.getElementById('tab-ingresso').classList.contains('active')) renderIngresso();
+}
+
+function updateLinguaButtons() {
+  const itBtn = document.getElementById('linguaItBtn');
+  const enBtn = document.getElementById('linguaEnBtn');
+  if (itBtn) itBtn.classList.toggle('selected', CONFIG.primaLingua === 'it');
+  if (enBtn) enBtn.classList.toggle('selected', CONFIG.primaLingua === 'en');
 }
 
 function venditeNettePerTipo(tipo) {
@@ -3072,12 +3120,12 @@ function renderIngresso() {
   const ibStats = document.getElementById('ibStats');
   if (!current) {
     banner.className = 'ingresso-banner nessuno';
-    document.getElementById('ibOra').textContent = next ? 'Prossimo: ' + next : 'Chiusura';
+    document.getElementById('ibOra').textContent = next ? `Prossimo: ${bandieraLingua(linguaTurno(next))} ${next}` : 'Chiusura';
     ibStats.style.display = 'none';
   } else {
     banner.className = 'ingresso-banner';
     ibStats.style.display = 'flex';
-    document.getElementById('ibOra').textContent = current;
+    document.getElementById('ibOra').textContent = `${bandieraLingua(linguaTurno(current))} ${current}`;
     const t = byTurno[current] || {};
     const vend = countVendutiTurno(t), entr = countEntratiTurno(t);
     document.getElementById('ibVenduti').textContent = vend;
@@ -3139,7 +3187,7 @@ function renderIngresso() {
 
     return `<div class="${itemClass}">
       <div class="it-header" onclick="toggleItDetail('${detailId}')">
-        <span class="it-ora">${ora}</span>
+        <span class="it-ora">${bandieraLingua(linguaTurno(ora))} ${ora}</span>
         <div class="it-bar-wrap">
           <div class="it-bg"><div class="it-fill" style="width:${pct}%;background:${fillColor}"></div></div>
           <div class="it-nums"><span>${entrati} entrati</span><span>${venduti} venduti</span></div>
