@@ -776,7 +776,7 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); }
     <div class="topbar">
       <div class="topbar-brand">
         <h1>Torre di Scopello</h1>
-        <p>Percorso Storico Naturalistico <span style="font-size:0.5rem;color:var(--muted);">v49</span></p>
+        <p>Percorso Storico Naturalistico <span style="font-size:0.5rem;color:var(--muted);">v50</span></p>
       </div>
       <div class="topbar-right">
         <span class="op-badge" id="syncBadge" style="font-size:0.65rem;">✓ Online</span>
@@ -1040,9 +1040,9 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); }
         </div>
         <div class="pan-slot-divider"></div>
         <div class="pan-slot">
-          <div class="pan-slot-label">Dentro ora</div>
+          <div class="pan-slot-label">Venduti oggi</div>
           <div class="pan-slot-count" id="panDentro">0</div>
-          <div class="pan-slot-sub">persone</div>
+          <div class="pan-slot-sub">biglietti netti</div>
           <div style="height:46px"></div>
         </div>
       </div>
@@ -2524,8 +2524,8 @@ function renderCassa() {
   const totPos     = vendPos  + reintPos  - rimbPos;
   const totPosPlus = vendPosPlus + reintPosPlus - rimbPosPlus;
   const totAll     = totCash + totPos + totPosPlus;
-  const totVisit   = state.vendite.reduce((a,v)=>a+v.qty,0)
-    + rimborsi.filter(r=>r.rimborsoCon==='no').reduce((a,r)=>a+(r.qty||0),0);
+  const totVisit = venditeNettePerTipo('base') + venditeNettePerTipo('premium')
+    + venditeNettePerTipo('ridotto') + venditeNettePerTipo('nopay');
   const hasRimborsi = rimborsi.length > 0;
 
   const myVendite = state.vendite.filter(v=>v.operatore===state.operatore);
@@ -2590,10 +2590,12 @@ function renderCassa() {
       const cash    = vendCashOp    + reintCashOp    - rimbCashOp;
       const pos     = vendPosOp     + reintPosOp     - rimbPosOp;
       const posplus = vendPosPlusOp + reintPosPlusOp - rimbPosPlusOp;
-      const base = vv.filter(v=>v.tipo==='base').reduce((a,v)=>a+v.qty,0);
-      const prem = vv.filter(v=>v.tipo==='premium').reduce((a,v)=>a+v.qty,0);
-      const ridotto = vv.filter(v=>v.tipo==='ridotto').reduce((a,v)=>a+v.qty,0);
-      const nopay = vv.filter(v=>v.tipo==='nopay').reduce((a,v)=>a+v.qty,0);
+      const rimbSet = new Set(rimborsi.filter(r=>r.operatoreCassa===op).map(r=>r.ticketNum));
+      const vvNetti = vv.filter(v => !rimbSet.has(v.ticketNum));
+      const base    = vvNetti.filter(v=>v.tipo==='base').reduce((a,v)=>a+v.qty,0);
+      const prem    = vvNetti.filter(v=>v.tipo==='premium').reduce((a,v)=>a+v.qty,0);
+      const ridotto = vvNetti.filter(v=>v.tipo==='ridotto').reduce((a,v)=>a+v.qty,0);
+      const nopay   = vvNetti.filter(v=>v.tipo==='nopay').reduce((a,v)=>a+v.qty,0);
       const note = op !== 'dir' && Array.isArray(state.note[op]) ? state.note[op] : [];
       const noteHTML = note.length
         ? note.map(n => `<div class="op-note-display visible" style="margin-bottom:4px;">📝 <strong>${n.ora}</strong> — ${n.testo}</div>`).join('')
@@ -2876,8 +2878,9 @@ function renderIngresso() {
   const byTurno = groupVenditePerIngresso();
 
   // Panoramica istantanea
-  const dentroOra = Object.keys(state.ingressi).length;
-  document.getElementById('panDentro').textContent = dentroOra;
+  const totVenduti = venditeNettePerTipo('base') + venditeNettePerTipo('premium')
+    + venditeNettePerTipo('ridotto') + venditeNettePerTipo('nopay');
+  document.getElementById('panDentro').textContent = totVenduti;
 
   // Posti liberi = cap + extra - vendite nette (ridotto+nopay contano come base)
   const vendPrem = venditeNettePerTipo('premium');
@@ -2900,11 +2903,11 @@ function renderIngresso() {
   const eb = state.extraPosti.base;
   document.getElementById('panExtraBase').textContent = eb > 0 ? '+' + eb + ' extra' : '';
 
-  // Resoconto biglietti per tipo
+  // Resoconto biglietti per tipo (al netto dei rimborsi)
   const tipi = ['base','premium','ridotto','nopay'];
   const tipiLabel = { base:'Base', premium:'Premium', ridotto:'Ridotto', nopay:'Non Pag.' };
   document.getElementById('ingrTipi').innerHTML = tipi.map(t => {
-    const qty = state.vendite.filter(v => v.tipo === t).reduce((a,v) => a + v.qty, 0);
+    const qty = venditeNettePerTipo(t);
     return `<div class="ids-card">
       <span class="ids-val">${qty}</span>
       <span class="ids-lab">${tipiLabel[t]}</span>
