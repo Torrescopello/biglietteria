@@ -814,7 +814,7 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); }
     <div class="topbar">
       <div class="topbar-brand">
         <h1>Torre di Scopello</h1>
-        <p>Percorso Storico Naturalistico <span style="font-size:0.5rem;color:var(--muted);">v59</span></p>
+        <p>Percorso Storico Naturalistico <span style="font-size:0.5rem;color:var(--muted);">v60</span></p>
       </div>
       <div class="topbar-right">
         <span class="op-badge" id="syncBadge" style="font-size:0.65rem;">✓ Online</span>
@@ -2848,7 +2848,27 @@ function renderCassa() {
       </div>`;
     }).join('');
   } else {
-    opRes.innerHTML = `<button class="btn-export" onclick="openDirPw()" style="color:var(--gold);border-color:var(--gold-border)">🔐 Accedi come Direttore per resoconti completi</button>`;
+    const myOpInteg = integrazioni.filter(i => i.operatore === state.operatore);
+    const myIntegCash    = myOpInteg.filter(i=>i.pagamento==='cash').reduce((a,i)=>a+i.diff,0);
+    const myIntegPos     = myOpInteg.filter(i=>i.pagamento==='pos').reduce((a,i)=>a+i.diff,0);
+    const myIntegPosPlus = myOpInteg.filter(i=>i.pagamento==='posplus').reduce((a,i)=>a+i.diff,0);
+    const integRowsHtml = myOpInteg.length > 0 ? `
+      <div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--gold-border);">
+        <div style="font-size:0.66rem;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:4px;">⬆ Upgrade incassati</div>
+        ${myIntegCash    > 0 ? `<div class="op-row"><span class="op-row-label">Contanti</span><span class="op-row-val" style="color:var(--gold)">€ ${myIntegCash.toFixed(2).replace('.',',')}</span></div>` : ''}
+        ${myIntegPos     > 0 ? `<div class="op-row"><span class="op-row-label">POS</span><span class="op-row-val" style="color:var(--gold)">€ ${myIntegPos.toFixed(2).replace('.',',')}</span></div>` : ''}
+        ${myIntegPosPlus > 0 ? `<div class="op-row"><span class="op-row-label">POS+</span><span class="op-row-val" style="color:var(--gold)">€ ${myIntegPosPlus.toFixed(2).replace('.',',')}</span></div>` : ''}
+        <div class="op-row"><span class="op-row-label">Totale upgrade</span><span class="op-row-val" style="color:var(--gold)">€ ${(myIntegCash+myIntegPos+myIntegPosPlus).toFixed(2).replace('.',',')}</span></div>
+      </div>` : '';
+    opRes.innerHTML = `
+      <div class="op-resoconto">
+        <div class="op-row"><span class="op-row-label">Contanti</span><span class="op-row-val">€ ${(myCash+myIntegCash).toFixed(2).replace('.',',')}</span></div>
+        <div class="op-row"><span class="op-row-label">POS</span><span class="op-row-val">€ ${(myPos+myIntegPos).toFixed(2).replace('.',',')}</span></div>
+        <div class="op-row"><span class="op-row-label">POS+</span><span class="op-row-val">€ ${(myPosPlus+myIntegPosPlus).toFixed(2).replace('.',',')}</span></div>
+        <div class="op-row"><span class="op-row-label">Totale</span><span class="op-row-val">€ ${myTot.toFixed(2).replace('.',',')}</span></div>
+        ${integRowsHtml}
+      </div>
+      <button class="btn-export" onclick="openDirPw()" style="color:var(--gold);border-color:var(--gold-border);margin-top:6px;">🔐 Direttore per resoconti completi</button>`;
   }
 
   // Sezione rimborsi espandibile
@@ -3189,6 +3209,7 @@ async function resetDay() {
   state.ingressi = {};
   state.extraPosti = { premium: 0, base: 0 };
   localStorage.removeItem('scopello_rimborsi');
+  localStorage.removeItem('scopello_integrazioni_' + today);
   saveIntegrazioni();
   saveIngressi();
   saveExtra();
