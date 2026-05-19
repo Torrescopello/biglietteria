@@ -45,7 +45,7 @@
   --purple-border: #d4a8e8;
 }
 
-* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
 html, body { height: 100%; overflow: hidden; }
 body { font-family: var(--fu); background: var(--bg); color: var(--text); }
 
@@ -156,6 +156,7 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); }
 }
 .turno-chip .t-ora { font-size: 0.9rem; font-weight: 800; color: var(--text); }
 .turno-chip .t-free { font-size: 0.6rem; font-weight: 600; color: var(--muted); margin-top: 1px; }
+.turno-chip .t-lang { font-size: 0.78rem; line-height: 1; margin-bottom: 2px; }
 .turno-chip.selected { background: var(--sea-bg); border-color: var(--sea); }
 .turno-chip.selected .t-ora { color: var(--sea); }
 .turno-chip.selected .t-free { color: var(--sea); }
@@ -173,6 +174,7 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); }
   box-shadow: 0 1px 4px rgba(0,0,0,0.05);
 }
 .ticket-card:active { transform: scale(0.97); }
+.ticket-card.card-esaurito { opacity: 0.5; border-color: var(--red-border); }
 .ticket-card .tc-icon { display: none; }
 .ticket-card .tc-name { font-size: 0.72rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text2); }
 .ticket-card .tc-price { font-family: var(--fd); font-size: 1.25rem; color: var(--text); margin-top: 1px; font-weight: normal; }
@@ -554,6 +556,15 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); }
   white-space: nowrap;
 }
 .info-toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+.warn-toast {
+  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px);
+  background: var(--orange); color: #fff; border-radius: 12px; padding: 12px 20px;
+  z-index: 300; font-size: 0.88rem; font-weight: 700;
+  box-shadow: 0 4px 16px rgba(211,84,0,0.4);
+  transition: transform 0.3s ease, opacity 0.3s; pointer-events: none; opacity: 0;
+  white-space: nowrap; max-width: 90vw; text-align: center;
+}
+.warn-toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
 
 /* ===== MODAL RIMBORSO ===== */
 .rimborso-pay-row { display: flex; gap: 8px; margin: 14px 0; }
@@ -588,6 +599,44 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); }
 .rb-pos  { background: var(--sea-bg); color: var(--sea); }
 .rb-posplus { background: var(--gold-bg); color: var(--gold); }
 .rb-no   { background: var(--s1); color: var(--muted); }
+
+/* ===== UPGRADE BASE→PREMIUM ===== */
+.btn-upgrade {
+  font-size: 0.7rem; font-weight: 700; color: var(--gold); background: var(--gold-bg);
+  border: 1.5px solid var(--gold-border); border-radius: 6px; padding: 3px 8px; cursor: pointer;
+  font-family: var(--fu); transition: all 0.12s;
+}
+.btn-upgrade:active { background: var(--gold); color: #fff; }
+.badge-upgraded {
+  font-size: 0.62rem; font-weight: 700; color: var(--gold); background: var(--gold-bg);
+  border: 1.5px solid var(--gold-border); border-radius: 6px; padding: 2px 7px; display: inline-block;
+}
+.upgrade-pay-btn {
+  flex: 1; padding: 12px 6px; border-radius: 10px; border: 2px solid var(--border);
+  background: var(--bg); font-family: var(--fu); font-size: 0.78rem; font-weight: 700;
+  cursor: pointer; text-align: center; transition: all 0.15s; color: var(--text2);
+}
+.upgrade-pay-btn.selected { background: var(--gold-bg); border-color: var(--gold-border); color: var(--gold); }
+
+/* Integrazioni in Cassa */
+.integrazioni-section {
+  background: var(--white); border: 2px solid var(--gold-border); border-radius: 14px;
+  padding: 14px 16px; margin-bottom: 10px;
+}
+.integrazioni-header {
+  display: flex; justify-content: space-between; align-items: center;
+  cursor: pointer; padding: 4px 0; user-select: none;
+}
+.integrazioni-toggle-info { font-size: 0.78rem; color: var(--gold); font-weight: 600; }
+.integrazioni-detail { margin-top: 10px; }
+.integrazione-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 7px 0; border-bottom: 1px solid var(--s1); font-size: 0.82rem;
+}
+.integrazione-row:last-child { border-bottom: none; }
+.integrazione-ticket { font-family: var(--fd); color: var(--gold); font-weight: 700; min-width: 52px; }
+.integrazione-desc { color: var(--text2); font-weight: 600; flex: 1; padding: 0 8px; font-size: 0.78rem; }
+.integrazione-amount { font-family: var(--fd); color: var(--gold); font-size: 0.95rem; display: block; text-align: right; }
 
 /* Totale netto in cassa */
 .cc-netto { border-color: var(--green); border-width: 3px; }
@@ -712,31 +761,23 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); }
 .pan-dot { width: 7px; height: 7px; border-radius: 50%; background: #6effa8; animation: blink 1.4s infinite; }
 @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
 .pan-slots { display: flex; gap: 0; align-items: stretch; }
-.pan-slot { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 0 6px; }
-.pan-slot-divider { width: 1px; background: rgba(255,255,255,0.2); margin: 0 4px; }
-.pan-slot-label { font-size: 0.6rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; opacity: 0.75; margin-bottom: 4px; }
-.pan-slot-count { font-family: var(--fd); font-size: 2.6rem; font-weight: normal; line-height: 1; font-variant-numeric: tabular-nums; }
+.pan-slot { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 0 8px; }
+.pan-slot-divider { width: 1px; background: rgba(255,255,255,0.2); margin: 0 4px; flex-shrink: 0; }
+.pan-slot-label { font-size: 0.62rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; opacity: 0.75; margin-bottom: 6px; }
+.pan-slot-count { font-family: var(--fd); font-size: 4rem; font-weight: normal; line-height: 1; font-variant-numeric: tabular-nums; }
 .pan-slot-count.esaurito { color: #ff8080; }
 .pan-slot-count.scarso { color: #ffd080; }
-.pan-slot-sub { font-size: 0.6rem; opacity: 0.75; font-weight: 600; margin-bottom: 6px; }
-.pan-slot-adj { display: flex; align-items: center; gap: 6px; }
-.pan-adj-btn {
-  width: 24px; height: 24px; border-radius: 50%; border: 1.5px solid rgba(255,255,255,0.4);
-  background: rgba(255,255,255,0.12); color: #fff; font-size: 1rem; line-height: 1;
+.pan-slot-sub { font-size: 0.62rem; opacity: 0.75; font-weight: 600; margin-bottom: 10px; }
+.pan-extra-row { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; }
+.pan-extra-btn {
+  width: 36px; height: 36px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.4);
+  background: rgba(255,255,255,0.12); color: #fff; font-size: 1.4rem; line-height: 1;
   cursor: pointer; display: flex; align-items: center; justify-content: center;
-  font-weight: 700; transition: background 0.15s;
+  font-weight: 700; transition: background 0.15s; flex-shrink: 0;
 }
-.pan-adj-btn:active { background: rgba(255,255,255,0.3); }
-.pan-adj-cap { font-size: 0.72rem; font-weight: 700; opacity: 0.85; min-width: 28px; text-align: center; }
+.pan-extra-btn:active { background: rgba(255,255,255,0.35); transform: scale(0.92); }
+.pan-extra-val { font-size: 0.68rem; font-weight: 700; color: #a0ffcc; min-width: 36px; text-align: center; }
 
-.btn-esci {
-  padding: 7px 12px; border-radius: 8px;
-  border: 2px solid rgba(192,57,43,0.4); background: rgba(192,57,43,0.12); color: var(--red);
-  font-family: var(--fu); font-size: 0.72rem; font-weight: 800;
-  cursor: pointer; transition: all 0.15s; white-space: nowrap;
-}
-.btn-esci:active { background: var(--red); color: #fff; transform: scale(0.95); }
-.biglietto-row.uscito { background: #f5f5f5; border-color: var(--border); opacity: 0.65; }
 </style>
 </head>
 <body>
@@ -773,7 +814,7 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); }
     <div class="topbar">
       <div class="topbar-brand">
         <h1>Torre di Scopello</h1>
-        <p>Percorso Storico Naturalistico <span style="font-size:0.5rem;color:var(--muted);">v42</span></p>
+        <p>Percorso Storico Naturalistico <span style="font-size:0.5rem;color:var(--muted);">v58</span></p>
       </div>
       <div class="topbar-right">
         <span class="op-badge" id="syncBadge" style="font-size:0.65rem;">✓ Online</span>
@@ -892,6 +933,7 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); }
 
     <div class="sec-label" style="margin-bottom:10px;">Resoconto operatori</div>
     <div id="opResoconti"></div>
+    <div id="integrazioniSection" style="display:none;"></div>
     <div id="rimborsiSection" style="display:none;"></div>
 
     <div id="settingsSection" style="display:none;">
@@ -930,6 +972,51 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); }
           </div>
         </div>
         <div class="settings-row-item">
+          <span class="settings-row-label">Max lettini Premium (giorn.)</span>
+          <div class="settings-val-row">
+            <button class="s-btn" onclick="changeCapPremium(-1)">−</button>
+            <span class="s-val" id="capPremiumSet">30</span>
+            <button class="s-btn" onclick="changeCapPremium(+1)">+</button>
+          </div>
+        </div>
+        <div class="settings-row-item">
+          <span class="settings-row-label">Max ticket Base (giorn.)</span>
+          <div class="settings-val-row">
+            <button class="s-btn" onclick="changeCapBase(-1)">−</button>
+            <span class="s-val" id="capBaseSet">105</span>
+            <button class="s-btn" onclick="changeCapBase(+1)">+</button>
+          </div>
+        </div>
+        <div class="settings-row-item" style="flex-direction:column;align-items:stretch;gap:8px;">
+          <span class="settings-row-label">🕒 Orari visite (slot da 30 min)</span>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+            <div>
+              <div style="font-size:0.66rem;color:var(--muted);margin-bottom:3px;font-weight:600;">Prima visita</div>
+              <select class="name-input" id="oraPrima" onchange="changeOrari()" style="width:100%;"></select>
+            </div>
+            <div>
+              <div style="font-size:0.66rem;color:var(--muted);margin-bottom:3px;font-weight:600;">Ultima visita</div>
+              <select class="name-input" id="oraUltima" onchange="changeOrari()" style="width:100%;"></select>
+            </div>
+            <div>
+              <div style="font-size:0.66rem;color:var(--muted);margin-bottom:3px;font-weight:600;">Inizio pausa</div>
+              <select class="name-input" id="oraPausaInizio" onchange="changeOrari()" style="width:100%;"></select>
+            </div>
+            <div>
+              <div style="font-size:0.66rem;color:var(--muted);margin-bottom:3px;font-weight:600;">Fine pausa</div>
+              <select class="name-input" id="oraPausaFine" onchange="changeOrari()" style="width:100%;"></select>
+            </div>
+          </div>
+          <div id="orariPreview" style="font-size:0.72rem;color:var(--text2);background:var(--s1);padding:7px 9px;border-radius:8px;line-height:1.5;"></div>
+          <div style="margin-top:6px;">
+            <div style="font-size:0.66rem;color:var(--muted);margin-bottom:5px;font-weight:600;">Prima visita in lingua (poi si alternano)</div>
+            <div style="display:flex;gap:6px;">
+              <button class="op-btn" id="linguaItBtn" onclick="setPrimaLingua('it')" style="flex:1;padding:9px 6px;">🇮🇹 Italiano</button>
+              <button class="op-btn" id="linguaEnBtn" onclick="setPrimaLingua('en')" style="flex:1;padding:9px 6px;">🇬🇧 Inglese</button>
+            </div>
+          </div>
+        </div>
+        <div class="settings-row-item">
           <span class="settings-row-label">Nome Cassa 1</span>
           <input class="name-input" id="nameCassa1" value="Cassa 1" onchange="updateCassaNames()">
         </div>
@@ -950,6 +1037,7 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); }
         </div>
       </div>
       <div class="sec-label" style="margin-bottom:8px;margin-top:14px;">🔑 Modifica password</div>
+      <div id="pwFeedback" style="font-size:0.8rem;font-weight:700;margin-bottom:8px;min-height:18px;"></div>
       <div class="settings-section">
         <div class="settings-row-item">
           <span class="settings-row-label" id="pwLabel1">Password Cassa 1</span>
@@ -991,37 +1079,30 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); }
     <!-- Panoramica istantanea -->
     <div class="panoramica-card">
       <div class="pan-header">
-        <span class="pan-title">Disponibilità giornaliera</span>
+        <span class="pan-title">Disponibilità</span>
         <span class="pan-live"><span class="pan-dot"></span>Live</span>
       </div>
       <div class="pan-slots">
         <div class="pan-slot">
-          <div class="pan-slot-label">Lettini</div>
+          <div class="pan-slot-label">Lettini liberi</div>
           <div class="pan-slot-count" id="panRimPremium">—</div>
           <div class="pan-slot-sub" id="panSubPremium">liberi</div>
-          <div class="pan-slot-adj">
-            <button class="pan-adj-btn" onclick="changeCapPremium(-1)">−</button>
-            <span class="pan-adj-cap" id="panCapPremium">30</span>
-            <button class="pan-adj-btn" onclick="changeCapPremium(1)">+</button>
+          <div class="pan-extra-row">
+            <button class="pan-extra-btn pan-extra-btn-lg" onclick="addExtra('premium',-1)">−</button>
+            <div class="pan-extra-val" id="panExtraPremium"></div>
+            <button class="pan-extra-btn pan-extra-btn-lg" onclick="addExtra('premium',1)">+</button>
           </div>
         </div>
         <div class="pan-slot-divider"></div>
         <div class="pan-slot">
-          <div class="pan-slot-label">Base</div>
+          <div class="pan-slot-label">Base liberi</div>
           <div class="pan-slot-count" id="panRimBase">—</div>
           <div class="pan-slot-sub" id="panSubBase">liberi</div>
-          <div class="pan-slot-adj">
-            <button class="pan-adj-btn" onclick="changeCapBase(-1)">−</button>
-            <span class="pan-adj-cap" id="panCapBase">105</span>
-            <button class="pan-adj-btn" onclick="changeCapBase(1)">+</button>
+          <div class="pan-extra-row">
+            <button class="pan-extra-btn pan-extra-btn-lg" onclick="addExtra('base',-1)">−</button>
+            <div class="pan-extra-val" id="panExtraBase"></div>
+            <button class="pan-extra-btn pan-extra-btn-lg" onclick="addExtra('base',1)">+</button>
           </div>
-        </div>
-        <div class="pan-slot-divider"></div>
-        <div class="pan-slot">
-          <div class="pan-slot-label">Dentro ora</div>
-          <div class="pan-slot-count" id="panDentro">0</div>
-          <div class="pan-slot-sub">persone</div>
-          <div style="height:28px"></div>
         </div>
       </div>
     </div>
@@ -1148,6 +1229,24 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); }
 </div>
 
 <!-- MODAL RIMBORSO -->
+<div class="modal-overlay" id="modalUpgrade">
+  <div class="modal">
+    <h2>⬆ Upgrade Base → Premium</h2>
+    <p id="modalUpgradeText"></p>
+    <div class="sec-label" style="margin-top:12px;margin-bottom:6px;">Come paga la differenza?</div>
+    <div class="rimborso-pay-row">
+      <button class="upgrade-pay-btn" id="upCash"    onclick="selUpgradePay('cash')">💵 Contanti</button>
+      <button class="upgrade-pay-btn" id="upPos"     onclick="selUpgradePay('pos')">💳 POS</button>
+      <button class="upgrade-pay-btn" id="upPosPlus" onclick="selUpgradePay('posplus')">💳 POS+</button>
+    </div>
+    <div class="modal-btns">
+      <button class="btn-m btn-m-cancel" onclick="closeModal('modalUpgrade')">Annulla</button>
+      <button class="btn-m btn-m-ok" id="btnConfermaUpgrade" onclick="eseguiUpgrade()" disabled
+        style="background:var(--gold);border-color:var(--gold);">⬆ Conferma upgrade</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="modalRimborso">
   <div class="modal">
     <h2>Annulla ticket</h2>
@@ -1178,6 +1277,7 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); }
 <div class="update-banner" id="updateBanner" onclick="window.location.reload(true)">🔄 Nuova versione disponibile — tocca per aggiornare</div>
 <div class="error-toast" id="errorToast"></div>
 <div class="info-toast" id="infoToast"></div>
+<div class="warn-toast" id="warnToast"></div>
 
 <script>
 // ============================================================
@@ -1370,6 +1470,14 @@ async function loadTodayVendite() {
   const { data, error } = await db.from('vendite').select('*').eq('data', today).order('created_at', { ascending: true });
   if (error || !data) return;
 
+  // Ricarica extraPosti e integrazioni dal localStorage
+  try {
+    const extra = JSON.parse(localStorage.getItem('scopello_extra_' + today) || 'null');
+    if (extra) state.extraPosti = extra;
+    const integ = JSON.parse(localStorage.getItem('scopello_integrazioni_' + today) || '[]');
+    if (Array.isArray(integ)) state.integrazioni = integ;
+  } catch(e) {}
+
   // Azzera sempre prima di ricaricare — evita duplicati
   state.vendite = [];
   state.rimborsi = storedRimborsi;  // ripristina rimborsi salvati
@@ -1413,6 +1521,7 @@ async function loadTodayVendite() {
   document.getElementById('priceBaseDisplay').textContent = '€' + CONFIG.prezzi.base;
   document.getElementById('pricePremiumDisplay').textContent = '€' + CONFIG.prezzi.premium;
   document.getElementById('priceRidottoDisplay').textContent = '€' + CONFIG.prezzi.ridotto;
+  updateCartUI();
   renderTurniVendita();
   updateSummary();
   renderUndoBtn();
@@ -1431,9 +1540,38 @@ const CONFIG = {
   capMax: 22,
   capPremium: 30,
   capBase: 105,
-  orari: ['11:00','11:30','12:00','12:30','13:00','13:30','14:00','14:30','15:00','15:30','16:00','16:30','17:00','17:30','18:00'],
+  prima: '11:00',
+  pausaInizio: '13:30',
+  pausaFine: '15:00',
+  ultima: '18:00',
+  primaLingua: 'it',  // 'it' o 'en' — le altre si alternano
+  orari: ['11:00','11:30','12:00','12:30','13:00','15:00','15:30','16:00','16:30','17:00','17:30','18:00'],
   nomiCasse: { op1: 'Cassa 1', op2: 'Cassa 2' }
 };
+
+// Genera gli slot di 30 minuti da `prima` a `ultima`, saltando la pausa
+function generaOrari() {
+  const toMin = s => { const [h,m] = s.split(':').map(Number); return h*60 + m; };
+  const toStr = m => `${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`;
+  const start = toMin(CONFIG.prima);
+  const end = toMin(CONFIG.ultima);
+  const pStart = toMin(CONFIG.pausaInizio);
+  const pEnd = toMin(CONFIG.pausaFine);
+  const out = [];
+  for (let t = start; t <= end; t += 30) {
+    if (t < pStart || t >= pEnd) out.push(toStr(t));
+  }
+  return out;
+}
+
+// Lingua del turno: alternanza da primaLingua, indipendente dalla pausa pranzo
+function linguaTurno(ora) {
+  const idx = CONFIG.orari.indexOf(ora);
+  if (idx < 0) return CONFIG.primaLingua;
+  const altro = CONFIG.primaLingua === 'it' ? 'en' : 'it';
+  return (idx % 2 === 0) ? CONFIG.primaLingua : altro;
+}
+function bandieraLingua(lang) { return lang === 'it' ? '🇮🇹' : '🇬🇧'; }
 
 // Ripristina impostazioni salvate
 (function loadSavedConfig() {
@@ -1450,16 +1588,20 @@ const CONFIG = {
     if (!isNaN(capP) && capP > 0) CONFIG.capPremium = capP;
     const capB = parseInt(localStorage.getItem('scopello_capbase'));
     if (!isNaN(capB) && capB > 0) CONFIG.capBase = capB;
+    // Orari visite
+    const orariSaved = JSON.parse(localStorage.getItem('scopello_orari_cfg') || 'null');
+    if (orariSaved && orariSaved.prima && orariSaved.ultima && orariSaved.pausaInizio && orariSaved.pausaFine) {
+      CONFIG.prima = orariSaved.prima;
+      CONFIG.ultima = orariSaved.ultima;
+      CONFIG.pausaInizio = orariSaved.pausaInizio;
+      CONFIG.pausaFine = orariSaved.pausaFine;
+      CONFIG.orari = generaOrari();
+    }
+    const lingua = localStorage.getItem('scopello_prima_lingua');
+    if (lingua === 'it' || lingua === 'en') CONFIG.primaLingua = lingua;
     // Aggiorna bottoni login con nomi salvati
     document.getElementById('opBtn1').textContent = CONFIG.nomiCasse.op1;
     document.getElementById('opBtn2').textContent = CONFIG.nomiCasse.op2;
-    // Carica ingressi e usciti del giorno
-    const todayKey = 'scopello_ingressi_' + new Date().toLocaleDateString('it-IT',{year:'numeric',month:'2-digit',day:'2-digit'}).split('/').reverse().join('-');
-    const ingr = JSON.parse(localStorage.getItem(todayKey) || '{}');
-    if (ingr) state.ingressi = ingr;
-    const uscitiKey = 'scopello_usciti_' + new Date().toLocaleDateString('it-IT',{year:'numeric',month:'2-digit',day:'2-digit'}).split('/').reverse().join('-');
-    const usc = JSON.parse(localStorage.getItem(uscitiKey) || '{}');
-    if (usc) state.usciti = usc;
   } catch(e) {}
 })();
 
@@ -1468,13 +1610,25 @@ function saveIngressi() {
   try { localStorage.setItem(todayKey, JSON.stringify(state.ingressi)); } catch(e) {}
 }
 
-function saveUsciti() {
-  const uscitiKey = 'scopello_usciti_' + new Date().toLocaleDateString('it-IT',{year:'numeric',month:'2-digit',day:'2-digit'}).split('/').reverse().join('-');
-  try { localStorage.setItem(uscitiKey, JSON.stringify(state.usciti)); } catch(e) {}
+function saveExtra() {
+  const extraKey = 'scopello_extra_' + new Date().toLocaleDateString('it-IT',{year:'numeric',month:'2-digit',day:'2-digit'}).split('/').reverse().join('-');
+  try { localStorage.setItem(extraKey, JSON.stringify(state.extraPosti)); } catch(e) {}
+}
+
+function saveIntegrazioni() {
+  const key = 'scopello_integrazioni_' + new Date().toLocaleDateString('it-IT',{year:'numeric',month:'2-digit',day:'2-digit'}).split('/').reverse().join('-');
+  try { localStorage.setItem(key, JSON.stringify(state.integrazioni)); } catch(e) {}
 }
 
 async function loadPasswordsFromDB() {
-  const { data, error } = await db.from('config').select('value').eq('key', 'passwords').maybeSingle().catch(e => ({ data: null, error: e }));
+  const t = ms => new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), ms));
+  let data, error;
+  try {
+    ({ data, error } = await Promise.race([
+      db.from('app_config').select('value').eq('key', 'passwords').maybeSingle(),
+      t(8000)
+    ]));
+  } catch(e) { return false; }
   if (error || !data) return false;
   // Gestisce sia jsonb (oggetto) che text (stringa JSON)
   let val = data.value;
@@ -1488,22 +1642,19 @@ async function loadPasswordsFromDB() {
 }
 
 async function savePasswordsToDB() {
-  // Leggi prima se la riga esiste
-  const { data: existing } = await db.from('config')
-    .select('key').eq('key', 'passwords').maybeSingle()
-    .catch(() => ({ data: null }));
-  if (existing) {
-    // Riga esiste: aggiorna
-    const { error } = await db.from('config')
-      .update({ value: CONFIG.passwords }).eq('key', 'passwords')
-      .catch(e => ({ error: e }));
+  const t = ms => new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), ms));
+  try {
+    const { data: existing } = await Promise.race([
+      db.from('app_config').select('key').eq('key', 'passwords').maybeSingle(),
+      t(6000)
+    ]);
+    const write = existing
+      ? db.from('app_config').update({ value: CONFIG.passwords }).eq('key', 'passwords')
+      : db.from('app_config').insert({ key: 'passwords', value: CONFIG.passwords });
+    const { error } = await Promise.race([write, t(6000)]);
     return !error;
-  } else {
-    // Riga non esiste: inserisci
-    const { error } = await db.from('config')
-      .insert({ key: 'passwords', value: CONFIG.passwords })
-      .catch(e => ({ error: e }));
-    return !error;
+  } catch(e) {
+    return false;
   }
 }
 
@@ -1513,11 +1664,25 @@ let state = {
   vendite: [], turni: {},
   note: { op1: [], op2: [] },
   rimborsi: [],
-  ingressi: {},  // { ticketNum: { ora } }
-  usciti: {}     // { ticketNum: { ora } }
+  integrazioni: [],
+  ingressi: {},
+  extraPosti: { premium: 0, base: 0 }
 };
 let cart = {};
 CONFIG.orari.forEach(o => { state.turni[o] = { prenotati: 0 }; });
+
+// Carica ingressi, extra e integrazioni del giorno (deve girare dopo la dichiarazione di state)
+(function loadDailyState() {
+  try {
+    const today = new Date().toLocaleDateString('it-IT',{year:'numeric',month:'2-digit',day:'2-digit'}).split('/').reverse().join('-');
+    const ingr = JSON.parse(localStorage.getItem('scopello_ingressi_' + today) || '{}');
+    if (ingr) state.ingressi = ingr;
+    const extra = JSON.parse(localStorage.getItem('scopello_extra_' + today) || 'null');
+    if (extra) state.extraPosti = extra;
+    const integ = JSON.parse(localStorage.getItem('scopello_integrazioni_' + today) || '[]');
+    if (Array.isArray(integ)) state.integrazioni = integ;
+  } catch(e) {}
+})();
 
 // ============================================================
 // LOGIN / LOGOUT
@@ -1539,10 +1704,7 @@ function selectOp(op) {
 
 async function doLogin() {
   // Carica password dal DB con timeout 5s per non bloccare il login offline
-  const dbOk = await Promise.race([
-    loadPasswordsFromDB().catch(() => false),
-    new Promise(resolve => setTimeout(() => resolve(false), 5000))
-  ]);
+  const dbOk = await loadPasswordsFromDB().catch(() => false);
   _pwLoadPromise = null;
   const pw = document.getElementById('loginPw').value.trim();
   const err = document.getElementById('loginError');
@@ -1618,6 +1780,8 @@ async function doSwitchOp() {
     updateOpLabels();
     closeModal('modalSwitchOp');
     resetSellForm();
+    // Ricarica vendite aggiornate dal DB prima di mostrare i conteggi
+    await loadTodayVendite();
     renderUndoBtn();
     if (document.getElementById('tab-cassa').classList.contains('active')) renderCassa();
     if (document.getElementById('tab-storico').classList.contains('active')) renderStorico();
@@ -1659,6 +1823,13 @@ function updateClock() {
 }
 setInterval(updateClock, 1000); updateClock();
 
+// Aggiornamento live panoramica ogni 3 secondi
+setInterval(() => {
+  if (document.getElementById('tab-ingresso') && document.getElementById('tab-ingresso').classList.contains('active')) {
+    renderIngresso();
+  }
+}, 3000);
+
 // Ogni minuto ricontrolla i turni: aggiorna chip e deseleziona se il turno selezionato è passato
 setInterval(() => {
   if (!state.operatore) return;
@@ -1680,7 +1851,7 @@ function switchTab(name) {
   document.querySelectorAll('.tab-btn').forEach((b,i) => b.classList.toggle('active', ['vendita','turni','storico','cassa','ingresso'][i] === name));
   document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
   document.getElementById('tab-'+name).classList.add('active');
-  if (name === 'vendita')   { renderTurniVendita(); updateSummary(); }
+  if (name === 'vendita')   { renderTurniVendita(); updateCartUI(); updateSummary(); }
   if (name === 'turni')     renderTurni();
   if (name === 'storico')   renderStorico();
   if (name === 'cassa')     renderCassa();
@@ -1746,27 +1917,35 @@ function applyTicketStart() {
 // CARRELLO
 // ============================================================
 
+function venditeNettePerTipo(tipo) {
+  const rimborsati = new Set((state.rimborsi || []).map(r => r.ticketNum));
+  return state.vendite
+    .filter(v => v.tipo === tipo && !rimborsati.has(v.ticketNum))
+    .reduce((a, v) => a + v.qty, 0);
+}
+
 function addToCart(tipo) {
+  if (!state.extraPosti) state.extraPosti = { premium: 0, base: 0 };
   if (!state.turnoSel) { document.getElementById('modalNoTurno').classList.add('visible'); return; }
   // Controlla capienza solo per turni con visita
   if (state.turnoSel !== 'nessuna') {
     const liberi = CONFIG.capMax - state.turni[state.turnoSel].prenotati;
-    if (cartTotalQty() >= liberi) { alert(`Turno ${state.turnoSel}: solo ${liberi} posti disponibili.`); return; }
+    if (cartTotalQty() >= liberi) { showErrorToast(`Turno ${state.turnoSel}: solo ${liberi} posti disponibili.`); return; }
   }
-  // Controllo limite giornaliero lettini
+  // Controllo limite giornaliero lettini (cap + extra)
   if (tipo === 'premium') {
     const netti = venditeNettePerTipo('premium');
     const inCarrello = cart['premium'] || 0;
-    if (netti + inCarrello >= CONFIG.capPremium) {
-      showErrorToast(`Lettini esauriti — max ${CONFIG.capPremium} al giorno`); return;
+    if (netti + inCarrello >= CONFIG.capPremium + state.extraPosti.premium) {
+      showErrorToast(`Lettini esauriti — max ${CONFIG.capPremium + state.extraPosti.premium} al giorno`); return;
     }
   }
-  // Controllo limite giornaliero base (include ridotto e nopay)
+  // Controllo limite giornaliero base (include ridotto e nopay, cap + extra)
   if (tipo === 'base' || tipo === 'ridotto' || tipo === 'nopay') {
     const netti = venditeNettePerTipo('base') + venditeNettePerTipo('ridotto') + venditeNettePerTipo('nopay');
     const inCarrello = (cart['base'] || 0) + (cart['ridotto'] || 0) + (cart['nopay'] || 0);
-    if (netti + inCarrello >= CONFIG.capBase) {
-      showErrorToast(`Posti esauriti — max ${CONFIG.capBase} al giorno`); return;
+    if (netti + inCarrello >= CONFIG.capBase + state.extraPosti.base) {
+      showErrorToast(`Posti esauriti — max ${CONFIG.capBase + state.extraPosti.base} al giorno`); return;
     }
   }
   cart[tipo] = (cart[tipo] || 0) + 1;
@@ -1810,13 +1989,21 @@ function updateCartUI() {
   const types = ['base','premium','ridotto','nopay'];
   const labels = { base:'Base', premium:'Premium', ridotto:'Ridotto', nopay:'Non pagante' };
 
-  // Badge sulle card
+  // Badge sulle card — posti rimasti = cap + extra - venduti (ridotto+nopay contano come base)
+  const rimPrem = Math.max(0, CONFIG.capPremium + state.extraPosti.premium - venditeNettePerTipo('premium'));
+  const rimBase = Math.max(0, CONFIG.capBase + state.extraPosti.base
+    - venditeNettePerTipo('base') - venditeNettePerTipo('ridotto') - venditeNettePerTipo('nopay'));
   types.forEach(t => {
     const badge = document.getElementById('badge' + t.charAt(0).toUpperCase() + t.slice(1));
     const qty = cart[t] || 0;
-    badge.innerHTML = qty > 0 ? `<span class="tc-badge-val">${qty}</span>` : '';
+    let badgeHtml = qty > 0 ? `<span class="tc-badge-val">${qty}</span>` : '';
+    if (t === 'premium') badgeHtml += `<span style="font-size:0.6rem;color:${rimPrem<=5?'var(--red)':'var(--muted)'}"> ${rimPrem} rimasti</span>`;
+    if (t === 'base')    badgeHtml += `<span style="font-size:0.6rem;color:${rimBase<=10?'var(--red)':'var(--muted)'}"> ${rimBase} rimasti</span>`;
+    if (t === 'ridotto') badgeHtml += `<span style="font-size:0.6rem;color:${rimBase<=10?'var(--red)':'var(--muted)'}"> ${rimBase} rimasti</span>`;
+    badge.innerHTML = badgeHtml;
     const card = document.getElementById('card' + t.charAt(0).toUpperCase() + t.slice(1));
-    card.className = 'ticket-card' + (qty > 0 ? ` selected-${t}` : '');
+    const esaurito = (t === 'premium' && rimPrem <= 0) || ((t === 'base' || t === 'ridotto' || t === 'nopay') && rimBase <= 0);
+    card.className = 'ticket-card' + (qty > 0 ? ` selected-${t}` : '') + (esaurito ? ' card-esaurito' : '');
   });
 
   if (cartTotalQty() === 0) {
@@ -1865,7 +2052,9 @@ function renderTurniVendita() {
     const chipClass = ['turno-chip', full ? 'full' : '', past && !full ? 'past' : '', sel ? 'selected' : ''].filter(Boolean).join(' ');
     const subLabel = full ? 'Esaurito' : past ? 'Passato' : liberi + ' posti';
 
+    const lang = linguaTurno(ora);
     return `<div class="${chipClass}" onclick="${disabled ? '' : "selectTurno('" + ora + "')"}">
+      <div class="t-lang" title="${lang === 'it' ? 'Italiano' : 'English'}">${bandieraLingua(lang)}</div>
       <div class="t-ora">${ora}</div>
       <div class="t-free">${subLabel}</div>
     </div>`;
@@ -1874,7 +2063,7 @@ function renderTurniVendita() {
 
 function selectTurno(ora) {
   state.turnoSel = ora;
-  renderTurniVendita(); updateSummary();
+  renderTurniVendita(); updateCartUI(); updateSummary();
 }
 
 function selectPay(tipo) {
@@ -1958,6 +2147,12 @@ async function executeSale() {
 
   // Sync DB in background (non blocca UI)
   entries.forEach(v => saveVendita(v));
+
+  // Avviso disponibilità bassa
+  checkCapAlert();
+
+  // Aggiorna panoramica se aperta
+  if (document.getElementById('tab-ingresso').classList.contains('active')) renderIngresso();
 }
 
 function undoLastSale() {
@@ -1973,9 +2168,11 @@ function doAnnullaVendita(vendita) {
   state.vendite = state.vendite.filter(v => v.id !== vendita.id);
   if (vendita.turno !== 'nessuna') state.turni[vendita.turno].prenotati = Math.max(0, state.turni[vendita.turno].prenotati - vendita.qty);
   deleteVendita(vendita);
+  updateCartUI();
   renderTurniVendita(); renderUndoBtn();
   if (document.getElementById('tab-storico').classList.contains('active')) renderStorico();
   if (document.getElementById('tab-cassa').classList.contains('active')) renderCassa();
+  if (document.getElementById('tab-ingresso').classList.contains('active')) renderIngresso();
 }
 
 function renderUndoBtn() {
@@ -2027,6 +2224,28 @@ function showInfoToast(msg) {
   if (_infoToastTimer) clearTimeout(_infoToastTimer);
   _infoToastTimer = setTimeout(() => t.classList.remove('show'), 4000);
 }
+let _warnToastTimer = null;
+function showWarnToast(msg) {
+  const t = document.getElementById('warnToast');
+  if (!t) return;
+  t.textContent = msg;
+  t.classList.add('show');
+  if (_warnToastTimer) clearTimeout(_warnToastTimer);
+  _warnToastTimer = setTimeout(() => t.classList.remove('show'), 6000);
+}
+
+function checkCapAlert() {
+  const vendPrem = venditeNettePerTipo('premium');
+  const vendBase = venditeNettePerTipo('base') + venditeNettePerTipo('ridotto') + venditeNettePerTipo('nopay');
+  const rimPrem = CONFIG.capPremium + state.extraPosti.premium - vendPrem;
+  const rimBase = CONFIG.capBase + state.extraPosti.base - vendBase;
+
+  if (rimPrem === 0) showWarnToast('🚫 Lettini ESAURITI');
+  else if (rimPrem <= 5) showWarnToast('⚠️ Lettini quasi esauriti — ' + rimPrem + ' rimasti');
+
+  if (rimBase === 0) showWarnToast('🚫 Posti base ESAURITI');
+  else if (rimBase <= 10) showWarnToast('⚠️ Posti base quasi esauriti — ' + rimBase + ' rimasti');
+}
 
 // ============================================================
 // TURNI TAB
@@ -2063,9 +2282,10 @@ function renderTurni() {
           </div>`;
         }).join('');
 
+    const lang = linguaTurno(ora);
     return `<div class="turno-card" onclick="toggleTurnoDetail('detail-${ora.replace(':','')}')">
       <div class="turno-card-header">
-        <span class="turno-ora">${ora}</span>
+        <span class="turno-ora">${bandieraLingua(lang)} ${ora}</span>
         <span class="t-badge ${badgeClass}">${badgeLabel}</span>
       </div>
       <div class="t-bar-wrap"><div class="t-bar" style="width:${pct}%;background:${barColor}"></div></div>
@@ -2092,7 +2312,7 @@ function toggleTurnoDetail(id) {
 // ============================================================
 function renderStorico() {
   const list = document.getElementById('storicoList');
-  const vendite = state.isDir ? [...state.vendite] : state.vendite.filter(v => v.operatore === state.operatore);
+  const vendite = [...state.vendite];
   if (!vendite.length) { list.innerHTML = '<div class="storico-empty">Nessuna vendita registrata</div>'; return; }
 
   // Raggruppa per ticketNum
@@ -2121,6 +2341,12 @@ function renderStorico() {
       ? `<button class="btn-sposta" onclick="apriCambiaPagamento('${tNum}')">💳 Pagamento</button>` : '';
     const spostaBtn = `<button class="btn-sposta" onclick="apriSposta('${tNum}')">↔ Sposta</button>`;
 
+    const hasBase = righe.some(v => v.tipo === 'base');
+    const giàUpgradato = state.integrazioni.some(i => i.ticketNum === tNum);
+    const upgradeBtn = hasBase && !giàUpgradato
+      ? `<button class="btn-upgrade" onclick="apriUpgrade('${tNum}')">⬆ Upgrade</button>`
+      : giàUpgradato ? `<span class="badge-upgraded">⬆ Upgradato</span>` : '';
+
     return `<div class="storico-group">
       <div class="sg-header">
         <span class="sg-ticket">${tNum}</span>
@@ -2132,6 +2358,7 @@ function renderStorico() {
         <span class="sg-total">€ ${totale.toFixed(2).replace('.',',')}</span>
         <div class="sg-actions">
           <span class="sg-pay ${payClass}">${pLabel}</span>
+          ${upgradeBtn}
           ${cambiaPagBtn}
           ${spostaBtn}
           ${annullaBtn}
@@ -2285,6 +2512,79 @@ function eseguiCambiaPagamento() {
 }
 
 // ============================================================
+// UPGRADE BASE → PREMIUM
+// ============================================================
+let upgradeTicketNum = null;
+let upgradePaySel = null;
+
+function apriUpgrade(ticketNum) {
+  const baseRighe = state.vendite.filter(v => v.ticketNum === ticketNum && v.tipo === 'base');
+  if (!baseRighe.length) return;
+  upgradeTicketNum = ticketNum;
+  upgradePaySel = null;
+  ['upCash','upPos','upPosPlus'].forEach(id => document.getElementById(id).classList.remove('selected'));
+  document.getElementById('btnConfermaUpgrade').disabled = true;
+  const qtyTot = baseRighe.reduce((a,v) => a + v.qty, 0);
+  const diff = (CONFIG.prezzi.premium - CONFIG.prezzi.base);
+  const totDiff = diff * qtyTot;
+  document.getElementById('modalUpgradeText').innerHTML =
+    `Ticket <strong>${ticketNum}</strong> — ${qtyTot} bigliett${qtyTot>1?'i':'o'} Base → Premium<br>
+     Differenza: € ${diff.toFixed(2).replace('.',',')} × ${qtyTot} = <strong style="color:var(--gold)">€ ${totDiff.toFixed(2).replace('.',',')}</strong> da incassare`;
+  document.getElementById('modalUpgrade').classList.add('visible');
+}
+
+function selUpgradePay(tipo) {
+  upgradePaySel = tipo;
+  ['upCash','upPos','upPosPlus'].forEach(id => document.getElementById(id).classList.remove('selected'));
+  const map = { cash:'upCash', pos:'upPos', posplus:'upPosPlus' };
+  document.getElementById(map[tipo]).classList.add('selected');
+  document.getElementById('btnConfermaUpgrade').disabled = false;
+}
+
+function eseguiUpgrade() {
+  if (!upgradeTicketNum || !upgradePaySel) return;
+  const btn = document.getElementById('btnConfermaUpgrade');
+  if (btn) btn.disabled = true;
+
+  const baseRighe = state.vendite.filter(v => v.ticketNum === upgradeTicketNum && v.tipo === 'base');
+  if (!baseRighe.length) { closeModal('modalUpgrade'); return; }
+  const qtyTot = baseRighe.reduce((a,v) => a + v.qty, 0);
+  const diff = CONFIG.prezzi.premium - CONFIG.prezzi.base;
+
+  // Cambia tipo in state
+  baseRighe.forEach(v => { v.tipo = 'premium'; });
+
+  // Registra integrazione
+  if (!Array.isArray(state.integrazioni)) state.integrazioni = [];
+  state.integrazioni.push({
+    ticketNum: upgradeTicketNum,
+    qty: qtyTot,
+    prezzoBase: CONFIG.prezzi.base,
+    prezzoPremium: CONFIG.prezzi.premium,
+    diff: diff * qtyTot,
+    pagamento: upgradePaySel,
+    ora: new Date().toLocaleTimeString('it-IT', {hour:'2-digit', minute:'2-digit'}),
+    operatore: state.operatore
+  });
+  saveIntegrazioni();
+
+  closeModal('modalUpgrade');
+  updateCartUI();
+  if (document.getElementById('tab-storico').classList.contains('active')) renderStorico();
+  if (document.getElementById('tab-cassa').classList.contains('active')) renderCassa();
+
+  // Sync tipo a Supabase
+  const today = new Date().toLocaleDateString('it-IT',{year:'numeric',month:'2-digit',day:'2-digit'}).split('/').reverse().join('-');
+  if (isOnline) {
+    db.from('vendite').update({ tipo: 'premium' })
+      .eq('ticket_num', upgradeTicketNum).eq('tipo', 'base').eq('data', today)
+      .catch(() => {});
+  }
+
+  showErrorToast('⬆ Ticket ' + upgradeTicketNum + ' upgradato a Premium');
+}
+
+// ============================================================
 // SPOSTA TURNO
 // ============================================================
 let spostaTicketNum = null;
@@ -2424,11 +2724,9 @@ function renderCassa() {
   }
 
   const rimborsi = Array.isArray(state.rimborsi) ? state.rimborsi : [];
+  const integrazioni = Array.isArray(state.integrazioni) ? state.integrazioni : [];
 
-  // Totali: vendite attive + reintegro dei ticket annullati nel loro metodo originale
-  // - se rimborsato: il valore torna nel metodo originale, poi esce dal metodo rimborso
-  // - se non rimborsato: il valore rimane nel metodo originale (i soldi non sono usciti)
-  // Formula: totale = vendite_attive[metodo] + annullati_pagati_con[metodo] - rimborsati_con[metodo]
+  // Totali: vendite attive + reintegro annullati - rimborsi + integrazioni upgrade
   const vendCash    = state.vendite.filter(v=>v.pagamento==='cash').reduce((a,v)=>a+v.totale,0);
   const vendPos     = state.vendite.filter(v=>v.pagamento==='pos').reduce((a,v)=>a+v.totale,0);
   const vendPosPlus = state.vendite.filter(v=>v.pagamento==='posplus').reduce((a,v)=>a+v.totale,0);
@@ -2443,19 +2741,26 @@ function renderCassa() {
   const rimbPos     = rimborsi.filter(r=>r.rimborsoCon==='pos').reduce((a,r)=>a+r.totale,0);
   const rimbPosPlus = rimborsi.filter(r=>r.rimborsoCon==='posplus').reduce((a,r)=>a+r.totale,0);
 
-  const totCash    = vendCash + reintCash - rimbCash;
-  const totPos     = vendPos  + reintPos  - rimbPos;
-  const totPosPlus = vendPosPlus + reintPosPlus - rimbPosPlus;
+  // Integrazioni: extra incassato per upgrade base→premium
+  const integCash    = integrazioni.filter(i=>i.pagamento==='cash').reduce((a,i)=>a+i.diff,0);
+  const integPos     = integrazioni.filter(i=>i.pagamento==='pos').reduce((a,i)=>a+i.diff,0);
+  const integPosPlus = integrazioni.filter(i=>i.pagamento==='posplus').reduce((a,i)=>a+i.diff,0);
+
+  const totCash    = vendCash + reintCash - rimbCash + integCash;
+  const totPos     = vendPos  + reintPos  - rimbPos  + integPos;
+  const totPosPlus = vendPosPlus + reintPosPlus - rimbPosPlus + integPosPlus;
   const totAll     = totCash + totPos + totPosPlus;
-  const totVisit   = state.vendite.reduce((a,v)=>a+v.qty,0)
-    + rimborsi.filter(r=>r.rimborsoCon==='no').reduce((a,r)=>a+(r.qty||0),0);
+  const totVisit = venditeNettePerTipo('base') + venditeNettePerTipo('premium')
+    + venditeNettePerTipo('ridotto') + venditeNettePerTipo('nopay');
   const hasRimborsi = rimborsi.length > 0;
+  const totInteg = integCash + integPos + integPosPlus;
 
   const myVendite = state.vendite.filter(v=>v.operatore===state.operatore);
   const myCash    = myVendite.filter(v=>v.pagamento==='cash').reduce((a,v)=>a+v.totale,0);
   const myPos     = myVendite.filter(v=>v.pagamento==='pos').reduce((a,v)=>a+v.totale,0);
   const myPosPlus = myVendite.filter(v=>v.pagamento==='posplus').reduce((a,v)=>a+v.totale,0);
-  const myTot     = myCash + myPos + myPosPlus;
+  const myInteg   = integrazioni.filter(i=>i.operatore===state.operatore).reduce((a,i)=>a+i.diff,0);
+  const myTot     = myCash + myPos + myPosPlus + myInteg;
 
   const cassaGrid = document.getElementById('cassaGrid');
   if (isDir) {
@@ -2478,14 +2783,14 @@ function renderCassa() {
       <div class="cassa-card cc-total" style="grid-column:1/-1">
         <div class="cc-label">Totale Giornata</div>
         <div class="cc-val">€ ${totAll.toFixed(2).replace('.',',')}</div>
-        <div class="cc-sub">${totVisit} visitatori${hasRimborsi ? ` · ${rimborsi.length} ticket annullati` : ''}</div>
+        <div class="cc-sub">${totVisit} visitatori${hasRimborsi ? ` · ${rimborsi.length} ticket annullati` : ''}${integrazioni.length>0?` · ${integrazioni.length} upgrade`:''}</div>
       </div>`;
   } else {
     cassaGrid.innerHTML = `
       <div class="cassa-card cc-cash"><div class="cc-label">Contanti</div><div class="cc-val">€ ${myCash.toFixed(2).replace('.',',')}</div></div>
       <div class="cassa-card cc-pos"><div class="cc-label">POS</div><div class="cc-val">€ ${myPos.toFixed(2).replace('.',',')}</div></div>
       <div class="cassa-card cc-posplus"><div class="cc-label">POS+</div><div class="cc-val">€ ${myPosPlus.toFixed(2).replace('.',',')}</div></div>
-      <div class="cassa-card cc-total" style="grid-column:1/-1"><div class="cc-label">Mio totale</div><div class="cc-val">€ ${myTot.toFixed(2).replace('.',',')}</div><div class="cc-sub">${myVendite.reduce((a,v)=>a+v.qty,0)} biglietti venduti</div></div>`;
+      <div class="cassa-card cc-total" style="grid-column:1/-1"><div class="cc-label">Mio totale</div><div class="cc-val">€ ${myTot.toFixed(2).replace('.',',')}</div><div class="cc-sub">${myVendite.reduce((a,v)=>a+v.qty,0)} biglietti${myInteg>0?` + € ${myInteg.toFixed(2).replace('.',',')} integr.`:''}</div></div>`;
   }
 
   const opRes = document.getElementById('opResoconti');
@@ -2513,10 +2818,12 @@ function renderCassa() {
       const cash    = vendCashOp    + reintCashOp    - rimbCashOp;
       const pos     = vendPosOp     + reintPosOp     - rimbPosOp;
       const posplus = vendPosPlusOp + reintPosPlusOp - rimbPosPlusOp;
-      const base = vv.filter(v=>v.tipo==='base').reduce((a,v)=>a+v.qty,0);
-      const prem = vv.filter(v=>v.tipo==='premium').reduce((a,v)=>a+v.qty,0);
-      const ridotto = vv.filter(v=>v.tipo==='ridotto').reduce((a,v)=>a+v.qty,0);
-      const nopay = vv.filter(v=>v.tipo==='nopay').reduce((a,v)=>a+v.qty,0);
+      const rimbSet = new Set(rimborsi.filter(r=>r.operatoreCassa===op).map(r=>r.ticketNum));
+      const vvNetti = vv.filter(v => !rimbSet.has(v.ticketNum));
+      const base    = vvNetti.filter(v=>v.tipo==='base').reduce((a,v)=>a+v.qty,0);
+      const prem    = vvNetti.filter(v=>v.tipo==='premium').reduce((a,v)=>a+v.qty,0);
+      const ridotto = vvNetti.filter(v=>v.tipo==='ridotto').reduce((a,v)=>a+v.qty,0);
+      const nopay   = vvNetti.filter(v=>v.tipo==='nopay').reduce((a,v)=>a+v.qty,0);
       const note = op !== 'dir' && Array.isArray(state.note[op]) ? state.note[op] : [];
       const noteHTML = note.length
         ? note.map(n => `<div class="op-note-display visible" style="margin-bottom:4px;">📝 <strong>${n.ora}</strong> — ${n.testo}</div>`).join('')
@@ -2579,17 +2886,51 @@ function renderCassa() {
     rimborsiSection.style.display = 'none';
   }
 
+  // Sezione integrazioni (visibile a tutti se ci sono upgrade)
+  const integrazioniSection = document.getElementById('integrazioniSection');
+  if (integrazioni.length > 0) {
+    const righeIntegHtml = integrazioni.map(i => {
+      const opLbl = i.operatore === 'dir' ? 'Dir' : CONFIG.nomiCasse[i.operatore] || i.operatore;
+      const payLbl = payLabel(i.pagamento);
+      const payClass = i.pagamento === 'cash' ? 'cash' : i.pagamento === 'pos' ? 'pos' : 'posplus';
+      return `<div class="integrazione-row">
+        <span class="integrazione-ticket">${i.ticketNum}</span>
+        <div class="integrazione-desc">${i.qty}× Base→Premium · ${opLbl} · ${i.ora}</div>
+        <div>
+          <span class="integrazione-amount">+ € ${i.diff.toFixed(2).replace('.',',')}</span>
+          <span class="rimborso-badge rb-${payClass}">${payLbl}</span>
+        </div>
+      </div>`;
+    }).join('');
+    integrazioniSection.style.display = 'block';
+    integrazioniSection.innerHTML = `<div class="integrazioni-section">
+      <div class="integrazioni-header" onclick="toggleIntegrazioniDetail()">
+        <span class="sec-label" style="margin:0;">⬆ Upgrade Premium (${integrazioni.length})</span>
+        <span class="integrazioni-toggle-info">+ € ${totInteg.toFixed(2).replace('.',',')} incassati <span id="integrazioniChevron">▼</span></span>
+      </div>
+      <div class="integrazioni-detail" id="integrazioniDetail" style="display:none;">
+        ${righeIntegHtml}
+      </div>
+    </div>`;
+  } else {
+    integrazioniSection.style.display = 'none';
+  }
+
   document.getElementById('settingsSection').style.display = isDir ? 'block' : 'none';
   if (isDir) {
     document.getElementById('priceBaseSet').textContent = CONFIG.prezzi.base;
     document.getElementById('pricePremiumSet').textContent = CONFIG.prezzi.premium;
     document.getElementById('priceRidottoSet').textContent = CONFIG.prezzi.ridotto;
     document.getElementById('capSet').textContent = CONFIG.capMax;
+    document.getElementById('capPremiumSet').textContent = CONFIG.capPremium;
+    document.getElementById('capBaseSet').textContent = CONFIG.capBase;
     document.getElementById('nameCassa1').value = CONFIG.nomiCasse.op1;
     document.getElementById('nameCassa2').value = CONFIG.nomiCasse.op2;
     document.getElementById('pwLabel1').textContent = 'Password ' + CONFIG.nomiCasse.op1;
     document.getElementById('pwLabel2').textContent = 'Password ' + CONFIG.nomiCasse.op2;
     document.getElementById('ticketStartSet').value = ticketCounter + 1 > 100 ? 1 : ticketCounter + 1;
+    popolaSelectOrari();
+    updateLinguaButtons();
   }
 }
 
@@ -2614,18 +2955,135 @@ function changeCap(d) {
   try { localStorage.setItem('scopello_capmax', CONFIG.capMax); } catch(e) {}
 }
 
+function addExtra(tipo, d) {
+  if (tipo === 'premium') {
+    state.extraPosti.premium = Math.max(0, state.extraPosti.premium + d);
+  } else {
+    state.extraPosti.base = Math.max(0, state.extraPosti.base + d);
+  }
+  saveExtra();
+  updateCartUI();
+  renderIngresso();
+}
+
 function changeCapPremium(d) {
   CONFIG.capPremium = Math.max(0, CONFIG.capPremium + d);
   try { localStorage.setItem('scopello_cappremium', CONFIG.capPremium); } catch(e) {}
-  updateCartUI();
-  if (document.getElementById('tab-ingresso').classList.contains('active')) renderIngresso();
+  const el = document.getElementById('capPremiumSet');
+  if (el) el.textContent = CONFIG.capPremium;
+  renderIngresso();
 }
 
 function changeCapBase(d) {
   CONFIG.capBase = Math.max(0, CONFIG.capBase + d);
   try { localStorage.setItem('scopello_capbase', CONFIG.capBase); } catch(e) {}
-  updateCartUI();
+  const el = document.getElementById('capBaseSet');
+  if (el) el.textContent = CONFIG.capBase;
+  renderIngresso();
+}
+
+// Popola i select degli orari con tutti gli slot 30 min in una giornata
+function popolaSelectOrari() {
+  const all = [];
+  for (let h = 7; h <= 23; h++) {
+    for (let m = 0; m < 60; m += 30) {
+      all.push(`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`);
+    }
+  }
+  const ids = [
+    ['oraPrima', CONFIG.prima],
+    ['oraUltima', CONFIG.ultima],
+    ['oraPausaInizio', CONFIG.pausaInizio],
+    ['oraPausaFine', CONFIG.pausaFine]
+  ];
+  ids.forEach(([id, val]) => {
+    const sel = document.getElementById(id);
+    if (!sel) return;
+    sel.innerHTML = all.map(t => `<option value="${t}"${t===val?' selected':''}>${t}</option>`).join('');
+  });
+  refreshOrariPreview();
+}
+
+function refreshOrariPreview() {
+  const prev = document.getElementById('orariPreview');
+  if (!prev) return;
+  const slots = generaOrari();
+  if (slots.length === 0) {
+    prev.innerHTML = '<span style="color:var(--red)">⚠ Nessun turno generato — controlla orari</span>';
+  } else {
+    // Mostra bandiera lingua a fianco di ogni orario
+    const altro = CONFIG.primaLingua === 'it' ? 'en' : 'it';
+    const slotsHtml = slots.map((s, i) => {
+      const lang = (i % 2 === 0) ? CONFIG.primaLingua : altro;
+      return `${bandieraLingua(lang)} ${s}`;
+    }).join(' · ');
+    prev.innerHTML = `<strong>${slots.length} turni:</strong> ${slotsHtml}`;
+  }
+}
+
+function changeOrari() {
+  const prima = document.getElementById('oraPrima').value;
+  const ultima = document.getElementById('oraUltima').value;
+  const pausaInizio = document.getElementById('oraPausaInizio').value;
+  const pausaFine = document.getElementById('oraPausaFine').value;
+
+  const toMin = s => { const [h,m] = s.split(':').map(Number); return h*60 + m; };
+  // Validazioni base
+  if (toMin(prima) >= toMin(ultima)) {
+    showErrorToast('Prima visita deve essere prima dell\'ultima');
+    refreshOrariPreview(); return;
+  }
+  if (toMin(pausaInizio) >= toMin(pausaFine)) {
+    showErrorToast('Pausa: l\'inizio deve essere prima della fine');
+    refreshOrariPreview(); return;
+  }
+  if (toMin(pausaInizio) <= toMin(prima) || toMin(pausaFine) > toMin(ultima)) {
+    showErrorToast('La pausa deve essere dentro l\'orario di apertura');
+    refreshOrariPreview(); return;
+  }
+
+  CONFIG.prima = prima;
+  CONFIG.ultima = ultima;
+  CONFIG.pausaInizio = pausaInizio;
+  CONFIG.pausaFine = pausaFine;
+  CONFIG.orari = generaOrari();
+
+  try {
+    localStorage.setItem('scopello_orari_cfg', JSON.stringify({
+      prima, ultima, pausaInizio, pausaFine
+    }));
+  } catch(e) {}
+
+  // Sincronizza state.turni con i nuovi orari (preserva conteggi esistenti)
+  const oldTurni = state.turni || {};
+  state.turni = {};
+  CONFIG.orari.forEach(o => { state.turni[o] = oldTurni[o] || { prenotati: 0 }; });
+
+  refreshOrariPreview();
+  showInfoToast('✓ Orari aggiornati: ' + CONFIG.orari.length + ' turni');
+
+  // Aggiorna UI ovunque possa servire
+  renderTurniVendita();
+  if (document.getElementById('tab-turni').classList.contains('active')) renderTurni();
   if (document.getElementById('tab-ingresso').classList.contains('active')) renderIngresso();
+}
+
+function setPrimaLingua(lang) {
+  if (lang !== 'it' && lang !== 'en') return;
+  CONFIG.primaLingua = lang;
+  try { localStorage.setItem('scopello_prima_lingua', lang); } catch(e) {}
+  updateLinguaButtons();
+  refreshOrariPreview();
+  renderTurniVendita();
+  if (document.getElementById('tab-turni').classList.contains('active')) renderTurni();
+  if (document.getElementById('tab-ingresso').classList.contains('active')) renderIngresso();
+}
+
+function updateLinguaButtons() {
+  const itBtn = document.getElementById('linguaItBtn');
+  const enBtn = document.getElementById('linguaEnBtn');
+  if (itBtn) itBtn.classList.toggle('selected', CONFIG.primaLingua === 'it');
+  if (enBtn) enBtn.classList.toggle('selected', CONFIG.primaLingua === 'en');
 }
 
 function venditeNettePerTipo(tipo) {
@@ -2635,14 +3093,6 @@ function venditeNettePerTipo(tipo) {
     .reduce((a, v) => a + v.qty, 0);
 }
 
-// Persone di un certo tipo attualmente dentro (entrate ma non uscite)
-function personeDentroPerTipo(tipo) {
-  const rimborsati = new Set((state.rimborsi || []).map(r => r.ticketNum));
-  return state.vendite
-    .filter(v => v.tipo === tipo && !rimborsati.has(v.ticketNum)
-                 && state.ingressi[v.ticketNum] && !state.usciti[v.ticketNum])
-    .reduce((a, v) => a + v.qty, 0);
-}
 
 function updateCassaNames() {
   CONFIG.nomiCasse.op1 = document.getElementById('nameCassa1').value || 'Cassa 1';
@@ -2656,16 +3106,18 @@ function updateCassaNames() {
 async function changePassword(key) {
   const inputId = key === 'op1' ? 'newPw1' : key === 'op2' ? 'newPw2' : key === 'ctrl' ? 'newPwCtrl' : 'newPwDir';
   const val = document.getElementById(inputId).value.trim();
-  if (!val) { showErrorToast('Inserisci una nuova password.'); return; }
-  if (val.length < 4) { showErrorToast('Password di almeno 4 caratteri.'); return; }
+  const fb = document.getElementById('pwFeedback');
+  if (!val) { if(fb) { fb.textContent = '⚠ Inserisci una password.'; fb.style.color = 'var(--red)'; } return; }
+  if (val.length < 4) { if(fb) { fb.textContent = '⚠ Minimo 4 caratteri.'; fb.style.color = 'var(--red)'; } return; }
+  if (fb) { fb.textContent = '⏳ Salvataggio...'; fb.style.color = 'var(--muted)'; }
   CONFIG.passwords[key] = val;
   try { localStorage.setItem('scopello_passwords', JSON.stringify(CONFIG.passwords)); } catch(e) {}
   const dbOk = await savePasswordsToDB();
   document.getElementById(inputId).value = '';
-  if (dbOk) {
-    showInfoToast('✓ Password salvata su tutti i dispositivi');
-  } else {
-    showErrorToast('Password salvata solo qui — DB non raggiunto');
+  if (fb) {
+    fb.textContent = dbOk ? '✓ Password salvata su tutti i dispositivi' : '⚠ Salvata solo qui — DB non raggiunto';
+    fb.style.color = dbOk ? 'var(--green)' : 'var(--red)';
+    setTimeout(() => { if(fb) fb.textContent = ''; }, 5000);
   }
 }
 
@@ -2728,11 +3180,13 @@ async function resetDay() {
   // Azzera stato locale
   state.vendite = [];
   state.rimborsi = [];
+  state.integrazioni = [];
   state.ingressi = {};
-  state.usciti = {};
+  state.extraPosti = { premium: 0, base: 0 };
   localStorage.removeItem('scopello_rimborsi');
+  saveIntegrazioni();
   saveIngressi();
-  saveUsciti();
+  saveExtra();
   CONFIG.orari.forEach(o => { state.turni[o] = { prenotati: 0 }; });
   ticketCounter = 0;
   localStorage.setItem('scopello_ticket_counter', 0);
@@ -2790,15 +3244,12 @@ function renderIngresso() {
   const byTurno = groupVenditePerIngresso();
 
   // Panoramica istantanea
-  const totEntrati = Object.keys(state.ingressi).length;
-  const totUsciti = Object.keys(state.usciti).length;
-  const dentroOra = Math.max(0, totEntrati - totUsciti);
-  document.getElementById('panDentro').textContent = dentroOra;
 
-  const rimPremium = Math.max(0, CONFIG.capPremium - personeDentroPerTipo('premium'));
-  // base + ridotto + nopay occupano tutti posti base
-  const dentroBase = personeDentroPerTipo('base') + personeDentroPerTipo('ridotto') + personeDentroPerTipo('nopay');
-  const rimBase = Math.max(0, CONFIG.capBase - dentroBase);
+  // Posti liberi = cap + extra - vendite nette (ridotto+nopay contano come base)
+  const vendPrem = venditeNettePerTipo('premium');
+  const vendBase = venditeNettePerTipo('base') + venditeNettePerTipo('ridotto') + venditeNettePerTipo('nopay');
+  const rimPremium = Math.max(0, CONFIG.capPremium + state.extraPosti.premium - vendPrem);
+  const rimBase    = Math.max(0, CONFIG.capBase    + state.extraPosti.base    - vendBase);
 
   const elRP = document.getElementById('panRimPremium');
   elRP.textContent = rimPremium;
@@ -2810,14 +3261,16 @@ function renderIngresso() {
   elRB.className = 'pan-slot-count' + (rimBase === 0 ? ' esaurito' : rimBase <= 10 ? ' scarso' : '');
   document.getElementById('panSubBase').textContent = rimBase === 0 ? 'ESAURITI' : 'liberi';
 
-  document.getElementById('panCapPremium').textContent = CONFIG.capPremium;
-  document.getElementById('panCapBase').textContent = CONFIG.capBase;
+  const ep = state.extraPosti.premium;
+  document.getElementById('panExtraPremium').textContent = ep > 0 ? '+' + ep + ' extra' : '';
+  const eb = state.extraPosti.base;
+  document.getElementById('panExtraBase').textContent = eb > 0 ? '+' + eb + ' extra' : '';
 
-  // Resoconto biglietti per tipo
+  // Resoconto biglietti per tipo (al netto dei rimborsi)
   const tipi = ['base','premium','ridotto','nopay'];
   const tipiLabel = { base:'Base', premium:'Premium', ridotto:'Ridotto', nopay:'Non Pag.' };
   document.getElementById('ingrTipi').innerHTML = tipi.map(t => {
-    const qty = state.vendite.filter(v => v.tipo === t).reduce((a,v) => a + v.qty, 0);
+    const qty = venditeNettePerTipo(t);
     return `<div class="ids-card">
       <span class="ids-val">${qty}</span>
       <span class="ids-lab">${tipiLabel[t]}</span>
@@ -2851,12 +3304,12 @@ function renderIngresso() {
   const ibStats = document.getElementById('ibStats');
   if (!current) {
     banner.className = 'ingresso-banner nessuno';
-    document.getElementById('ibOra').textContent = next ? 'Prossimo: ' + next : 'Chiusura';
+    document.getElementById('ibOra').textContent = next ? `Prossimo: ${bandieraLingua(linguaTurno(next))} ${next}` : 'Chiusura';
     ibStats.style.display = 'none';
   } else {
     banner.className = 'ingresso-banner';
     ibStats.style.display = 'flex';
-    document.getElementById('ibOra').textContent = current;
+    document.getElementById('ibOra').textContent = `${bandieraLingua(linguaTurno(current))} ${current}`;
     const t = byTurno[current] || {};
     const vend = countVendutiTurno(t), entr = countEntratiTurno(t);
     document.getElementById('ibVenduti').textContent = vend;
@@ -2900,34 +3353,25 @@ function renderIngresso() {
           const qty = righe.reduce((a, v) => a + v.qty, 0);
           const op = righe[0].operatore === 'dir' ? 'Dir' : (CONFIG.nomiCasse[righe[0].operatore] || righe[0].operatore);
           const entered = !!state.ingressi[tNum];
-          const exited = !!state.usciti[tNum];
           const entOra = entered ? state.ingressi[tNum].ora : '';
-          const uscOra = exited ? state.usciti[tNum].ora : '';
-          let rowClass = 'biglietto-row';
-          if (exited) rowClass += ' uscito';
-          else if (entered) rowClass += ' entrato';
-          return `<div class="${rowClass}">
+          return `<div class="biglietto-row${entered ? ' entrato' : ''}">
             <span class="br-num">${tNum}</span>
             <div class="br-info">
               <div class="br-desc">${desc}</div>
               <div class="br-meta">${qty} ${qty === 1 ? 'persona' : 'persone'} · ${op} · ${righe[0].ora}</div>
             </div>
             <div class="br-azioni">
-              ${exited
-                ? `<span class="btn-segna-done" style="background:var(--muted)">↩ ${uscOra}</span>
-                   <button class="btn-annulla-ingresso" onclick="event.stopPropagation();undoUscitaBtn('${tNum}')" title="Annulla uscita">✕</button>`
-                : entered
-                  ? `<span class="btn-segna-done">✓ ${entOra}</span>
-                     <button class="btn-esci" onclick="event.stopPropagation();segnaUscitaBtn('${tNum}')">ESCI</button>
-                     <button class="btn-annulla-ingresso" onclick="event.stopPropagation();undoIngressoBtn('${tNum}')" title="Annulla">✕</button>`
-                  : `<button class="btn-segna" onclick="event.stopPropagation();segnaIngressoBtn('${tNum}')">ENTRA</button>`}
+              ${entered
+                ? `<span class="btn-segna-done">✓ ${entOra}</span>
+                   <button class="btn-annulla-ingresso" onclick="event.stopPropagation();undoIngressoBtn('${tNum}')" title="Annulla">✕</button>`
+                : `<button class="btn-segna" onclick="event.stopPropagation();segnaIngressoBtn('${tNum}')">ENTRA</button>`}
             </div>
           </div>`;
         }).join('');
 
     return `<div class="${itemClass}">
       <div class="it-header" onclick="toggleItDetail('${detailId}')">
-        <span class="it-ora">${ora}</span>
+        <span class="it-ora">${bandieraLingua(linguaTurno(ora))} ${ora}</span>
         <div class="it-bar-wrap">
           <div class="it-bg"><div class="it-fill" style="width:${pct}%;background:${fillColor}"></div></div>
           <div class="it-nums"><span>${entrati} entrati</span><span>${venduti} venduti</span></div>
@@ -2954,23 +3398,7 @@ function segnaIngressoBtn(ticketNum) {
 
 function undoIngressoBtn(ticketNum) {
   delete state.ingressi[ticketNum];
-  delete state.usciti[ticketNum];
   saveIngressi();
-  saveUsciti();
-  renderIngresso();
-}
-
-function segnaUscitaBtn(ticketNum) {
-  const ora = new Date().toLocaleTimeString('it-IT', {hour:'2-digit', minute:'2-digit'});
-  state.usciti[ticketNum] = { ora };
-  saveUsciti();
-  renderIngresso();
-  showErrorToast('↩ Ticket ' + ticketNum + ' uscito alle ' + ora);
-}
-
-function undoUscitaBtn(ticketNum) {
-  delete state.usciti[ticketNum];
-  saveUsciti();
   renderIngresso();
 }
 
@@ -2991,6 +3419,15 @@ document.addEventListener('keydown', e => {
 function toggleRimborsiDetail() {
   const detail = document.getElementById('rimborsiDetail');
   const chevron = document.getElementById('rimborsiChevron');
+  if (!detail) return;
+  const open = detail.style.display !== 'none';
+  detail.style.display = open ? 'none' : 'block';
+  if (chevron) chevron.textContent = open ? '▼' : '▲';
+}
+
+function toggleIntegrazioniDetail() {
+  const detail = document.getElementById('integrazioniDetail');
+  const chevron = document.getElementById('integrazioniChevron');
   if (!detail) return;
   const open = detail.style.display !== 'none';
   detail.style.display = open ? 'none' : 'block';
@@ -3035,7 +3472,7 @@ function startRealtime() {
       if (state.operatore) loadTodayVendite();
     })
     .on('postgres_changes', {
-      event: '*', schema: 'public', table: 'config', filter: `key=eq.passwords`
+      event: '*', schema: 'public', table: 'app_config', filter: `key=eq.passwords`
     }, () => {
       loadPasswordsFromDB();
     })
