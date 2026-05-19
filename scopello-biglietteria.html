@@ -814,7 +814,7 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); }
     <div class="topbar">
       <div class="topbar-brand">
         <h1>Torre di Scopello</h1>
-        <p>Percorso Storico Naturalistico <span style="font-size:0.5rem;color:var(--muted);">v62</span></p>
+        <p>Percorso Storico Naturalistico <span style="font-size:0.5rem;color:var(--muted);">v63</span></p>
       </div>
       <div class="topbar-right">
         <span class="op-badge" id="syncBadge" style="font-size:0.65rem;">✓ Online</span>
@@ -3187,37 +3187,38 @@ async function resetDay() {
 
   const today = new Date().toLocaleDateString('it-IT', {year:'numeric',month:'2-digit',day:'2-digit'}).split('/').reverse().join('-');
 
-  // Cancella dal DB se online, altrimenti salva il flag per farlo appena torna la connessione
-  if (isOnline) {
-    await db.from('vendite').delete().eq('data', today);
-    await db.from('ingressi').delete().eq('data', today).catch(() => {});
-    await db.from('rimborsi_giornata').delete().eq('data', today).catch(() => {});
-  } else {
-    // Segna che va fatto un reset per questa data appena torna online
-    localStorage.setItem('scopello_pending_reset', today);
-  }
-
-  // Svuota tutte le code offline — niente da sincronizzare dopo un reset
-  pendingSync = []; savePending();
-  pendingDeletes = []; savePendingDeletes();
-  pendingUpdates = []; savePendingUpdates();
-
-  // Azzera stato locale
+  // 1. Azzera PRIMA lo stato locale e il localStorage
+  //    così se il realtime scatta durante i delete DB trova già tutto vuoto
   state.vendite = [];
   state.rimborsi = [];
   state.integrazioni = [];
   state.ingressi = {};
   state.extraPosti = { premium: 0, base: 0 };
+  CONFIG.orari.forEach(o => { state.turni[o] = { prenotati: 0 }; });
+  ticketCounter = 0;
+
   localStorage.removeItem('scopello_rimborsi');
   localStorage.removeItem('scopello_integrazioni_' + today);
+  localStorage.setItem('scopello_ticket_counter', 0);
   saveIntegrazioni();
   saveIngressi();
   saveExtra();
-  CONFIG.orari.forEach(o => { state.turni[o] = { prenotati: 0 }; });
-  ticketCounter = 0;
-  localStorage.setItem('scopello_ticket_counter', 0);
+
+  pendingSync = []; savePending();
+  pendingDeletes = []; savePendingDeletes();
+  pendingUpdates = []; savePendingUpdates();
+
   const u = document.getElementById('undoBtn'); if (u) u.remove();
   renderCassa(); renderTurniVendita(); updateSummary();
+
+  // 2. Poi cancella dal DB (il realtime troverà localStorage già vuoto)
+  if (isOnline) {
+    await db.from('vendite').delete().eq('data', today);
+    await db.from('ingressi').delete().eq('data', today).catch(() => {});
+    await db.from('rimborsi_giornata').delete().eq('data', today).catch(() => {});
+  } else {
+    localStorage.setItem('scopello_pending_reset', today);
+  }
 }
 
 // ============================================================
