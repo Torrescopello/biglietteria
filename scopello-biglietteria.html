@@ -776,7 +776,7 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); }
     <div class="topbar">
       <div class="topbar-brand">
         <h1>Torre di Scopello</h1>
-        <p>Percorso Storico Naturalistico <span style="font-size:0.5rem;color:var(--muted);">v47</span></p>
+        <p>Percorso Storico Naturalistico <span style="font-size:0.5rem;color:var(--muted);">v48</span></p>
       </div>
       <div class="topbar-right">
         <span class="op-badge" id="syncBadge" style="font-size:0.65rem;">✓ Online</span>
@@ -1436,6 +1436,7 @@ async function loadTodayVendite() {
   document.getElementById('priceBaseDisplay').textContent = '€' + CONFIG.prezzi.base;
   document.getElementById('pricePremiumDisplay').textContent = '€' + CONFIG.prezzi.premium;
   document.getElementById('priceRidottoDisplay').textContent = '€' + CONFIG.prezzi.ridotto;
+  updateCartUI();
   renderTurniVendita();
   updateSummary();
   renderUndoBtn();
@@ -1642,6 +1643,8 @@ async function doSwitchOp() {
     updateOpLabels();
     closeModal('modalSwitchOp');
     resetSellForm();
+    // Ricarica vendite aggiornate dal DB prima di mostrare i conteggi
+    await loadTodayVendite();
     renderUndoBtn();
     if (document.getElementById('tab-cassa').classList.contains('active')) renderCassa();
     if (document.getElementById('tab-storico').classList.contains('active')) renderStorico();
@@ -1920,7 +1923,7 @@ function renderTurniVendita() {
 
 function selectTurno(ora) {
   state.turnoSel = ora;
-  renderTurniVendita(); updateSummary();
+  renderTurniVendita(); updateCartUI(); updateSummary();
 }
 
 function selectPay(tipo) {
