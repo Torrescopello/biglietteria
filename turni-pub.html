@@ -172,12 +172,40 @@ const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 const CAP_MAX = 22; // capienza massima per turno
 
-// Lingue alternate: prima visita IT, poi alternano
-const SLOT_LINGUA = {};
-const ORARI_DEFAULT = ['11:00','11:30','12:00','12:30','13:00','15:00','15:30','16:00','16:30','17:00','17:30','18:00'];
-ORARI_DEFAULT.forEach((ora, idx) => { SLOT_LINGUA[ora] = idx % 2 === 0 ? 'it' : 'en'; });
+let ORARI = ['11:00','11:30','12:00','12:30','13:00','15:00','15:30','16:00','16:30','17:00','17:30','18:00'];
+let PRIMA_LINGUA = 'it';
+
+function generaOrariDaCfg(cfg) {
+  const toMin = s => { const [h,m] = s.split(':').map(Number); return h*60+m; };
+  const toStr = m => `${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`;
+  const start = toMin(cfg.prima), end = toMin(cfg.ultima);
+  const pStart = toMin(cfg.pausaInizio), pEnd = toMin(cfg.pausaFine);
+  const out = [];
+  for (let t = start; t <= end; t += 30) {
+    if (t < pStart || t >= pEnd) out.push(toStr(t));
+  }
+  return out;
+}
+
+function slotLingua(ora) {
+  const idx = ORARI.indexOf(ora);
+  if (idx < 0) return PRIMA_LINGUA;
+  const altro = PRIMA_LINGUA === 'it' ? 'en' : 'it';
+  return idx % 2 === 0 ? PRIMA_LINGUA : altro;
+}
 
 function bandiera(lang) { return lang === 'it' ? '🇮🇹' : '🇬🇧'; }
+
+async function loadConfig() {
+  try {
+    const { data } = await db.from('app_config').select('value').eq('key', 'orari_cfg').maybeSingle();
+    if (data && data.value) {
+      const cfg = typeof data.value === 'string' ? JSON.parse(data.value) : data.value;
+      ORARI = generaOrariDaCfg(cfg);
+      if (cfg.primaLingua === 'it' || cfg.primaLingua === 'en') PRIMA_LINGUA = cfg.primaLingua;
+    }
+  } catch(e) {}
+}
 
 function today() {
   return new Date().toLocaleDateString('it-IT', {year:'numeric',month:'2-digit',day:'2-digit'}).split('/').reverse().join('-');
@@ -200,8 +228,8 @@ async function loadAndRender() {
     turni[v.turno][v.tipo] = (turni[v.turno][v.tipo] || 0) + v.qty;
   });
 
-  // Ordina gli slot: prima i default, poi eventuali extra
-  const oraSet = new Set([...ORARI_DEFAULT, ...Object.keys(turni)]);
+  // Ordina gli slot: prima i configurati, poi eventuali extra con prenotazioni
+  const oraSet = new Set([...ORARI, ...Object.keys(turni)]);
   const oreOrdinate = [...oraSet].sort();
 
   const list = document.getElementById('turniList');
@@ -213,7 +241,7 @@ async function loadAndRender() {
   list.innerHTML = oreOrdinate.map(ora => {
     const dati = turni[ora] || { premium: 0, base: 0, ridotto: 0, nopay: 0 };
     const tot = dati.premium + dati.base + dati.ridotto + dati.nopay;
-    const lang = SLOT_LINGUA[ora] || 'it';
+    const lang = slotLingua(ora);
     const pct = Math.min(100, Math.round(tot / CAP_MAX * 100));
     const fillClass = pct >= 100 ? 'full' : pct >= 80 ? 'warn' : '';
     const cardClass = tot > 0 ? 'has-tickets' : 'empty';
@@ -245,8 +273,8 @@ const oggi = new Date();
 document.getElementById('headerDate').textContent =
   oggi.toLocaleDateString('it-IT', {weekday:'long', day:'numeric', month:'long', year:'numeric'});
 
-// Carica dati all'avvio
-loadAndRender();
+// Carica config orari da Supabase, poi dati
+loadConfig().then(() => loadAndRender());
 
 // Realtime: aggiorna ogni volta che c'è una vendita
 const t = today();
@@ -255,8 +283,8 @@ db.channel('turni-pub')
     () => loadAndRender())
   .subscribe();
 
-// Fallback polling ogni 30s
-setInterval(loadAndRender, 30000);
+// Fallback polling ogni 30s (ricarica anche config per orari aggiornati)
+setInterval(() => loadConfig().then(() => loadAndRender()), 30000);
 </script>
 </body>
 </html>

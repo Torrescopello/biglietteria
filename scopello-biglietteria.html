@@ -814,7 +814,7 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); }
     <div class="topbar">
       <div class="topbar-brand">
         <h1>Torre di Scopello</h1>
-        <p>Percorso Storico Naturalistico <span style="font-size:0.5rem;color:var(--muted);">v65</span></p>
+        <p>Percorso Storico Naturalistico <span style="font-size:0.5rem;color:var(--muted);">v66</span></p>
       </div>
       <div class="topbar-right">
         <span class="op-badge" id="syncBadge" style="font-size:0.65rem;">✓ Online</span>
@@ -3110,6 +3110,17 @@ function changeOrari() {
     }));
   } catch(e) {}
 
+  // Salva orari su Supabase per la pagina pubblica turni
+  if (isOnline) {
+    const orariPayload = { prima, ultima, pausaInizio, pausaFine, primaLingua: CONFIG.primaLingua };
+    db.from('app_config').select('key').eq('key', 'orari_cfg').maybeSingle()
+      .then(({ data }) => {
+        const op = data
+          ? db.from('app_config').update({ value: orariPayload }).eq('key', 'orari_cfg')
+          : db.from('app_config').insert({ key: 'orari_cfg', value: orariPayload });
+        return op;
+      }).catch(() => {});
+  }
   // Sincronizza state.turni con i nuovi orari (preserva conteggi esistenti)
   const oldTurni = state.turni || {};
   state.turni = {};
@@ -3128,6 +3139,17 @@ function setPrimaLingua(lang) {
   if (lang !== 'it' && lang !== 'en') return;
   CONFIG.primaLingua = lang;
   try { localStorage.setItem('scopello_prima_lingua', lang); } catch(e) {}
+  // Aggiorna orari_cfg su Supabase con la nuova lingua
+  if (isOnline) {
+    const orariPayload = { prima: CONFIG.prima, ultima: CONFIG.ultima, pausaInizio: CONFIG.pausaInizio, pausaFine: CONFIG.pausaFine, primaLingua: lang };
+    db.from('app_config').select('key').eq('key', 'orari_cfg').maybeSingle()
+      .then(({ data }) => {
+        const op = data
+          ? db.from('app_config').update({ value: orariPayload }).eq('key', 'orari_cfg')
+          : db.from('app_config').insert({ key: 'orari_cfg', value: orariPayload });
+        return op;
+      }).catch(() => {});
+  }
   updateLinguaButtons();
   refreshOrariPreview();
   renderTurniVendita();
