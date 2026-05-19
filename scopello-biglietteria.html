@@ -775,7 +775,7 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); }
     <div class="topbar">
       <div class="topbar-brand">
         <h1>Torre di Scopello</h1>
-        <p>Percorso Storico Naturalistico <span style="font-size:0.5rem;color:var(--muted);">v51</span></p>
+        <p>Percorso Storico Naturalistico <span style="font-size:0.5rem;color:var(--muted);">v52</span></p>
       </div>
       <div class="topbar-right">
         <span class="op-badge" id="syncBadge" style="font-size:0.65rem;">✓ Online</span>
@@ -1842,9 +1842,9 @@ function updateCartUI() {
   const labels = { base:'Base', premium:'Premium', ridotto:'Ridotto', nopay:'Non pagante' };
 
   // Badge sulle card — posti rimasti = cap + extra - venduti (ridotto+nopay contano come base)
-  const rimPrem = CONFIG.capPremium + state.extraPosti.premium - venditeNettePerTipo('premium');
-  const rimBase = CONFIG.capBase + state.extraPosti.base
-    - venditeNettePerTipo('base') - venditeNettePerTipo('ridotto') - venditeNettePerTipo('nopay');
+  const rimPrem = Math.max(0, CONFIG.capPremium + state.extraPosti.premium - venditeNettePerTipo('premium'));
+  const rimBase = Math.max(0, CONFIG.capBase + state.extraPosti.base
+    - venditeNettePerTipo('base') - venditeNettePerTipo('ridotto') - venditeNettePerTipo('nopay'));
   types.forEach(t => {
     const badge = document.getElementById('badge' + t.charAt(0).toUpperCase() + t.slice(1));
     const qty = cart[t] || 0;
