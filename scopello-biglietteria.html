@@ -775,7 +775,7 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); }
     <div class="topbar">
       <div class="topbar-brand">
         <h1>Torre di Scopello</h1>
-        <p>Percorso Storico Naturalistico <span style="font-size:0.5rem;color:var(--muted);">v55</span></p>
+        <p>Percorso Storico Naturalistico <span style="font-size:0.5rem;color:var(--muted);">v56</span></p>
       </div>
       <div class="topbar-right">
         <span class="op-badge" id="syncBadge" style="font-size:0.65rem;">✓ Online</span>
@@ -946,6 +946,28 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); }
             <span class="s-val" id="capBaseSet">105</span>
             <button class="s-btn" onclick="changeCapBase(+1)">+</button>
           </div>
+        </div>
+        <div class="settings-row-item" style="flex-direction:column;align-items:stretch;gap:8px;">
+          <span class="settings-row-label">🕒 Orari visite (slot da 30 min)</span>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+            <div>
+              <div style="font-size:0.66rem;color:var(--muted);margin-bottom:3px;font-weight:600;">Prima visita</div>
+              <select class="name-input" id="oraPrima" onchange="changeOrari()" style="width:100%;"></select>
+            </div>
+            <div>
+              <div style="font-size:0.66rem;color:var(--muted);margin-bottom:3px;font-weight:600;">Ultima visita</div>
+              <select class="name-input" id="oraUltima" onchange="changeOrari()" style="width:100%;"></select>
+            </div>
+            <div>
+              <div style="font-size:0.66rem;color:var(--muted);margin-bottom:3px;font-weight:600;">Inizio pausa</div>
+              <select class="name-input" id="oraPausaInizio" onchange="changeOrari()" style="width:100%;"></select>
+            </div>
+            <div>
+              <div style="font-size:0.66rem;color:var(--muted);margin-bottom:3px;font-weight:600;">Fine pausa</div>
+              <select class="name-input" id="oraPausaFine" onchange="changeOrari()" style="width:100%;"></select>
+            </div>
+          </div>
+          <div id="orariPreview" style="font-size:0.72rem;color:var(--text2);background:var(--s1);padding:7px 9px;border-radius:8px;line-height:1.5;"></div>
         </div>
         <div class="settings-row-item">
           <span class="settings-row-label">Nome Cassa 1</span>
@@ -1451,9 +1473,28 @@ const CONFIG = {
   capMax: 22,
   capPremium: 30,
   capBase: 105,
-  orari: ['11:00','11:30','12:00','12:30','13:00','13:30','14:00','14:30','15:00','15:30','16:00','16:30','17:00','17:30','18:00'],
+  prima: '11:00',
+  pausaInizio: '13:30',
+  pausaFine: '15:00',
+  ultima: '18:00',
+  orari: ['11:00','11:30','12:00','12:30','13:00','15:00','15:30','16:00','16:30','17:00','17:30','18:00'],
   nomiCasse: { op1: 'Cassa 1', op2: 'Cassa 2' }
 };
+
+// Genera gli slot di 30 minuti da `prima` a `ultima`, saltando la pausa
+function generaOrari() {
+  const toMin = s => { const [h,m] = s.split(':').map(Number); return h*60 + m; };
+  const toStr = m => `${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`;
+  const start = toMin(CONFIG.prima);
+  const end = toMin(CONFIG.ultima);
+  const pStart = toMin(CONFIG.pausaInizio);
+  const pEnd = toMin(CONFIG.pausaFine);
+  const out = [];
+  for (let t = start; t <= end; t += 30) {
+    if (t < pStart || t >= pEnd) out.push(toStr(t));
+  }
+  return out;
+}
 
 // Ripristina impostazioni salvate
 (function loadSavedConfig() {
@@ -1470,6 +1511,15 @@ const CONFIG = {
     if (!isNaN(capP) && capP > 0) CONFIG.capPremium = capP;
     const capB = parseInt(localStorage.getItem('scopello_capbase'));
     if (!isNaN(capB) && capB > 0) CONFIG.capBase = capB;
+    // Orari visite
+    const orariSaved = JSON.parse(localStorage.getItem('scopello_orari_cfg') || 'null');
+    if (orariSaved && orariSaved.prima && orariSaved.ultima && orariSaved.pausaInizio && orariSaved.pausaFine) {
+      CONFIG.prima = orariSaved.prima;
+      CONFIG.ultima = orariSaved.ultima;
+      CONFIG.pausaInizio = orariSaved.pausaInizio;
+      CONFIG.pausaFine = orariSaved.pausaFine;
+      CONFIG.orari = generaOrari();
+    }
     // Aggiorna bottoni login con nomi salvati
     document.getElementById('opBtn1').textContent = CONFIG.nomiCasse.op1;
     document.getElementById('opBtn2').textContent = CONFIG.nomiCasse.op2;
@@ -2674,6 +2724,7 @@ function renderCassa() {
     document.getElementById('pwLabel1').textContent = 'Password ' + CONFIG.nomiCasse.op1;
     document.getElementById('pwLabel2').textContent = 'Password ' + CONFIG.nomiCasse.op2;
     document.getElementById('ticketStartSet').value = ticketCounter + 1 > 100 ? 1 : ticketCounter + 1;
+    popolaSelectOrari();
   }
 }
 
@@ -2723,6 +2774,86 @@ function changeCapBase(d) {
   const el = document.getElementById('capBaseSet');
   if (el) el.textContent = CONFIG.capBase;
   renderIngresso();
+}
+
+// Popola i select degli orari con tutti gli slot 30 min in una giornata
+function popolaSelectOrari() {
+  const all = [];
+  for (let h = 7; h <= 23; h++) {
+    for (let m = 0; m < 60; m += 30) {
+      all.push(`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`);
+    }
+  }
+  const ids = [
+    ['oraPrima', CONFIG.prima],
+    ['oraUltima', CONFIG.ultima],
+    ['oraPausaInizio', CONFIG.pausaInizio],
+    ['oraPausaFine', CONFIG.pausaFine]
+  ];
+  ids.forEach(([id, val]) => {
+    const sel = document.getElementById(id);
+    if (!sel) return;
+    sel.innerHTML = all.map(t => `<option value="${t}"${t===val?' selected':''}>${t}</option>`).join('');
+  });
+  refreshOrariPreview();
+}
+
+function refreshOrariPreview() {
+  const prev = document.getElementById('orariPreview');
+  if (!prev) return;
+  const slots = generaOrari();
+  if (slots.length === 0) {
+    prev.innerHTML = '<span style="color:var(--red)">⚠ Nessun turno generato — controlla orari</span>';
+  } else {
+    prev.innerHTML = `<strong>${slots.length} turni:</strong> ${slots.join(' · ')}`;
+  }
+}
+
+function changeOrari() {
+  const prima = document.getElementById('oraPrima').value;
+  const ultima = document.getElementById('oraUltima').value;
+  const pausaInizio = document.getElementById('oraPausaInizio').value;
+  const pausaFine = document.getElementById('oraPausaFine').value;
+
+  const toMin = s => { const [h,m] = s.split(':').map(Number); return h*60 + m; };
+  // Validazioni base
+  if (toMin(prima) >= toMin(ultima)) {
+    showErrorToast('Prima visita deve essere prima dell\'ultima');
+    refreshOrariPreview(); return;
+  }
+  if (toMin(pausaInizio) >= toMin(pausaFine)) {
+    showErrorToast('Pausa: l\'inizio deve essere prima della fine');
+    refreshOrariPreview(); return;
+  }
+  if (toMin(pausaInizio) <= toMin(prima) || toMin(pausaFine) > toMin(ultima)) {
+    showErrorToast('La pausa deve essere dentro l\'orario di apertura');
+    refreshOrariPreview(); return;
+  }
+
+  CONFIG.prima = prima;
+  CONFIG.ultima = ultima;
+  CONFIG.pausaInizio = pausaInizio;
+  CONFIG.pausaFine = pausaFine;
+  CONFIG.orari = generaOrari();
+
+  try {
+    localStorage.setItem('scopello_orari_cfg', JSON.stringify({
+      prima, ultima, pausaInizio, pausaFine
+    }));
+  } catch(e) {}
+
+  // Sincronizza state.turni con i nuovi orari (preserva conteggi esistenti)
+  const oldTurni = state.turni || {};
+  state.turni = {};
+  CONFIG.orari.forEach(o => { state.turni[o] = oldTurni[o] || { prenotati: 0 }; });
+
+  refreshOrariPreview();
+  showInfoToast('✓ Orari aggiornati: ' + CONFIG.orari.length + ' turni');
+
+  // Aggiorna UI ovunque possa servire
+  renderTurniVendita();
+  if (document.getElementById('tab-turni').classList.contains('active')) renderTurni();
+  if (document.getElementById('tab-ingresso').classList.contains('active')) renderIngresso();
 }
 
 function venditeNettePerTipo(tipo) {
