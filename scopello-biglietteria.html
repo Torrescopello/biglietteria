@@ -776,7 +776,7 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); }
     <div class="topbar">
       <div class="topbar-brand">
         <h1>Torre di Scopello</h1>
-        <p>Percorso Storico Naturalistico <span style="font-size:0.5rem;color:var(--muted);">v48</span></p>
+        <p>Percorso Storico Naturalistico <span style="font-size:0.5rem;color:var(--muted);">v49</span></p>
       </div>
       <div class="topbar-right">
         <span class="op-badge" id="syncBadge" style="font-size:0.65rem;">✓ Online</span>
@@ -1794,20 +1794,20 @@ function addToCart(tipo) {
     const liberi = CONFIG.capMax - state.turni[state.turnoSel].prenotati;
     if (cartTotalQty() >= liberi) { showErrorToast(`Turno ${state.turnoSel}: solo ${liberi} posti disponibili.`); return; }
   }
-  // Controllo limite giornaliero lettini
+  // Controllo limite giornaliero lettini (cap + extra)
   if (tipo === 'premium') {
     const netti = venditeNettePerTipo('premium');
     const inCarrello = cart['premium'] || 0;
-    if (netti + inCarrello >= CONFIG.capPremium) {
-      showErrorToast(`Lettini esauriti — max ${CONFIG.capPremium} al giorno`); return;
+    if (netti + inCarrello >= CONFIG.capPremium + state.extraPosti.premium) {
+      showErrorToast(`Lettini esauriti — max ${CONFIG.capPremium + state.extraPosti.premium} al giorno`); return;
     }
   }
-  // Controllo limite giornaliero base (include ridotto e nopay)
+  // Controllo limite giornaliero base (include ridotto e nopay, cap + extra)
   if (tipo === 'base' || tipo === 'ridotto' || tipo === 'nopay') {
     const netti = venditeNettePerTipo('base') + venditeNettePerTipo('ridotto') + venditeNettePerTipo('nopay');
     const inCarrello = (cart['base'] || 0) + (cart['ridotto'] || 0) + (cart['nopay'] || 0);
-    if (netti + inCarrello >= CONFIG.capBase) {
-      showErrorToast(`Posti esauriti — max ${CONFIG.capBase} al giorno`); return;
+    if (netti + inCarrello >= CONFIG.capBase + state.extraPosti.base) {
+      showErrorToast(`Posti esauriti — max ${CONFIG.capBase + state.extraPosti.base} al giorno`); return;
     }
   }
   cart[tipo] = (cart[tipo] || 0) + 1;
