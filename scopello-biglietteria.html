@@ -814,7 +814,7 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); }
     <div class="topbar">
       <div class="topbar-brand">
         <h1>Torre di Scopello</h1>
-        <p>Percorso Storico Naturalistico <span style="font-size:0.5rem;color:var(--muted);">v63</span></p>
+        <p>Percorso Storico Naturalistico <span style="font-size:0.5rem;color:var(--muted);">v64</span></p>
       </div>
       <div class="topbar-right">
         <span class="op-badge" id="syncBadge" style="font-size:0.65rem;">✓ Online</span>
@@ -2574,15 +2574,23 @@ function eseguiUpgrade() {
 
   closeModal('modalUpgrade');
   updateCartUI();
+  checkCapAlert();
   if (document.getElementById('tab-storico').classList.contains('active')) renderStorico();
   if (document.getElementById('tab-cassa').classList.contains('active')) renderCassa();
+  if (document.getElementById('tab-ingresso').classList.contains('active')) renderIngresso();
 
-  // Sync tipo a Supabase
+  // Sync tipo a Supabase (scatta realtime sugli altri dispositivi → updateCartUI)
   const today = new Date().toLocaleDateString('it-IT',{year:'numeric',month:'2-digit',day:'2-digit'}).split('/').reverse().join('-');
   if (isOnline) {
-    db.from('vendite').update({ tipo: 'premium' })
-      .eq('ticket_num', upgradeTicketNum).eq('tipo', 'base').eq('data', today)
-      .catch(() => {});
+    const baseDbIds = baseRighe.filter(v => v.dbId).map(v => v.dbId);
+    if (baseDbIds.length) {
+      db.from('vendite').update({ tipo: 'premium' })
+        .in('id', baseDbIds).eq('data', today)
+        .catch(() => {
+          baseDbIds.forEach(dbId => pendingUpdates.push({ dbId, tipo: 'premium' }));
+          savePendingUpdates(); updateSyncBadge();
+        });
+    }
   }
 
   showErrorToast('⬆ Ticket ' + upgradeTicketNum + ' upgradato a Premium');
