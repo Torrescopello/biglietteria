@@ -600,6 +600,44 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); }
 .rb-posplus { background: var(--gold-bg); color: var(--gold); }
 .rb-no   { background: var(--s1); color: var(--muted); }
 
+/* ===== UPGRADE BASE→PREMIUM ===== */
+.btn-upgrade {
+  font-size: 0.7rem; font-weight: 700; color: var(--gold); background: var(--gold-bg);
+  border: 1.5px solid var(--gold-border); border-radius: 6px; padding: 3px 8px; cursor: pointer;
+  font-family: var(--fu); transition: all 0.12s;
+}
+.btn-upgrade:active { background: var(--gold); color: #fff; }
+.badge-upgraded {
+  font-size: 0.62rem; font-weight: 700; color: var(--gold); background: var(--gold-bg);
+  border: 1.5px solid var(--gold-border); border-radius: 6px; padding: 2px 7px; display: inline-block;
+}
+.upgrade-pay-btn {
+  flex: 1; padding: 12px 6px; border-radius: 10px; border: 2px solid var(--border);
+  background: var(--bg); font-family: var(--fu); font-size: 0.78rem; font-weight: 700;
+  cursor: pointer; text-align: center; transition: all 0.15s; color: var(--text2);
+}
+.upgrade-pay-btn.selected { background: var(--gold-bg); border-color: var(--gold-border); color: var(--gold); }
+
+/* Integrazioni in Cassa */
+.integrazioni-section {
+  background: var(--white); border: 2px solid var(--gold-border); border-radius: 14px;
+  padding: 14px 16px; margin-bottom: 10px;
+}
+.integrazioni-header {
+  display: flex; justify-content: space-between; align-items: center;
+  cursor: pointer; padding: 4px 0; user-select: none;
+}
+.integrazioni-toggle-info { font-size: 0.78rem; color: var(--gold); font-weight: 600; }
+.integrazioni-detail { margin-top: 10px; }
+.integrazione-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 7px 0; border-bottom: 1px solid var(--s1); font-size: 0.82rem;
+}
+.integrazione-row:last-child { border-bottom: none; }
+.integrazione-ticket { font-family: var(--fd); color: var(--gold); font-weight: 700; min-width: 52px; }
+.integrazione-desc { color: var(--text2); font-weight: 600; flex: 1; padding: 0 8px; font-size: 0.78rem; }
+.integrazione-amount { font-family: var(--fd); color: var(--gold); font-size: 0.95rem; display: block; text-align: right; }
+
 /* Totale netto in cassa */
 .cc-netto { border-color: var(--green); border-width: 3px; }
 .cc-netto .cc-val { color: var(--green); }
@@ -776,7 +814,7 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); }
     <div class="topbar">
       <div class="topbar-brand">
         <h1>Torre di Scopello</h1>
-        <p>Percorso Storico Naturalistico <span style="font-size:0.5rem;color:var(--muted);">v57</span></p>
+        <p>Percorso Storico Naturalistico <span style="font-size:0.5rem;color:var(--muted);">v58</span></p>
       </div>
       <div class="topbar-right">
         <span class="op-badge" id="syncBadge" style="font-size:0.65rem;">✓ Online</span>
@@ -895,6 +933,7 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); }
 
     <div class="sec-label" style="margin-bottom:10px;">Resoconto operatori</div>
     <div id="opResoconti"></div>
+    <div id="integrazioniSection" style="display:none;"></div>
     <div id="rimborsiSection" style="display:none;"></div>
 
     <div id="settingsSection" style="display:none;">
@@ -1190,6 +1229,24 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); }
 </div>
 
 <!-- MODAL RIMBORSO -->
+<div class="modal-overlay" id="modalUpgrade">
+  <div class="modal">
+    <h2>⬆ Upgrade Base → Premium</h2>
+    <p id="modalUpgradeText"></p>
+    <div class="sec-label" style="margin-top:12px;margin-bottom:6px;">Come paga la differenza?</div>
+    <div class="rimborso-pay-row">
+      <button class="upgrade-pay-btn" id="upCash"    onclick="selUpgradePay('cash')">💵 Contanti</button>
+      <button class="upgrade-pay-btn" id="upPos"     onclick="selUpgradePay('pos')">💳 POS</button>
+      <button class="upgrade-pay-btn" id="upPosPlus" onclick="selUpgradePay('posplus')">💳 POS+</button>
+    </div>
+    <div class="modal-btns">
+      <button class="btn-m btn-m-cancel" onclick="closeModal('modalUpgrade')">Annulla</button>
+      <button class="btn-m btn-m-ok" id="btnConfermaUpgrade" onclick="eseguiUpgrade()" disabled
+        style="background:var(--gold);border-color:var(--gold);">⬆ Conferma upgrade</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="modalRimborso">
   <div class="modal">
     <h2>Annulla ticket</h2>
@@ -1413,10 +1470,12 @@ async function loadTodayVendite() {
   const { data, error } = await db.from('vendite').select('*').eq('data', today).order('created_at', { ascending: true });
   if (error || !data) return;
 
-  // Ricarica extraPosti dal localStorage (possono essere stati aggiornati da addExtra)
+  // Ricarica extraPosti e integrazioni dal localStorage
   try {
     const extra = JSON.parse(localStorage.getItem('scopello_extra_' + today) || 'null');
     if (extra) state.extraPosti = extra;
+    const integ = JSON.parse(localStorage.getItem('scopello_integrazioni_' + today) || '[]');
+    if (Array.isArray(integ)) state.integrazioni = integ;
   } catch(e) {}
 
   // Azzera sempre prima di ricaricare — evita duplicati
@@ -1556,6 +1615,11 @@ function saveExtra() {
   try { localStorage.setItem(extraKey, JSON.stringify(state.extraPosti)); } catch(e) {}
 }
 
+function saveIntegrazioni() {
+  const key = 'scopello_integrazioni_' + new Date().toLocaleDateString('it-IT',{year:'numeric',month:'2-digit',day:'2-digit'}).split('/').reverse().join('-');
+  try { localStorage.setItem(key, JSON.stringify(state.integrazioni)); } catch(e) {}
+}
+
 async function loadPasswordsFromDB() {
   const t = ms => new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), ms));
   let data, error;
@@ -1600,13 +1664,14 @@ let state = {
   vendite: [], turni: {},
   note: { op1: [], op2: [] },
   rimborsi: [],
+  integrazioni: [],
   ingressi: {},
   extraPosti: { premium: 0, base: 0 }
 };
 let cart = {};
 CONFIG.orari.forEach(o => { state.turni[o] = { prenotati: 0 }; });
 
-// Carica ingressi ed extra del giorno (deve girare dopo la dichiarazione di state)
+// Carica ingressi, extra e integrazioni del giorno (deve girare dopo la dichiarazione di state)
 (function loadDailyState() {
   try {
     const today = new Date().toLocaleDateString('it-IT',{year:'numeric',month:'2-digit',day:'2-digit'}).split('/').reverse().join('-');
@@ -1614,6 +1679,8 @@ CONFIG.orari.forEach(o => { state.turni[o] = { prenotati: 0 }; });
     if (ingr) state.ingressi = ingr;
     const extra = JSON.parse(localStorage.getItem('scopello_extra_' + today) || 'null');
     if (extra) state.extraPosti = extra;
+    const integ = JSON.parse(localStorage.getItem('scopello_integrazioni_' + today) || '[]');
+    if (Array.isArray(integ)) state.integrazioni = integ;
   } catch(e) {}
 })();
 
@@ -2245,7 +2312,7 @@ function toggleTurnoDetail(id) {
 // ============================================================
 function renderStorico() {
   const list = document.getElementById('storicoList');
-  const vendite = state.isDir ? [...state.vendite] : state.vendite.filter(v => v.operatore === state.operatore);
+  const vendite = [...state.vendite];
   if (!vendite.length) { list.innerHTML = '<div class="storico-empty">Nessuna vendita registrata</div>'; return; }
 
   // Raggruppa per ticketNum
@@ -2274,6 +2341,12 @@ function renderStorico() {
       ? `<button class="btn-sposta" onclick="apriCambiaPagamento('${tNum}')">💳 Pagamento</button>` : '';
     const spostaBtn = `<button class="btn-sposta" onclick="apriSposta('${tNum}')">↔ Sposta</button>`;
 
+    const hasBase = righe.some(v => v.tipo === 'base');
+    const giàUpgradato = state.integrazioni.some(i => i.ticketNum === tNum);
+    const upgradeBtn = hasBase && !giàUpgradato
+      ? `<button class="btn-upgrade" onclick="apriUpgrade('${tNum}')">⬆ Upgrade</button>`
+      : giàUpgradato ? `<span class="badge-upgraded">⬆ Upgradato</span>` : '';
+
     return `<div class="storico-group">
       <div class="sg-header">
         <span class="sg-ticket">${tNum}</span>
@@ -2285,6 +2358,7 @@ function renderStorico() {
         <span class="sg-total">€ ${totale.toFixed(2).replace('.',',')}</span>
         <div class="sg-actions">
           <span class="sg-pay ${payClass}">${pLabel}</span>
+          ${upgradeBtn}
           ${cambiaPagBtn}
           ${spostaBtn}
           ${annullaBtn}
@@ -2438,6 +2512,79 @@ function eseguiCambiaPagamento() {
 }
 
 // ============================================================
+// UPGRADE BASE → PREMIUM
+// ============================================================
+let upgradeTicketNum = null;
+let upgradePaySel = null;
+
+function apriUpgrade(ticketNum) {
+  const baseRighe = state.vendite.filter(v => v.ticketNum === ticketNum && v.tipo === 'base');
+  if (!baseRighe.length) return;
+  upgradeTicketNum = ticketNum;
+  upgradePaySel = null;
+  ['upCash','upPos','upPosPlus'].forEach(id => document.getElementById(id).classList.remove('selected'));
+  document.getElementById('btnConfermaUpgrade').disabled = true;
+  const qtyTot = baseRighe.reduce((a,v) => a + v.qty, 0);
+  const diff = (CONFIG.prezzi.premium - CONFIG.prezzi.base);
+  const totDiff = diff * qtyTot;
+  document.getElementById('modalUpgradeText').innerHTML =
+    `Ticket <strong>${ticketNum}</strong> — ${qtyTot} bigliett${qtyTot>1?'i':'o'} Base → Premium<br>
+     Differenza: € ${diff.toFixed(2).replace('.',',')} × ${qtyTot} = <strong style="color:var(--gold)">€ ${totDiff.toFixed(2).replace('.',',')}</strong> da incassare`;
+  document.getElementById('modalUpgrade').classList.add('visible');
+}
+
+function selUpgradePay(tipo) {
+  upgradePaySel = tipo;
+  ['upCash','upPos','upPosPlus'].forEach(id => document.getElementById(id).classList.remove('selected'));
+  const map = { cash:'upCash', pos:'upPos', posplus:'upPosPlus' };
+  document.getElementById(map[tipo]).classList.add('selected');
+  document.getElementById('btnConfermaUpgrade').disabled = false;
+}
+
+function eseguiUpgrade() {
+  if (!upgradeTicketNum || !upgradePaySel) return;
+  const btn = document.getElementById('btnConfermaUpgrade');
+  if (btn) btn.disabled = true;
+
+  const baseRighe = state.vendite.filter(v => v.ticketNum === upgradeTicketNum && v.tipo === 'base');
+  if (!baseRighe.length) { closeModal('modalUpgrade'); return; }
+  const qtyTot = baseRighe.reduce((a,v) => a + v.qty, 0);
+  const diff = CONFIG.prezzi.premium - CONFIG.prezzi.base;
+
+  // Cambia tipo in state
+  baseRighe.forEach(v => { v.tipo = 'premium'; });
+
+  // Registra integrazione
+  if (!Array.isArray(state.integrazioni)) state.integrazioni = [];
+  state.integrazioni.push({
+    ticketNum: upgradeTicketNum,
+    qty: qtyTot,
+    prezzoBase: CONFIG.prezzi.base,
+    prezzoPremium: CONFIG.prezzi.premium,
+    diff: diff * qtyTot,
+    pagamento: upgradePaySel,
+    ora: new Date().toLocaleTimeString('it-IT', {hour:'2-digit', minute:'2-digit'}),
+    operatore: state.operatore
+  });
+  saveIntegrazioni();
+
+  closeModal('modalUpgrade');
+  updateCartUI();
+  if (document.getElementById('tab-storico').classList.contains('active')) renderStorico();
+  if (document.getElementById('tab-cassa').classList.contains('active')) renderCassa();
+
+  // Sync tipo a Supabase
+  const today = new Date().toLocaleDateString('it-IT',{year:'numeric',month:'2-digit',day:'2-digit'}).split('/').reverse().join('-');
+  if (isOnline) {
+    db.from('vendite').update({ tipo: 'premium' })
+      .eq('ticket_num', upgradeTicketNum).eq('tipo', 'base').eq('data', today)
+      .catch(() => {});
+  }
+
+  showErrorToast('⬆ Ticket ' + upgradeTicketNum + ' upgradato a Premium');
+}
+
+// ============================================================
 // SPOSTA TURNO
 // ============================================================
 let spostaTicketNum = null;
@@ -2577,11 +2724,9 @@ function renderCassa() {
   }
 
   const rimborsi = Array.isArray(state.rimborsi) ? state.rimborsi : [];
+  const integrazioni = Array.isArray(state.integrazioni) ? state.integrazioni : [];
 
-  // Totali: vendite attive + reintegro dei ticket annullati nel loro metodo originale
-  // - se rimborsato: il valore torna nel metodo originale, poi esce dal metodo rimborso
-  // - se non rimborsato: il valore rimane nel metodo originale (i soldi non sono usciti)
-  // Formula: totale = vendite_attive[metodo] + annullati_pagati_con[metodo] - rimborsati_con[metodo]
+  // Totali: vendite attive + reintegro annullati - rimborsi + integrazioni upgrade
   const vendCash    = state.vendite.filter(v=>v.pagamento==='cash').reduce((a,v)=>a+v.totale,0);
   const vendPos     = state.vendite.filter(v=>v.pagamento==='pos').reduce((a,v)=>a+v.totale,0);
   const vendPosPlus = state.vendite.filter(v=>v.pagamento==='posplus').reduce((a,v)=>a+v.totale,0);
@@ -2596,19 +2741,26 @@ function renderCassa() {
   const rimbPos     = rimborsi.filter(r=>r.rimborsoCon==='pos').reduce((a,r)=>a+r.totale,0);
   const rimbPosPlus = rimborsi.filter(r=>r.rimborsoCon==='posplus').reduce((a,r)=>a+r.totale,0);
 
-  const totCash    = vendCash + reintCash - rimbCash;
-  const totPos     = vendPos  + reintPos  - rimbPos;
-  const totPosPlus = vendPosPlus + reintPosPlus - rimbPosPlus;
+  // Integrazioni: extra incassato per upgrade base→premium
+  const integCash    = integrazioni.filter(i=>i.pagamento==='cash').reduce((a,i)=>a+i.diff,0);
+  const integPos     = integrazioni.filter(i=>i.pagamento==='pos').reduce((a,i)=>a+i.diff,0);
+  const integPosPlus = integrazioni.filter(i=>i.pagamento==='posplus').reduce((a,i)=>a+i.diff,0);
+
+  const totCash    = vendCash + reintCash - rimbCash + integCash;
+  const totPos     = vendPos  + reintPos  - rimbPos  + integPos;
+  const totPosPlus = vendPosPlus + reintPosPlus - rimbPosPlus + integPosPlus;
   const totAll     = totCash + totPos + totPosPlus;
   const totVisit = venditeNettePerTipo('base') + venditeNettePerTipo('premium')
     + venditeNettePerTipo('ridotto') + venditeNettePerTipo('nopay');
   const hasRimborsi = rimborsi.length > 0;
+  const totInteg = integCash + integPos + integPosPlus;
 
   const myVendite = state.vendite.filter(v=>v.operatore===state.operatore);
   const myCash    = myVendite.filter(v=>v.pagamento==='cash').reduce((a,v)=>a+v.totale,0);
   const myPos     = myVendite.filter(v=>v.pagamento==='pos').reduce((a,v)=>a+v.totale,0);
   const myPosPlus = myVendite.filter(v=>v.pagamento==='posplus').reduce((a,v)=>a+v.totale,0);
-  const myTot     = myCash + myPos + myPosPlus;
+  const myInteg   = integrazioni.filter(i=>i.operatore===state.operatore).reduce((a,i)=>a+i.diff,0);
+  const myTot     = myCash + myPos + myPosPlus + myInteg;
 
   const cassaGrid = document.getElementById('cassaGrid');
   if (isDir) {
@@ -2631,14 +2783,14 @@ function renderCassa() {
       <div class="cassa-card cc-total" style="grid-column:1/-1">
         <div class="cc-label">Totale Giornata</div>
         <div class="cc-val">€ ${totAll.toFixed(2).replace('.',',')}</div>
-        <div class="cc-sub">${totVisit} visitatori${hasRimborsi ? ` · ${rimborsi.length} ticket annullati` : ''}</div>
+        <div class="cc-sub">${totVisit} visitatori${hasRimborsi ? ` · ${rimborsi.length} ticket annullati` : ''}${integrazioni.length>0?` · ${integrazioni.length} upgrade`:''}</div>
       </div>`;
   } else {
     cassaGrid.innerHTML = `
       <div class="cassa-card cc-cash"><div class="cc-label">Contanti</div><div class="cc-val">€ ${myCash.toFixed(2).replace('.',',')}</div></div>
       <div class="cassa-card cc-pos"><div class="cc-label">POS</div><div class="cc-val">€ ${myPos.toFixed(2).replace('.',',')}</div></div>
       <div class="cassa-card cc-posplus"><div class="cc-label">POS+</div><div class="cc-val">€ ${myPosPlus.toFixed(2).replace('.',',')}</div></div>
-      <div class="cassa-card cc-total" style="grid-column:1/-1"><div class="cc-label">Mio totale</div><div class="cc-val">€ ${myTot.toFixed(2).replace('.',',')}</div><div class="cc-sub">${myVendite.reduce((a,v)=>a+v.qty,0)} biglietti venduti</div></div>`;
+      <div class="cassa-card cc-total" style="grid-column:1/-1"><div class="cc-label">Mio totale</div><div class="cc-val">€ ${myTot.toFixed(2).replace('.',',')}</div><div class="cc-sub">${myVendite.reduce((a,v)=>a+v.qty,0)} biglietti${myInteg>0?` + € ${myInteg.toFixed(2).replace('.',',')} integr.`:''}</div></div>`;
   }
 
   const opRes = document.getElementById('opResoconti');
@@ -2732,6 +2884,36 @@ function renderCassa() {
     </div>`;
   } else {
     rimborsiSection.style.display = 'none';
+  }
+
+  // Sezione integrazioni (visibile a tutti se ci sono upgrade)
+  const integrazioniSection = document.getElementById('integrazioniSection');
+  if (integrazioni.length > 0) {
+    const righeIntegHtml = integrazioni.map(i => {
+      const opLbl = i.operatore === 'dir' ? 'Dir' : CONFIG.nomiCasse[i.operatore] || i.operatore;
+      const payLbl = payLabel(i.pagamento);
+      const payClass = i.pagamento === 'cash' ? 'cash' : i.pagamento === 'pos' ? 'pos' : 'posplus';
+      return `<div class="integrazione-row">
+        <span class="integrazione-ticket">${i.ticketNum}</span>
+        <div class="integrazione-desc">${i.qty}× Base→Premium · ${opLbl} · ${i.ora}</div>
+        <div>
+          <span class="integrazione-amount">+ € ${i.diff.toFixed(2).replace('.',',')}</span>
+          <span class="rimborso-badge rb-${payClass}">${payLbl}</span>
+        </div>
+      </div>`;
+    }).join('');
+    integrazioniSection.style.display = 'block';
+    integrazioniSection.innerHTML = `<div class="integrazioni-section">
+      <div class="integrazioni-header" onclick="toggleIntegrazioniDetail()">
+        <span class="sec-label" style="margin:0;">⬆ Upgrade Premium (${integrazioni.length})</span>
+        <span class="integrazioni-toggle-info">+ € ${totInteg.toFixed(2).replace('.',',')} incassati <span id="integrazioniChevron">▼</span></span>
+      </div>
+      <div class="integrazioni-detail" id="integrazioniDetail" style="display:none;">
+        ${righeIntegHtml}
+      </div>
+    </div>`;
+  } else {
+    integrazioniSection.style.display = 'none';
   }
 
   document.getElementById('settingsSection').style.display = isDir ? 'block' : 'none';
@@ -2998,9 +3180,11 @@ async function resetDay() {
   // Azzera stato locale
   state.vendite = [];
   state.rimborsi = [];
+  state.integrazioni = [];
   state.ingressi = {};
   state.extraPosti = { premium: 0, base: 0 };
   localStorage.removeItem('scopello_rimborsi');
+  saveIntegrazioni();
   saveIngressi();
   saveExtra();
   CONFIG.orari.forEach(o => { state.turni[o] = { prenotati: 0 }; });
@@ -3235,6 +3419,15 @@ document.addEventListener('keydown', e => {
 function toggleRimborsiDetail() {
   const detail = document.getElementById('rimborsiDetail');
   const chevron = document.getElementById('rimborsiChevron');
+  if (!detail) return;
+  const open = detail.style.display !== 'none';
+  detail.style.display = open ? 'none' : 'block';
+  if (chevron) chevron.textContent = open ? '▼' : '▲';
+}
+
+function toggleIntegrazioniDetail() {
+  const detail = document.getElementById('integrazioniDetail');
+  const chevron = document.getElementById('integrazioniChevron');
   if (!detail) return;
   const open = detail.style.display !== 'none';
   detail.style.display = open ? 'none' : 'block';
