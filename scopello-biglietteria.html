@@ -814,7 +814,7 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); }
     <div class="topbar">
       <div class="topbar-brand">
         <h1>Torre di Scopello</h1>
-        <p>Percorso Storico Naturalistico <span style="font-size:0.5rem;color:var(--muted);">v66</span></p>
+        <p>Percorso Storico Naturalistico <span style="font-size:0.5rem;color:var(--muted);">v67</span></p>
       </div>
       <div class="topbar-right">
         <span class="op-badge" id="syncBadge" style="font-size:0.65rem;">✓ Online</span>
@@ -3058,6 +3058,18 @@ function popolaSelectOrari() {
     sel.innerHTML = all.map(t => `<option value="${t}"${t===val?' selected':''}>${t}</option>`).join('');
   });
   refreshOrariPreview();
+
+  // Sincronizza config corrente su Supabase (primo avvio o dopo aggiornamento app)
+  if (isOnline) {
+    const payload = { prima: CONFIG.prima, ultima: CONFIG.ultima, pausaInizio: CONFIG.pausaInizio, pausaFine: CONFIG.pausaFine, primaLingua: CONFIG.primaLingua };
+    db.from('app_config').select('key').eq('key','orari_cfg').maybeSingle()
+      .then(({ data }) => {
+        const op = data
+          ? db.from('app_config').update({ value: payload }).eq('key','orari_cfg')
+          : db.from('app_config').insert({ key:'orari_cfg', value: payload });
+        return op;
+      }).catch(()=>{});
+  }
 }
 
 function refreshOrariPreview() {
