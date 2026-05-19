@@ -775,7 +775,7 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); }
     <div class="topbar">
       <div class="topbar-brand">
         <h1>Torre di Scopello</h1>
-        <p>Percorso Storico Naturalistico <span style="font-size:0.5rem;color:var(--muted);">v53</span></p>
+        <p>Percorso Storico Naturalistico <span style="font-size:0.5rem;color:var(--muted);">v54</span></p>
       </div>
       <div class="topbar-right">
         <span class="op-badge" id="syncBadge" style="font-size:0.65rem;">✓ Online</span>
@@ -1383,6 +1383,12 @@ async function loadTodayVendite() {
   const { data, error } = await db.from('vendite').select('*').eq('data', today).order('created_at', { ascending: true });
   if (error || !data) return;
 
+  // Ricarica extraPosti dal localStorage (possono essere stati aggiornati da addExtra)
+  try {
+    const extra = JSON.parse(localStorage.getItem('scopello_extra_' + today) || 'null');
+    if (extra) state.extraPosti = extra;
+  } catch(e) {}
+
   // Azzera sempre prima di ricaricare — evita duplicati
   state.vendite = [];
   state.rimborsi = storedRimborsi;  // ripristina rimborsi salvati
@@ -1708,7 +1714,7 @@ function switchTab(name) {
   document.querySelectorAll('.tab-btn').forEach((b,i) => b.classList.toggle('active', ['vendita','turni','storico','cassa','ingresso'][i] === name));
   document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
   document.getElementById('tab-'+name).classList.add('active');
-  if (name === 'vendita')   { renderTurniVendita(); updateSummary(); }
+  if (name === 'vendita')   { renderTurniVendita(); updateCartUI(); updateSummary(); }
   if (name === 'turni')     renderTurni();
   if (name === 'storico')   renderStorico();
   if (name === 'cassa')     renderCassa();
@@ -1782,6 +1788,7 @@ function venditeNettePerTipo(tipo) {
 }
 
 function addToCart(tipo) {
+  if (!state.extraPosti) state.extraPosti = { premium: 0, base: 0 };
   if (!state.turnoSel) { document.getElementById('modalNoTurno').classList.add('visible'); return; }
   // Controlla capienza solo per turni con visita
   if (state.turnoSel !== 'nessuna') {
