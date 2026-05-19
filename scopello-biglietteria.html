@@ -775,7 +775,7 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); }
     <div class="topbar">
       <div class="topbar-brand">
         <h1>Torre di Scopello</h1>
-        <p>Percorso Storico Naturalistico <span style="font-size:0.5rem;color:var(--muted);">v54</span></p>
+        <p>Percorso Storico Naturalistico <span style="font-size:0.5rem;color:var(--muted);">v55</span></p>
       </div>
       <div class="topbar-right">
         <span class="op-badge" id="syncBadge" style="font-size:0.65rem;">✓ Online</span>
@@ -2029,9 +2029,11 @@ function doAnnullaVendita(vendita) {
   state.vendite = state.vendite.filter(v => v.id !== vendita.id);
   if (vendita.turno !== 'nessuna') state.turni[vendita.turno].prenotati = Math.max(0, state.turni[vendita.turno].prenotati - vendita.qty);
   deleteVendita(vendita);
+  updateCartUI();
   renderTurniVendita(); renderUndoBtn();
   if (document.getElementById('tab-storico').classList.contains('active')) renderStorico();
   if (document.getElementById('tab-cassa').classList.contains('active')) renderCassa();
+  if (document.getElementById('tab-ingresso').classList.contains('active')) renderIngresso();
 }
 
 function renderUndoBtn() {
