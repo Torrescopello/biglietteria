@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#1a1714">
+<title>Turni Visite — Torre di Scopello</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root {
+  --bg: #f5f2ed;
+  --white: #ffffff;
+  --border: #d0c8bc;
+  --text: #1a1714;
+  --text2: #4a4540;
+  --muted: #8a8278;
+  --s1: #ede9e2;
+  --sea: #1565a0;
+  --sea-bg: #e3edf8;
+  --sea-border: #90bde0;
+  --gold: #b8860b;
+  --gold-bg: #fdf6e3;
+  --gold-border: #e8c84a;
+  --green: #1a8c4e;
+  --green-bg: #e8f7ef;
+  --green-border: #a8dfc0;
+  --purple: #7b3fa0;
+  --purple-bg: #f3eafa;
+  --purple-border: #d4a8e8;
+  --red: #c0392b;
+  --red-bg: #fdecea;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, 'SF Pro Text', 'Helvetica Neue', sans-serif;
+  background: var(--bg); color: var(--text);
+  min-height: 100vh; padding: 0 0 40px;
+}
+
+.header {
+  background: var(--text); color: #fff;
+  padding: 18px 20px 16px; text-align: center;
+  position: sticky; top: 0; z-index: 10;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.2);
+}
+.header-title {
+  font-family: Georgia, serif; font-size: 1.05rem;
+  font-weight: normal; letter-spacing: 0.04em;
+  opacity: 0.9; margin-bottom: 2px;
+}
+.header-date {
+  font-size: 0.72rem; font-weight: 700; letter-spacing: 0.1em;
+  text-transform: uppercase; opacity: 0.6;
+}
+.live-badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 0.62rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.1em; color: #4cd964; margin-top: 6px;
+}
+.live-dot {
+  width: 6px; height: 6px; border-radius: 50%; background: #4cd964;
+  animation: pulse 1.8s ease-in-out infinite;
+}
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+.content { padding: 16px 14px; max-width: 520px; margin: 0 auto; }
+
+.day-summary {
+  background: var(--white); border: 2px solid var(--border);
+  border-radius: 14px; padding: 14px 16px; margin-bottom: 14px;
+  display: flex; justify-content: space-around; text-align: center;
+}
+.day-stat-val {
+  font-size: 1.8rem; font-weight: 800; font-variant-numeric: tabular-nums;
+  display: block; line-height: 1;
+}
+.day-stat-lab {
+  font-size: 0.6rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.1em; color: var(--muted); margin-top: 4px; display: block;
+}
+.day-stat-val.premium { color: var(--gold); }
+.day-stat-val.base { color: var(--sea); }
+.day-stat-val.ridotto { color: var(--green); }
+.day-stat-val.total { color: var(--text); }
+
+.section-label {
+  font-size: 0.62rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.12em; color: var(--muted); margin-bottom: 8px;
+}
+
+.turni-list { display: flex; flex-direction: column; gap: 8px; }
+
+.turno-card {
+  background: var(--white); border: 2px solid var(--border);
+  border-radius: 14px; padding: 14px 16px;
+  display: flex; align-items: center; gap: 14px;
+}
+.turno-card.has-tickets { border-color: var(--sea-border); }
+.turno-card.empty { opacity: 0.5; }
+
+.turno-ora {
+  font-family: Georgia, serif; font-size: 1.4rem;
+  font-weight: normal; color: var(--text); min-width: 52px;
+  line-height: 1;
+}
+.turno-lang {
+  font-size: 1.1rem; line-height: 1;
+}
+.turno-body { flex: 1; }
+.turno-qty {
+  font-size: 1.6rem; font-weight: 800; color: var(--sea);
+  font-variant-numeric: tabular-nums; line-height: 1;
+}
+.turno-qty.zero { color: var(--muted); }
+.turno-qty-lab {
+  font-size: 0.62rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.08em; color: var(--muted); margin-top: 1px;
+}
+.turno-types {
+  display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px;
+}
+.tipo-chip {
+  font-size: 0.65rem; font-weight: 700; padding: 2px 7px;
+  border-radius: 6px; display: inline-block;
+}
+.tipo-chip.premium { background: var(--gold-bg); color: var(--gold); }
+.tipo-chip.base    { background: var(--sea-bg);  color: var(--sea); }
+.tipo-chip.ridotto { background: var(--green-bg); color: var(--green); }
+.tipo-chip.nopay   { background: var(--purple-bg); color: var(--purple); }
+
+.progress-bar {
+  height: 4px; background: var(--s1); border-radius: 2px; margin-top: 8px; overflow: hidden;
+}
+.progress-fill {
+  height: 100%; background: var(--sea); border-radius: 2px; transition: width 0.4s;
+}
+.progress-fill.full { background: var(--red); }
+.progress-fill.warn { background: var(--gold); }
+
+.empty-state {
+  text-align: center; padding: 40px 20px; color: var(--muted);
+  font-size: 0.85rem; font-weight: 600;
+}
+
+.footer {
+  text-align: center; font-size: 0.65rem; color: var(--muted);
+  margin-top: 20px; padding: 0 20px;
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-title">Percorso Storico Naturalistico — Torre di Scopello</div>
+  <div class="header-date" id="headerDate">—</div>
+  <div class="live-badge"><span class="live-dot"></span> Live</div>
+</div>
+
+<div class="content">
+  <div class="section-label">Turni di oggi</div>
+  <div class="turni-list" id="turniList">
+    <div class="empty-state">Caricamento...</div>
+  </div>
+</div>
+
+<div class="footer" id="lastUpdate"></div>
+
+<script>
+const SUPABASE_URL = 'https://jhvuucvzhtuvybcsoxts.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpodnV1Y3Z6aHR1dnliY3NveHRzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2NDM2NTMsImV4cCI6MjA4ODIxOTY1M30.2at0j_pKSw3AbbEO0nfNKpHay43FW32tiBDmszaNInI';
+const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+const CAP_MAX = 22; // capienza massima per turno
+
+let ORARI = ['11:00','11:30','12:00','12:30','13:00','15:00','15:30','16:00','16:30','17:00','17:30','18:00'];
+let PRIMA_LINGUA = 'it';
+
+function generaOrariDaCfg(cfg) {
+  const toMin = s => { const [h,m] = s.split(':').map(Number); return h*60+m; };
+  const toStr = m => `${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`;
+  const start = toMin(cfg.prima), end = toMin(cfg.ultima);
+  const pStart = toMin(cfg.pausaInizio), pEnd = toMin(cfg.pausaFine);
+  const out = [];
+  for (let t = start; t <= end; t += 30) {
+    if (t < pStart || t >= pEnd) out.push(toStr(t));
+  }
+  return out;
+}
+
+function slotLingua(ora) {
+  const idx = ORARI.indexOf(ora);
+  if (idx < 0) return PRIMA_LINGUA;
+  const altro = PRIMA_LINGUA === 'it' ? 'en' : 'it';
+  return idx % 2 === 0 ? PRIMA_LINGUA : altro;
+}
+
+function bandiera(lang) { return lang === 'it' ? '🇮🇹' : '🇬🇧'; }
+
+async function loadConfig() {
+  try {
+    const { data } = await db.from('app_config').select('value').eq('key', 'orari_cfg').maybeSingle();
+    if (data && data.value) {
+      const cfg = typeof data.value === 'string' ? JSON.parse(data.value) : data.value;
+      ORARI = generaOrariDaCfg(cfg);
+      if (cfg.primaLingua === 'it' || cfg.primaLingua === 'en') PRIMA_LINGUA = cfg.primaLingua;
+    }
+  } catch(e) {}
+}
+
+function today() {
+  return new Date().toLocaleDateString('it-IT', {year:'numeric',month:'2-digit',day:'2-digit'}).split('/').reverse().join('-');
+}
+
+function tipoLabel(tipo) {
+  return { premium: 'Lettino', base: 'Base', ridotto: 'Ridotto', nopay: 'Non pag.' }[tipo] || tipo;
+}
+
+async function loadAndRender() {
+  const t = today();
+  const { data, error } = await db.from('vendite').select('turno,tipo,qty').eq('data', t);
+  if (error) { document.getElementById('turniList').innerHTML = '<div class="empty-state">Errore caricamento dati</div>'; return; }
+
+  // Raggruppa per turno
+  const turni = {};
+  (data || []).forEach(v => {
+    if (v.turno === 'nessuna') return;
+    if (!turni[v.turno]) turni[v.turno] = { premium: 0, base: 0, ridotto: 0, nopay: 0 };
+    turni[v.turno][v.tipo] = (turni[v.turno][v.tipo] || 0) + v.qty;
+  });
+
+  // Ordina gli slot: prima i configurati, poi eventuali extra con prenotazioni
+  const oraSet = new Set([...ORARI, ...Object.keys(turni)]);
+  const oreOrdinate = [...oraSet].sort();
+
+  const list = document.getElementById('turniList');
+  if (!oreOrdinate.length) {
+    list.innerHTML = '<div class="empty-state">Nessuna visita registrata oggi</div>';
+    return;
+  }
+
+  list.innerHTML = oreOrdinate.map(ora => {
+    const dati = turni[ora] || { premium: 0, base: 0, ridotto: 0, nopay: 0 };
+    const tot = dati.premium + dati.base + dati.ridotto + dati.nopay;
+    const lang = slotLingua(ora);
+    const pct = Math.min(100, Math.round(tot / CAP_MAX * 100));
+    const fillClass = pct >= 100 ? 'full' : pct >= 80 ? 'warn' : '';
+    const cardClass = tot > 0 ? 'has-tickets' : 'empty';
+
+    const chips = ['premium','base','ridotto','nopay'].filter(tipo => dati[tipo] > 0).map(tipo =>
+      `<span class="tipo-chip ${tipo}">${dati[tipo]}× ${tipoLabel(tipo)}</span>`
+    ).join('');
+
+    return `<div class="turno-card ${cardClass}">
+      <div>
+        <div class="turno-ora">${ora}</div>
+        <div class="turno-lang">${bandiera(lang)}</div>
+      </div>
+      <div class="turno-body">
+        <div class="turno-qty ${tot === 0 ? 'zero' : ''}">${tot}</div>
+        <div class="turno-qty-lab">visitator${tot === 1 ? 'e' : 'i'}</div>
+        ${chips ? `<div class="turno-types">${chips}</div>` : ''}
+        <div class="progress-bar"><div class="progress-fill ${fillClass}" style="width:${pct}%"></div></div>
+      </div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('lastUpdate').textContent =
+    'Aggiornato alle ' + new Date().toLocaleTimeString('it-IT', {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+}
+
+// Header data
+const oggi = new Date();
+document.getElementById('headerDate').textContent =
+  oggi.toLocaleDateString('it-IT', {weekday:'long', day:'numeric', month:'long', year:'numeric'});
+
+// Carica config orari da Supabase, poi dati
+loadConfig().then(() => loadAndRender());
+
+// Realtime: aggiorna ogni volta che c'è una vendita
+const t = today();
+db.channel('turni-pub')
+  .on('postgres_changes', { event: '*', schema: 'public', table: 'vendite', filter: `data=eq.${t}` },
+    () => loadAndRender())
+  .subscribe();
+
+// Fallback polling ogni 30s (ricarica anche config per orari aggiornati)
+setInterval(() => loadConfig().then(() => loadAndRender()), 30000);
+</script>
+</body>
+</html>
