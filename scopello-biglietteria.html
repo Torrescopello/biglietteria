@@ -814,7 +814,7 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); }
     <div class="topbar">
       <div class="topbar-brand">
         <h1>Torre di Scopello</h1>
-        <p>Percorso Storico Naturalistico <span style="font-size:0.5rem;color:var(--muted);">v60</span></p>
+        <p>Percorso Storico Naturalistico <span style="font-size:0.5rem;color:var(--muted);">v61</span></p>
       </div>
       <div class="topbar-right">
         <span class="op-badge" id="syncBadge" style="font-size:0.65rem;">✓ Online</span>
@@ -2756,11 +2756,15 @@ function renderCassa() {
   const totInteg = integCash + integPos + integPosPlus;
 
   const myVendite = state.vendite.filter(v=>v.operatore===state.operatore);
-  const myCash    = myVendite.filter(v=>v.pagamento==='cash').reduce((a,v)=>a+v.totale,0);
-  const myPos     = myVendite.filter(v=>v.pagamento==='pos').reduce((a,v)=>a+v.totale,0);
-  const myPosPlus = myVendite.filter(v=>v.pagamento==='posplus').reduce((a,v)=>a+v.totale,0);
-  const myInteg   = integrazioni.filter(i=>i.operatore===state.operatore).reduce((a,i)=>a+i.diff,0);
-  const myTot     = myCash + myPos + myPosPlus + myInteg;
+  const myOpInteg  = integrazioni.filter(i=>i.operatore===state.operatore);
+  const myCash    = myVendite.filter(v=>v.pagamento==='cash').reduce((a,v)=>a+v.totale,0)
+                  + myOpInteg.filter(i=>i.pagamento==='cash').reduce((a,i)=>a+i.diff,0);
+  const myPos     = myVendite.filter(v=>v.pagamento==='pos').reduce((a,v)=>a+v.totale,0)
+                  + myOpInteg.filter(i=>i.pagamento==='pos').reduce((a,i)=>a+i.diff,0);
+  const myPosPlus = myVendite.filter(v=>v.pagamento==='posplus').reduce((a,v)=>a+v.totale,0)
+                  + myOpInteg.filter(i=>i.pagamento==='posplus').reduce((a,i)=>a+i.diff,0);
+  const myInteg   = myOpInteg.reduce((a,i)=>a+i.diff,0);
+  const myTot     = myCash + myPos + myPosPlus;
 
   const cassaGrid = document.getElementById('cassaGrid');
   if (isDir) {
@@ -2790,7 +2794,7 @@ function renderCassa() {
       <div class="cassa-card cc-cash"><div class="cc-label">Contanti</div><div class="cc-val">€ ${myCash.toFixed(2).replace('.',',')}</div></div>
       <div class="cassa-card cc-pos"><div class="cc-label">POS</div><div class="cc-val">€ ${myPos.toFixed(2).replace('.',',')}</div></div>
       <div class="cassa-card cc-posplus"><div class="cc-label">POS+</div><div class="cc-val">€ ${myPosPlus.toFixed(2).replace('.',',')}</div></div>
-      <div class="cassa-card cc-total" style="grid-column:1/-1"><div class="cc-label">Mio totale</div><div class="cc-val">€ ${myTot.toFixed(2).replace('.',',')}</div><div class="cc-sub">${myVendite.reduce((a,v)=>a+v.qty,0)} biglietti${myInteg>0?` + € ${myInteg.toFixed(2).replace('.',',')} integr.`:''}</div></div>`;
+      <div class="cassa-card cc-total" style="grid-column:1/-1"><div class="cc-label">Mio totale</div><div class="cc-val">€ ${myTot.toFixed(2).replace('.',',')}</div><div class="cc-sub">${myVendite.reduce((a,v)=>a+v.qty,0)} biglietti${myInteg>0?` · ${myOpInteg.length} upgrade`:''}</div></div>`;
   }
 
   const opRes = document.getElementById('opResoconti');
@@ -2848,7 +2852,6 @@ function renderCassa() {
       </div>`;
     }).join('');
   } else {
-    const myOpInteg = integrazioni.filter(i => i.operatore === state.operatore);
     const myIntegCash    = myOpInteg.filter(i=>i.pagamento==='cash').reduce((a,i)=>a+i.diff,0);
     const myIntegPos     = myOpInteg.filter(i=>i.pagamento==='pos').reduce((a,i)=>a+i.diff,0);
     const myIntegPosPlus = myOpInteg.filter(i=>i.pagamento==='posplus').reduce((a,i)=>a+i.diff,0);
@@ -2862,9 +2865,9 @@ function renderCassa() {
       </div>` : '';
     opRes.innerHTML = `
       <div class="op-resoconto">
-        <div class="op-row"><span class="op-row-label">Contanti</span><span class="op-row-val">€ ${(myCash+myIntegCash).toFixed(2).replace('.',',')}</span></div>
-        <div class="op-row"><span class="op-row-label">POS</span><span class="op-row-val">€ ${(myPos+myIntegPos).toFixed(2).replace('.',',')}</span></div>
-        <div class="op-row"><span class="op-row-label">POS+</span><span class="op-row-val">€ ${(myPosPlus+myIntegPosPlus).toFixed(2).replace('.',',')}</span></div>
+        <div class="op-row"><span class="op-row-label">Contanti</span><span class="op-row-val">€ ${myCash.toFixed(2).replace('.',',')}</span></div>
+        <div class="op-row"><span class="op-row-label">POS</span><span class="op-row-val">€ ${myPos.toFixed(2).replace('.',',')}</span></div>
+        <div class="op-row"><span class="op-row-label">POS+</span><span class="op-row-val">€ ${myPosPlus.toFixed(2).replace('.',',')}</span></div>
         <div class="op-row"><span class="op-row-label">Totale</span><span class="op-row-val">€ ${myTot.toFixed(2).replace('.',',')}</span></div>
         ${integRowsHtml}
       </div>
