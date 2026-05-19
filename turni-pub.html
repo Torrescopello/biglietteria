@@ -128,6 +128,10 @@ body {
 .tipo-chip.ridotto { background: var(--green-bg); color: var(--green); }
 .tipo-chip.nopay   { background: var(--purple-bg); color: var(--purple); }
 
+.turno-tickets {
+  font-size: 0.65rem; font-weight: 600; color: var(--muted);
+  margin-top: 5px; letter-spacing: 0.02em;
+}
 .progress-bar {
   height: 4px; background: var(--s1); border-radius: 2px; margin-top: 8px; overflow: hidden;
 }
@@ -217,15 +221,16 @@ function tipoLabel(tipo) {
 
 async function loadAndRender() {
   const t = today();
-  const { data, error } = await db.from('vendite').select('turno,tipo,qty').eq('data', t);
+  const { data, error } = await db.from('vendite').select('turno,tipo,qty,ticket_num').eq('data', t);
   if (error) { document.getElementById('turniList').innerHTML = '<div class="empty-state">Errore caricamento dati</div>'; return; }
 
   // Raggruppa per turno
   const turni = {};
   (data || []).forEach(v => {
     if (v.turno === 'nessuna') return;
-    if (!turni[v.turno]) turni[v.turno] = { premium: 0, base: 0, ridotto: 0, nopay: 0 };
+    if (!turni[v.turno]) turni[v.turno] = { premium: 0, base: 0, ridotto: 0, nopay: 0, tickets: new Set() };
     turni[v.turno][v.tipo] = (turni[v.turno][v.tipo] || 0) + v.qty;
+    if (v.ticket_num) turni[v.turno].tickets.add(v.ticket_num);
   });
 
   // Ordina gli slot: prima i configurati, poi eventuali extra con prenotazioni
@@ -239,7 +244,7 @@ async function loadAndRender() {
   }
 
   list.innerHTML = oreOrdinate.map(ora => {
-    const dati = turni[ora] || { premium: 0, base: 0, ridotto: 0, nopay: 0 };
+    const dati = turni[ora] || { premium: 0, base: 0, ridotto: 0, nopay: 0, tickets: new Set() };
     const tot = dati.premium + dati.base + dati.ridotto + dati.nopay;
     const lang = slotLingua(ora);
     const pct = Math.min(100, Math.round(tot / CAP_MAX * 100));
@@ -250,6 +255,10 @@ async function loadAndRender() {
       `<span class="tipo-chip ${tipo}">${dati[tipo]}× ${tipoLabel(tipo)}</span>`
     ).join('');
 
+    const ticketList = dati.tickets && dati.tickets.size > 0
+      ? `<div class="turno-tickets">${[...dati.tickets].sort().join(' · ')}</div>`
+      : '';
+
     return `<div class="turno-card ${cardClass}">
       <div>
         <div class="turno-ora">${ora}</div>
@@ -259,6 +268,7 @@ async function loadAndRender() {
         <div class="turno-qty ${tot === 0 ? 'zero' : ''}">${tot}</div>
         <div class="turno-qty-lab">visitator${tot === 1 ? 'e' : 'i'}</div>
         ${chips ? `<div class="turno-types">${chips}</div>` : ''}
+        ${ticketList}
         <div class="progress-bar"><div class="progress-fill ${fillClass}" style="width:${pct}%"></div></div>
       </div>
     </div>`;
