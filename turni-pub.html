@@ -157,13 +157,6 @@ body {
 </div>
 
 <div class="content">
-  <div class="day-summary" id="daySummary">
-    <div><span class="day-stat-val total" id="totTot">—</span><span class="day-stat-lab">Visitatori</span></div>
-    <div><span class="day-stat-val premium" id="totPrem">—</span><span class="day-stat-lab">Lettini</span></div>
-    <div><span class="day-stat-val base" id="totBase">—</span><span class="day-stat-lab">Base</span></div>
-    <div><span class="day-stat-val ridotto" id="totRid">—</span><span class="day-stat-lab">Ridotti</span></div>
-  </div>
-
   <div class="section-label">Turni di oggi</div>
   <div class="turni-list" id="turniList">
     <div class="empty-state">Caricamento...</div>
@@ -210,16 +203,6 @@ async function loadAndRender() {
   // Ordina gli slot: prima i default, poi eventuali extra
   const oraSet = new Set([...ORARI_DEFAULT, ...Object.keys(turni)]);
   const oreOrdinate = [...oraSet].sort();
-
-  // Totali giornata
-  let totPrem = 0, totBase = 0, totRid = 0, totNop = 0;
-  Object.values(turni).forEach(t => { totPrem += t.premium; totBase += t.base; totRid += t.ridotto; totNop += t.nopay; });
-  const totTot = totPrem + totBase + totRid + totNop;
-
-  document.getElementById('totTot').textContent  = totTot;
-  document.getElementById('totPrem').textContent = totPrem;
-  document.getElementById('totBase').textContent = totBase;
-  document.getElementById('totRid').textContent  = totRid;
 
   const list = document.getElementById('turniList');
   if (!oreOrdinate.length) {
