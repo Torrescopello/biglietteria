@@ -776,7 +776,7 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); }
     <div class="topbar">
       <div class="topbar-brand">
         <h1>Torre di Scopello</h1>
-        <p>Percorso Storico Naturalistico <span style="font-size:0.5rem;color:var(--muted);">v46</span></p>
+        <p>Percorso Storico Naturalistico <span style="font-size:0.5rem;color:var(--muted);">v47</span></p>
       </div>
       <div class="topbar-right">
         <span class="op-badge" id="syncBadge" style="font-size:0.65rem;">✓ Online</span>
@@ -1848,20 +1848,21 @@ function updateCartUI() {
   const types = ['base','premium','ridotto','nopay'];
   const labels = { base:'Base', premium:'Premium', ridotto:'Ridotto', nopay:'Non pagante' };
 
-  // Badge sulle card
-  const rimPrem = CONFIG.capPremium - venditeNettePerTipo('premium');
-  const rimBase = CONFIG.capBase - venditeNettePerTipo('base');
+  // Badge sulle card — posti rimasti = cap + extra - venduti (ridotto+nopay contano come base)
+  const rimPrem = CONFIG.capPremium + state.extraPosti.premium - venditeNettePerTipo('premium');
+  const rimBase = CONFIG.capBase + state.extraPosti.base
+    - venditeNettePerTipo('base') - venditeNettePerTipo('ridotto') - venditeNettePerTipo('nopay');
   types.forEach(t => {
     const badge = document.getElementById('badge' + t.charAt(0).toUpperCase() + t.slice(1));
     const qty = cart[t] || 0;
     let badgeHtml = qty > 0 ? `<span class="tc-badge-val">${qty}</span>` : '';
     if (t === 'premium') badgeHtml += `<span style="font-size:0.6rem;color:${rimPrem<=5?'var(--red)':'var(--muted)'}"> ${rimPrem} rimasti</span>`;
-    if (t === 'base') badgeHtml += `<span style="font-size:0.6rem;color:${rimBase<=10?'var(--red)':'var(--muted)'}"> ${rimBase} rimasti</span>`;
+    if (t === 'base')    badgeHtml += `<span style="font-size:0.6rem;color:${rimBase<=10?'var(--red)':'var(--muted)'}"> ${rimBase} rimasti</span>`;
+    if (t === 'ridotto') badgeHtml += `<span style="font-size:0.6rem;color:${rimBase<=10?'var(--red)':'var(--muted)'}"> ${rimBase} rimasti</span>`;
     badge.innerHTML = badgeHtml;
     const card = document.getElementById('card' + t.charAt(0).toUpperCase() + t.slice(1));
-    card.className = 'ticket-card' + (qty > 0 ? ` selected-${t}` : '')
-      + (t === 'premium' && rimPrem <= 0 ? ' card-esaurito' : '')
-      + (t === 'base' && rimBase <= 0 ? ' card-esaurito' : '');
+    const esaurito = (t === 'premium' && rimPrem <= 0) || ((t === 'base' || t === 'ridotto' || t === 'nopay') && rimBase <= 0);
+    card.className = 'ticket-card' + (qty > 0 ? ` selected-${t}` : '') + (esaurito ? ' card-esaurito' : '');
   });
 
   if (cartTotalQty() === 0) {
@@ -2696,6 +2697,7 @@ function addExtra(tipo, d) {
     state.extraPosti.base = Math.max(0, state.extraPosti.base + d);
   }
   saveExtra();
+  updateCartUI();
   renderIngresso();
 }
 
