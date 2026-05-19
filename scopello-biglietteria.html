@@ -775,7 +775,7 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); }
     <div class="topbar">
       <div class="topbar-brand">
         <h1>Torre di Scopello</h1>
-        <p>Percorso Storico Naturalistico <span style="font-size:0.5rem;color:var(--muted);">v52</span></p>
+        <p>Percorso Storico Naturalistico <span style="font-size:0.5rem;color:var(--muted);">v53</span></p>
       </div>
       <div class="topbar-right">
         <span class="op-badge" id="syncBadge" style="font-size:0.65rem;">✓ Online</span>
@@ -1467,13 +1467,6 @@ const CONFIG = {
     // Aggiorna bottoni login con nomi salvati
     document.getElementById('opBtn1').textContent = CONFIG.nomiCasse.op1;
     document.getElementById('opBtn2').textContent = CONFIG.nomiCasse.op2;
-    // Carica ingressi e usciti del giorno
-    const todayKey = 'scopello_ingressi_' + new Date().toLocaleDateString('it-IT',{year:'numeric',month:'2-digit',day:'2-digit'}).split('/').reverse().join('-');
-    const ingr = JSON.parse(localStorage.getItem(todayKey) || '{}');
-    if (ingr) state.ingressi = ingr;
-    const extraKey = 'scopello_extra_' + new Date().toLocaleDateString('it-IT',{year:'numeric',month:'2-digit',day:'2-digit'}).split('/').reverse().join('-');
-    const extra = JSON.parse(localStorage.getItem(extraKey) || 'null');
-    if (extra) state.extraPosti = extra;
   } catch(e) {}
 })();
 
@@ -1531,11 +1524,22 @@ let state = {
   vendite: [], turni: {},
   note: { op1: [], op2: [] },
   rimborsi: [],
-  ingressi: {},  // { ticketNum: { ora } }
+  ingressi: {},
   extraPosti: { premium: 0, base: 0 }
 };
 let cart = {};
 CONFIG.orari.forEach(o => { state.turni[o] = { prenotati: 0 }; });
+
+// Carica ingressi ed extra del giorno (deve girare dopo la dichiarazione di state)
+(function loadDailyState() {
+  try {
+    const today = new Date().toLocaleDateString('it-IT',{year:'numeric',month:'2-digit',day:'2-digit'}).split('/').reverse().join('-');
+    const ingr = JSON.parse(localStorage.getItem('scopello_ingressi_' + today) || '{}');
+    if (ingr) state.ingressi = ingr;
+    const extra = JSON.parse(localStorage.getItem('scopello_extra_' + today) || 'null');
+    if (extra) state.extraPosti = extra;
+  } catch(e) {}
+})();
 
 // ============================================================
 // LOGIN / LOGOUT
