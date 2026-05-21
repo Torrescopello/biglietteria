@@ -174,7 +174,7 @@ const SUPABASE_URL = 'https://jhvuucvzhtuvybcsoxts.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpodnV1Y3Z6aHR1dnliY3NveHRzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2NDM2NTMsImV4cCI6MjA4ODIxOTY1M30.2at0j_pKSw3AbbEO0nfNKpHay43FW32tiBDmszaNInI';
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-const CAP_MAX = 22; // capienza massima per turno
+let CAP_MAX = 22; // capienza massima per turno (aggiornata da app_config)
 
 let ORARI = ['11:00','11:30','12:00','12:30','13:00','15:00','15:30','16:00','16:30','17:00','17:30','18:00'];
 let PRIMA_LINGUA = 'it';
@@ -207,6 +207,7 @@ async function loadConfig() {
       const cfg = typeof data.value === 'string' ? JSON.parse(data.value) : data.value;
       ORARI = generaOrariDaCfg(cfg);
       if (cfg.primaLingua === 'it' || cfg.primaLingua === 'en') PRIMA_LINGUA = cfg.primaLingua;
+      if (cfg.capMax && cfg.capMax > 0) CAP_MAX = cfg.capMax;
     }
   } catch(e) {}
 }
