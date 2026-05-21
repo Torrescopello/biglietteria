@@ -1294,8 +1294,9 @@ let pendingUpdates = (() => { try { return JSON.parse(localStorage.getItem('pend
 let _rimborsiStored = (() => { try { return JSON.parse(localStorage.getItem('scopello_rimborsi') || '[]'); } catch(e) { return []; } })();
 let isOnline = navigator.onLine;
 
-// Carica password da Supabase prima del login
+// Carica password e nomi casse da Supabase prima del login
 let _pwLoadPromise = isOnline ? loadPasswordsFromDB() : null;
+let _nomiLoadPromise = isOnline ? loadNomiCasseFromDB() : null;
 
 window.addEventListener('online', async () => {
   isOnline = true;
@@ -1651,6 +1652,48 @@ async function savePasswordsToDB() {
     const write = existing
       ? db.from('app_config').update({ value: CONFIG.passwords }).eq('key', 'passwords')
       : db.from('app_config').insert({ key: 'passwords', value: CONFIG.passwords });
+    const { error } = await Promise.race([write, t(6000)]);
+    return !error;
+  } catch(e) {
+    return false;
+  }
+}
+
+async function loadNomiCasseFromDB() {
+  const t = ms => new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), ms));
+  let data, error;
+  try {
+    ({ data, error } = await Promise.race([
+      db.from('app_config').select('value').eq('key', 'nomi_casse').maybeSingle(),
+      t(8000)
+    ]));
+  } catch(e) { return false; }
+  if (error || !data) return false;
+  let val = data.value;
+  if (typeof val === 'string') { try { val = JSON.parse(val); } catch(e) { return false; } }
+  if (val && typeof val === 'object') {
+    Object.assign(CONFIG.nomiCasse, val);
+    try { localStorage.setItem('scopello_nomi', JSON.stringify(CONFIG.nomiCasse)); } catch(e) {}
+    const btn1 = document.getElementById('opBtn1');
+    const btn2 = document.getElementById('opBtn2');
+    if (btn1) btn1.textContent = CONFIG.nomiCasse.op1;
+    if (btn2) btn2.textContent = CONFIG.nomiCasse.op2;
+    updateOpLabels();
+    return true;
+  }
+  return false;
+}
+
+async function saveNomiCasseToDB() {
+  const t = ms => new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), ms));
+  try {
+    const { data: existing } = await Promise.race([
+      db.from('app_config').select('key').eq('key', 'nomi_casse').maybeSingle(),
+      t(6000)
+    ]);
+    const write = existing
+      ? db.from('app_config').update({ value: CONFIG.nomiCasse }).eq('key', 'nomi_casse')
+      : db.from('app_config').insert({ key: 'nomi_casse', value: CONFIG.nomiCasse });
     const { error } = await Promise.race([write, t(6000)]);
     return !error;
   } catch(e) {
@@ -3177,13 +3220,14 @@ function updateLinguaButtons() {
   if (enBtn) enBtn.classList.toggle('selected', CONFIG.primaLingua === 'en');
 }
 
-function updateCassaNames() {
+async function updateCassaNames() {
   CONFIG.nomiCasse.op1 = document.getElementById('nameCassa1').value || 'Cassa 1';
   CONFIG.nomiCasse.op2 = document.getElementById('nameCassa2').value || 'Cassa 2';
   try { localStorage.setItem('scopello_nomi', JSON.stringify(CONFIG.nomiCasse)); } catch(e) {}
   updateOpLabels();
   document.getElementById('opBtn1').textContent = CONFIG.nomiCasse.op1;
   document.getElementById('opBtn2').textContent = CONFIG.nomiCasse.op2;
+  if (isOnline) saveNomiCasseToDB();
 }
 
 async function changePassword(key) {
@@ -3558,6 +3602,11 @@ function startRealtime() {
       event: '*', schema: 'public', table: 'app_config', filter: `key=eq.passwords`
     }, () => {
       loadPasswordsFromDB();
+    })
+    .on('postgres_changes', {
+      event: '*', schema: 'public', table: 'app_config', filter: `key=eq.nomi_casse`
+    }, () => {
+      loadNomiCasseFromDB();
     })
     .subscribe();
 }
