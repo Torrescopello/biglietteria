@@ -814,7 +814,7 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); }
     <div class="topbar">
       <div class="topbar-brand">
         <h1>Torre di Scopello</h1>
-        <p>Percorso Storico Naturalistico <span style="font-size:0.5rem;color:var(--muted);">v68</span></p>
+        <p>Percorso Storico Naturalistico <span style="font-size:0.5rem;color:var(--muted);">v69</span></p>
       </div>
       <div class="topbar-right">
         <span class="op-badge" id="syncBadge" style="font-size:0.65rem;">✓ Online</span>
@@ -1676,8 +1676,12 @@ async function loadNomiCasseFromDB() {
     try { localStorage.setItem('scopello_nomi', JSON.stringify(CONFIG.nomiCasse)); } catch(e) {}
     const btn1 = document.getElementById('opBtn1');
     const btn2 = document.getElementById('opBtn2');
+    const sw1 = document.getElementById('swBtn1');
+    const sw2 = document.getElementById('swBtn2');
     if (btn1) btn1.textContent = CONFIG.nomiCasse.op1;
     if (btn2) btn2.textContent = CONFIG.nomiCasse.op2;
+    if (sw1) sw1.textContent = CONFIG.nomiCasse.op1;
+    if (sw2) sw2.textContent = CONFIG.nomiCasse.op2;
     updateOpLabels();
     return true;
   }
