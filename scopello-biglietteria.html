@@ -778,6 +778,15 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); }
 .pan-extra-btn:active { background: rgba(255,255,255,0.35); transform: scale(0.92); }
 .pan-extra-val { font-size: 0.68rem; font-weight: 700; color: #a0ffcc; min-width: 36px; text-align: center; }
 
+@media (orientation: landscape) and (min-width: 600px) {
+  #appScreen { display: flex; flex-direction: column; }
+  .sticky-header { flex-shrink: 0; }
+  .tab-content.active { display: block; max-width: 680px; margin: 0 auto; width: 100%; }
+  .ticket-cards { grid-template-columns: repeat(4, 1fr); }
+  .pay-row { grid-template-columns: repeat(6, 1fr); }
+  .cassa-grid { grid-template-columns: repeat(4, 1fr); }
+  .orari-grid { grid-template-columns: repeat(6, 1fr); }
+}
 </style>
 </head>
 <body>
