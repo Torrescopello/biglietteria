@@ -781,10 +781,24 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); }
 
 
 /* ===== PRENOTAZIONI ===== */
-.pren-date-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
-.pren-date-nav button { background: var(--s1); border: 1.5px solid var(--border); border-radius: 8px; padding: 6px 12px; font-size: 1rem; cursor: pointer; color: var(--text); }
-.pren-date-label { font-family: var(--fd); font-size: 1rem; font-weight: normal; color: var(--text); }
+.pren-date-nav { display: flex; align-items: center; justify-content: center; margin-bottom: 12px; position: relative; }
+.pren-date-btn { background: var(--s1); border: 1.5px solid var(--border); border-radius: 10px; padding: 8px 16px; cursor: pointer; color: var(--text); display: flex; align-items: center; gap: 10px; }
+.pren-date-label { font-family: var(--fd); font-size: 1rem; font-weight: normal; color: var(--text); text-align: center; }
 .pren-date-label small { font-size: 0.65rem; color: var(--muted); display: block; text-align: center; letter-spacing: 0.08em; text-transform: uppercase; }
+.pren-cal-popup { position: absolute; top: calc(100% + 6px); left: 50%; transform: translateX(-50%); z-index: 200; background: var(--white); border: 2px solid var(--border); border-radius: 14px; padding: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.18); width: 276px; }
+.pren-cal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+.pren-cal-month-lbl { font-family: var(--fd); font-size: 0.95rem; font-weight: 700; color: var(--text); }
+.pren-cal-nav { background: var(--s1); border: 1.5px solid var(--border); border-radius: 6px; width: 30px; height: 30px; cursor: pointer; font-size: 1rem; color: var(--text); }
+.pren-cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+.pren-cal-dow { text-align: center; font-size: 0.6rem; color: var(--muted); font-weight: 700; text-transform: uppercase; padding: 3px 0; }
+.pren-cal-day { text-align: center; border-radius: 7px; cursor: pointer; font-size: 0.82rem; position: relative; height: 34px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; }
+.pren-cal-day:not(.empty):hover { background: var(--s1); }
+.pren-cal-day.empty { cursor: default; }
+.pren-cal-day.today { font-weight: 800; color: var(--sea); }
+.pren-cal-day.selected { background: var(--gold) !important; color: var(--white) !important; font-weight: 800; }
+.pren-cal-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--gold); flex-shrink: 0; }
+.pren-cal-day.selected .pren-cal-dot { background: rgba(255,255,255,0.8); }
+.pren-cal-day.past:not(.selected) { color: var(--muted); }
 .pren-card { background: var(--white); border: 2px solid var(--border); border-radius: 14px; padding: 12px 14px; margin-bottom: 8px; }
 .pren-card.arrivato { opacity: 0.5; border-color: var(--green-border); background: var(--green-bg); }
 .pren-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px; }
@@ -846,7 +860,7 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); }
     <div class="topbar">
       <div class="topbar-brand">
         <h1>Torre di Scopello</h1>
-        <p>Percorso Storico Naturalistico <span style="font-size:0.5rem;color:var(--muted);">v82</span></p>
+        <p>Percorso Storico Naturalistico <span style="font-size:0.5rem;color:var(--muted);">v83</span></p>
       </div>
       <div class="topbar-right">
         <span class="op-badge" id="syncBadge" style="font-size:0.65rem;">✓ Online</span>
@@ -1167,9 +1181,11 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); }
   <!-- TAB PRENOTAZIONI -->
   <div id="tab-prenotazioni" class="tab-content">
     <div class="pren-date-nav">
-      <button onclick="prenNavDate(-1)">‹</button>
-      <div class="pren-date-label" id="prenDateLabel">—<small>—</small></div>
-      <button onclick="prenNavDate(+1)">›</button>
+      <button class="pren-date-btn" id="prenDateBtn" onclick="togglePrenCalendar()">
+        <div class="pren-date-label" id="prenDateLabel">—<small>—</small></div>
+        <span style="font-size:1rem;opacity:0.55">📅</span>
+      </button>
+      <div id="prenCalPopup" class="pren-cal-popup" style="display:none" onclick="event.stopPropagation()"></div>
     </div>
     <div id="prenSummary"></div>
     <div id="prenList"></div>
@@ -1431,6 +1447,13 @@ window.addEventListener('online', async () => {
   }
 });
 window.addEventListener('offline', () => { isOnline = false; updateSyncBadge(); });
+document.addEventListener('click', function(e) {
+  const popup = document.getElementById('prenCalPopup');
+  if (!popup || popup.style.display === 'none') return;
+  const btn = document.getElementById('prenDateBtn');
+  if (btn && btn.contains(e.target)) return;
+  popup.style.display = 'none';
+});
 
 // ============================================================
 // PRIMO TICKET GIORNATA
@@ -3829,11 +3852,65 @@ function closeModal(id) { document.getElementById(id).classList.remove('visible'
 // ============================================================
 let _prenViewDate = getTodayISO();
 
-function prenNavDate(delta) {
+let _prenCalYear = new Date().getFullYear();
+let _prenCalMonth = new Date().getMonth();
+
+function togglePrenCalendar() {
+  const popup = document.getElementById('prenCalPopup');
+  if (popup.style.display !== 'none') { popup.style.display = 'none'; return; }
   const d = new Date(_prenViewDate + 'T00:00:00');
-  d.setDate(d.getDate() + delta);
-  _prenViewDate = d.toISOString().slice(0, 10);
+  _prenCalYear = d.getFullYear();
+  _prenCalMonth = d.getMonth();
+  renderPrenCalendar();
+  popup.style.display = 'block';
+}
+
+function prenNavCalMonth(delta) {
+  _prenCalMonth += delta;
+  if (_prenCalMonth < 0) { _prenCalMonth = 11; _prenCalYear--; }
+  if (_prenCalMonth > 11) { _prenCalMonth = 0; _prenCalYear++; }
+  renderPrenCalendar();
+}
+
+function renderPrenCalendar() {
+  const today = getTodayISO();
+  const datesWithPren = new Set(state.prenotazioni.map(p => p.data));
+  const firstDay = new Date(_prenCalYear, _prenCalMonth, 1);
+  const lastDay = new Date(_prenCalYear, _prenCalMonth + 1, 0);
+  const startDow = (firstDay.getDay() + 6) % 7;
+  const monthName = firstDay.toLocaleDateString('it-IT', { month: 'long', year: 'numeric' });
+  const dows = ['L','M','M','G','V','S','D'];
+  let cells = '';
+  for (let i = 0; i < startDow; i++) cells += `<div class="pren-cal-day empty"></div>`;
+  for (let d = 1; d <= lastDay.getDate(); d++) {
+    const iso = `${_prenCalYear}-${String(_prenCalMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const isSelected = iso === _prenViewDate;
+    const isToday = iso === today;
+    const hasPren = datesWithPren.has(iso);
+    const isPast = iso < today;
+    let cls = 'pren-cal-day';
+    if (isSelected) cls += ' selected';
+    else if (isToday) cls += ' today';
+    else if (isPast) cls += ' past';
+    cells += `<div class="${cls}" onclick="selectPrenDate('${iso}')">${d}${hasPren ? '<div class="pren-cal-dot"></div>' : ''}</div>`;
+  }
+  document.getElementById('prenCalPopup').innerHTML = `
+    <div class="pren-cal-header">
+      <button class="pren-cal-nav" onclick="prenNavCalMonth(-1)">‹</button>
+      <div class="pren-cal-month-lbl">${monthName}</div>
+      <button class="pren-cal-nav" onclick="prenNavCalMonth(+1)">›</button>
+    </div>
+    <div class="pren-cal-grid">
+      ${dows.map(d => `<div class="pren-cal-dow">${d}</div>`).join('')}
+      ${cells}
+    </div>`;
+}
+
+function selectPrenDate(iso) {
+  _prenViewDate = iso;
   renderPrenotazioni();
+  const popup = document.getElementById('prenCalPopup');
+  if (popup) popup.style.display = 'none';
 }
 
 function prenDateLabel(iso) {
@@ -3906,6 +3983,9 @@ function renderPrenotazioni() {
       </div>
     </div>`;
   }).join('');
+
+  const popup = document.getElementById('prenCalPopup');
+  if (popup && popup.style.display !== 'none') renderPrenCalendar();
 }
 
 function openModalPren() {
