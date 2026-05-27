@@ -822,7 +822,7 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); }
     <div class="topbar">
       <div class="topbar-brand">
         <h1>Torre di Scopello</h1>
-        <p>Percorso Storico Naturalistico <span style="font-size:0.5rem;color:var(--muted);">v78</span></p>
+        <p>Percorso Storico Naturalistico <span style="font-size:0.5rem;color:var(--muted);">v79</span></p>
       </div>
       <div class="topbar-right">
         <span class="op-badge" id="syncBadge" style="font-size:0.65rem;">✓ Online</span>
@@ -1331,6 +1331,33 @@ window.addEventListener('online', async () => {
   }
 });
 window.addEventListener('offline', () => { isOnline = false; updateSyncBadge(); });
+
+// Auto-login: se la sessione è di oggi, salta il login
+function saveSession(op) {
+  const today = new Date().toLocaleDateString('it-IT');
+  try { localStorage.setItem('scopello_session', JSON.stringify({ op, date: today })); } catch(e) {}
+}
+
+async function tryAutoLogin() {
+  try {
+    const saved = JSON.parse(localStorage.getItem('scopello_session') || 'null');
+    if (!saved) return;
+    const today = new Date().toLocaleDateString('it-IT');
+    if (saved.date !== today) { localStorage.removeItem('scopello_session'); return; }
+    await Promise.allSettled([_pwLoadPromise, _nomiLoadPromise, _cfgLoadPromise].filter(Boolean));
+    state.operatore = saved.op;
+    state.isDir = (saved.op === 'dir');
+    showScreen('appScreen');
+    updateOpLabels();
+    loadTicketCounter();
+    renderAll();
+    updateSyncBadge();
+    await syncPending();
+    await loadTodayVendite();
+    if (isOnline) startRealtime();
+  } catch(e) {}
+}
+(async () => { await tryAutoLogin(); })();
 
 function updateSyncBadge() {
   const badge = document.getElementById('syncBadge');
@@ -1853,6 +1880,7 @@ async function doLogin() {
   const dbStatus = dbOk ? '🟢 DB connesso' : '🔴 DB non raggiunto — uso password locale';
   if (pw === CONFIG.passwords[key]) {
     state.operatore = key; state.isDir = (key === 'dir');
+    saveSession(key);
     document.getElementById('loginPw').value = '';
     err.textContent = '';
     const box = document.querySelector('.login-box');
@@ -1917,6 +1945,7 @@ async function doSwitchOp() {
   if (pw === CONFIG.passwords[key]) {
     state.operatore = key;
     state.isDir = (key === 'dir');
+    saveSession(key);
     updateOpLabels();
     closeModal('modalSwitchOp');
     resetSellForm();
@@ -1933,6 +1962,7 @@ async function doSwitchOp() {
 function doLogout() {
   stopRealtime();
   closeModal('modalSwitchOp');
+  try { localStorage.removeItem('scopello_session'); } catch(e) {}
   state.operatore = null; state.isDir = false;
   state.vendite = [];
   state.rimborsi = [];
