@@ -778,41 +778,6 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); }
 .pan-extra-btn:active { background: rgba(255,255,255,0.35); transform: scale(0.92); }
 .pan-extra-val { font-size: 0.68rem; font-weight: 700; color: #a0ffcc; min-width: 36px; text-align: center; }
 
-/* ===== LOCK SCREEN ===== */
-#lockOverlay {
-  position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 9999;
-  background: rgba(26,23,20,0.97);
-  flex-direction: column;
-  align-items: center; justify-content: center; gap: 16px;
-  display: none;
-  -webkit-transform: translateZ(0); transform: translateZ(0);
-}
-.lock-title { font-family: var(--fd); color: #fff; font-size: 1.5rem; font-weight: normal; margin-top: 4px; }
-.lock-subtitle { font-size: 0.7rem; color: rgba(255,255,255,0.45); letter-spacing: 0.18em; text-transform: uppercase; }
-.lock-icon { font-size: 2.8rem; line-height: 1; }
-.lock-dots { display: flex; gap: 16px; margin: 8px 0 4px; }
-.lock-dot { width: 15px; height: 15px; border-radius: 50%; background: rgba(255,255,255,0.2); transition: background 0.15s, transform 0.1s; }
-.lock-dot.filled { background: #fff; transform: scale(1.1); }
-.lock-error { font-size: 0.78rem; color: #f08080; font-weight: 700; min-height: 18px; }
-.lock-pad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; width: 252px; }
-.lock-key {
-  height: 68px; border-radius: 16px; border: none; cursor: pointer;
-  background: rgba(255,255,255,0.1); color: #fff;
-  font-size: 1.6rem; font-weight: 700; font-family: var(--fd);
-  transition: background 0.1s, transform 0.1s;
-  -webkit-tap-highlight-color: transparent; touch-action: manipulation;
-}
-.lock-key:active { background: rgba(255,255,255,0.25); transform: scale(0.93); }
-.lock-key.del { font-size: 1.3rem; }
-.lock-key.ok { background: var(--green); font-family: var(--fu); font-size: 1.2rem; }
-.lock-key.ok:active { background: #146d3c; }
-@keyframes lock-shake { 0%,100%{transform:translateX(0)} 20%{transform:translateX(-10px)} 40%{transform:translateX(10px)} 60%{transform:translateX(-6px)} 80%{transform:translateX(6px)} }
-.lock-dots.shake { animation: lock-shake 0.4s ease; }
-.lock-btn {
-  background: rgba(0,0,0,0.06); border: 1.5px solid var(--border);
-  border-radius: 8px; padding: 5px 9px; font-size: 1.05rem; cursor: pointer;
-  line-height: 1; color: var(--text2); -webkit-tap-highlight-color: transparent;
-}
 
 @media (orientation: landscape) and (min-width: 600px) {
   .ticket-cards { grid-template-columns: repeat(4, 1fr); }
@@ -856,13 +821,12 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); }
     <div class="topbar">
       <div class="topbar-brand">
         <h1>Torre di Scopello</h1>
-        <p>Percorso Storico Naturalistico <span style="font-size:0.5rem;color:var(--muted);">v76</span></p>
+        <p>Percorso Storico Naturalistico <span style="font-size:0.5rem;color:var(--muted);">v77</span></p>
       </div>
       <div class="topbar-right">
         <span class="op-badge" id="syncBadge" style="font-size:0.65rem;">✓ Online</span>
         <span class="op-badge" id="opBadge">Cassa 1</span>
         <span class="top-clock" id="topClock">--:--</span>
-        <button class="lock-btn" onclick="lockApp()" title="Blocca app">🔒</button>
       </div>
     </div>
 
@@ -1108,16 +1072,6 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); }
           <div style="display:flex;gap:6px;align-items:center;">
             <input type="password" class="name-input" id="newPwCtrl" placeholder="nuova pw" style="width:110px;">
             <button class="note-save-btn" onclick="changePassword('ctrl')">Salva</button>
-          </div>
-        </div>
-      </div>
-      <div class="sec-label" style="margin-bottom:8px;margin-top:14px;">🔒 PIN blocco schermo</div>
-      <div class="settings-section">
-        <div class="settings-row-item">
-          <span class="settings-row-label">PIN (4 cifre) — default 1234</span>
-          <div style="display:flex;gap:6px;align-items:center;">
-            <input type="password" inputmode="numeric" maxlength="4" class="name-input" id="newLockPin" placeholder="●●●●" style="width:80px;text-align:center;letter-spacing:0.2em;">
-            <button class="note-save-btn" onclick="saveLockPin()">Salva</button>
           </div>
         </div>
       </div>
@@ -3764,101 +3718,6 @@ if ('serviceWorker' in navigator) {
   });
 }
 
-// ===== LOCK SCREEN =====
-let _lockInput = '';
-
-function lockApp() {
-  _lockInput = '';
-  const overlay = document.getElementById('lockOverlay');
-  overlay.style.display = 'flex';
-  document.getElementById('lockError').textContent = '';
-  _updateLockDots();
-  history.pushState({ locked: true }, '');
-  window.addEventListener('popstate', _lockPopState);
-}
-
-function _lockPopState() {
-  const overlay = document.getElementById('lockOverlay');
-  if (overlay && overlay.style.display === 'flex') {
-    history.pushState({ locked: true }, '');
-  }
-}
-
-function _unlockApp() {
-  document.getElementById('lockOverlay').style.display = 'none';
-  window.removeEventListener('popstate', _lockPopState);
-  _lockInput = '';
-  _updateLockDots();
-}
-
-function lockKey(digit) {
-  if (_lockInput.length >= 4) return;
-  _lockInput += digit;
-  _updateLockDots();
-  if (_lockInput.length === 4) setTimeout(lockCheck, 180);
-}
-
-function lockDel() {
-  _lockInput = _lockInput.slice(0, -1);
-  document.getElementById('lockError').textContent = '';
-  _updateLockDots();
-}
-
-function lockCheck() {
-  const pin = localStorage.getItem('scopello_lock_pin') || '1234';
-  if (_lockInput === pin) {
-    _unlockApp();
-  } else {
-    document.getElementById('lockError').textContent = 'PIN errato';
-    const dots = document.getElementById('lockDots');
-    dots.classList.add('shake');
-    setTimeout(() => dots.classList.remove('shake'), 420);
-    _lockInput = '';
-    _updateLockDots();
-  }
-}
-
-function _updateLockDots() {
-  for (let i = 0; i < 4; i++) {
-    document.getElementById('ld' + i).classList.toggle('filled', i < _lockInput.length);
-  }
-}
-
-function saveLockPin() {
-  const input = document.getElementById('newLockPin');
-  const val = input.value.replace(/\D/g, '');
-  if (val.length !== 4) { showErrorToast('Il PIN deve essere di 4 cifre'); return; }
-  localStorage.setItem('scopello_lock_pin', val);
-  input.value = '';
-  showInfoToast('PIN blocco aggiornato');
-}
 </script>
-
-<div id="lockOverlay">
-  <div class="lock-icon">🔒</div>
-  <div class="lock-title">Torre di Scopello</div>
-  <div class="lock-subtitle">App bloccata</div>
-  <div class="lock-dots" id="lockDots">
-    <div class="lock-dot" id="ld0"></div>
-    <div class="lock-dot" id="ld1"></div>
-    <div class="lock-dot" id="ld2"></div>
-    <div class="lock-dot" id="ld3"></div>
-  </div>
-  <div class="lock-error" id="lockError"></div>
-  <div class="lock-pad">
-    <button class="lock-key" onclick="lockKey('1')">1</button>
-    <button class="lock-key" onclick="lockKey('2')">2</button>
-    <button class="lock-key" onclick="lockKey('3')">3</button>
-    <button class="lock-key" onclick="lockKey('4')">4</button>
-    <button class="lock-key" onclick="lockKey('5')">5</button>
-    <button class="lock-key" onclick="lockKey('6')">6</button>
-    <button class="lock-key" onclick="lockKey('7')">7</button>
-    <button class="lock-key" onclick="lockKey('8')">8</button>
-    <button class="lock-key" onclick="lockKey('9')">9</button>
-    <button class="lock-key del" onclick="lockDel()">⌫</button>
-    <button class="lock-key" onclick="lockKey('0')">0</button>
-    <button class="lock-key ok" onclick="lockCheck()">✓</button>
-  </div>
-</div>
 </body>
 </html>
