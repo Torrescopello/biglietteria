@@ -846,7 +846,7 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); }
     <div class="topbar">
       <div class="topbar-brand">
         <h1>Torre di Scopello</h1>
-        <p>Percorso Storico Naturalistico <span style="font-size:0.5rem;color:var(--muted);">v81</span></p>
+        <p>Percorso Storico Naturalistico <span style="font-size:0.5rem;color:var(--muted);">v82</span></p>
       </div>
       <div class="topbar-right">
         <span class="op-badge" id="syncBadge" style="font-size:0.65rem;">✓ Online</span>
@@ -1424,6 +1424,10 @@ window.addEventListener('online', async () => {
 
   if (state.operatore) {
     await loadTodayVendite();
+    saveGiornataSync();
+    startRealtime();
+    loadPrenotazioni();
+    await loadGiornataSync();
   }
 });
 window.addEventListener('offline', () => { isOnline = false; updateSyncBadge(); });
@@ -1482,7 +1486,7 @@ async function tryAutoLogin() {
     updateSyncBadge();
     await syncPending();
     await loadTodayVendite();
-    if (isOnline) { startRealtime(); loadPrenotazioni(); }
+    if (isOnline) { startRealtime(); loadPrenotazioni(); await loadGiornataSync(); }
     await checkFirstTicket();
   } catch(e) {}
 }
@@ -1774,16 +1778,57 @@ function bandieraLingua(lang) { return lang === 'it' ? '🇮🇹' : '🇬🇧'; 
 function saveIngressi() {
   const todayKey = 'scopello_ingressi_' + new Date().toLocaleDateString('it-IT',{year:'numeric',month:'2-digit',day:'2-digit'}).split('/').reverse().join('-');
   try { localStorage.setItem(todayKey, JSON.stringify(state.ingressi)); } catch(e) {}
+  saveGiornataSync();
 }
 
 function saveExtra() {
   const extraKey = 'scopello_extra_' + new Date().toLocaleDateString('it-IT',{year:'numeric',month:'2-digit',day:'2-digit'}).split('/').reverse().join('-');
   try { localStorage.setItem(extraKey, JSON.stringify(state.extraPosti)); } catch(e) {}
+  saveGiornataSync();
 }
 
 function saveIntegrazioni() {
   const key = 'scopello_integrazioni_' + new Date().toLocaleDateString('it-IT',{year:'numeric',month:'2-digit',day:'2-digit'}).split('/').reverse().join('-');
   try { localStorage.setItem(key, JSON.stringify(state.integrazioni)); } catch(e) {}
+  saveGiornataSync();
+}
+
+function saveGiornataSync() {
+  if (!isOnline) return;
+  const today = getTodayISO();
+  const payload = { data: today, extraPosti: state.extraPosti, ingressi: state.ingressi, integrazioni: state.integrazioni };
+  db.from('app_config').select('key').eq('key','stato_oggi').maybeSingle()
+    .then(({ data }) => {
+      const op = data
+        ? db.from('app_config').update({ value: payload }).eq('key','stato_oggi')
+        : db.from('app_config').insert({ key:'stato_oggi', value: payload });
+      op.then(()=>{}).catch(()=>{});
+    }).catch(()=>{});
+}
+
+async function loadGiornataSync() {
+  if (!isOnline) return;
+  const today = getTodayISO();
+  const { data, error } = await db.from('app_config').select('value').eq('key','stato_oggi').maybeSingle();
+  if (error || !data) return;
+  let val = data.value;
+  if (typeof val === 'string') { try { val = JSON.parse(val); } catch(e) { return; } }
+  if (!val || val.data !== today) return;
+  if (val.extraPosti) {
+    state.extraPosti = val.extraPosti;
+    try { localStorage.setItem('scopello_extra_' + today, JSON.stringify(state.extraPosti)); } catch(e) {}
+  }
+  if (val.ingressi) {
+    state.ingressi = val.ingressi;
+    try { localStorage.setItem('scopello_ingressi_' + today, JSON.stringify(state.ingressi)); } catch(e) {}
+  }
+  if (Array.isArray(val.integrazioni)) {
+    state.integrazioni = val.integrazioni;
+    try { localStorage.setItem('scopello_integrazioni_' + today, JSON.stringify(state.integrazioni)); } catch(e) {}
+  }
+  updateCartUI();
+  if (document.getElementById('tab-ingresso') && document.getElementById('tab-ingresso').classList.contains('active')) renderIngresso();
+  if (document.getElementById('tab-cassa') && document.getElementById('tab-cassa').classList.contains('active')) renderCassa();
 }
 
 async function loadPasswordsFromDB() {
@@ -2044,7 +2089,7 @@ async function doLogin() {
       // Prima sincronizza le vendite offline, poi carica dal DB
       await syncPending();
       await loadTodayVendite();
-      if (isOnline) { startRealtime(); loadPrenotazioni(); }
+      if (isOnline) { startRealtime(); loadPrenotazioni(); await loadGiornataSync(); }
       await checkFirstTicket();
     }, 900);
   } else {
@@ -3563,6 +3608,7 @@ async function resetDay() {
     await db.from('vendite').delete().eq('data', today);
     await db.from('ingressi').delete().eq('data', today).catch(() => {});
     await db.from('rimborsi_giornata').delete().eq('data', today).catch(() => {});
+    await db.from('app_config').delete().eq('key', 'stato_oggi').catch(() => {});
   } else {
     localStorage.setItem('scopello_pending_reset', today);
   }
@@ -4001,6 +4047,11 @@ function startRealtime() {
       event: '*', schema: 'public', table: 'prenotazioni'
     }, () => {
       loadPrenotazioni();
+    })
+    .on('postgres_changes', {
+      event: '*', schema: 'public', table: 'app_config', filter: `key=eq.stato_oggi`
+    }, () => {
+      loadGiornataSync();
     })
     .subscribe();
 }
