@@ -822,7 +822,7 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); }
     <div class="topbar">
       <div class="topbar-brand">
         <h1>Torre di Scopello</h1>
-        <p>Percorso Storico Naturalistico <span style="font-size:0.5rem;color:var(--muted);">v79</span></p>
+        <p>Percorso Storico Naturalistico <span style="font-size:0.5rem;color:var(--muted);">v80</span></p>
       </div>
       <div class="topbar-right">
         <span class="op-badge" id="syncBadge" style="font-size:0.65rem;">✓ Online</span>
@@ -1277,6 +1277,24 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); }
   </div>
 </div>
 
+<!-- MODAL PRIMO TICKET GIORNATA -->
+<div class="modal-overlay" id="modalFirstTicket">
+  <div class="modal">
+    <h2 style="margin-bottom:6px;">Inizio giornata</h2>
+    <p>Primo numero di ticket di oggi:</p>
+    <input type="number" id="firstTicketInput" min="1" max="999" value="1"
+      inputmode="numeric" pattern="[0-9]*"
+      style="width:100%;text-align:center;font-size:2.4rem;font-weight:800;
+             border:2px solid var(--border);border-radius:10px;padding:10px 6px;
+             background:var(--bg);font-family:var(--fd);color:var(--sea);outline:none;
+             margin:10px 0 4px;"
+      onkeydown="if(event.key==='Enter')applyFirstTicket()">
+    <div class="modal-btns" style="margin-top:12px;">
+      <button class="btn-m btn-m-ok" style="grid-column:1/-1;" onclick="applyFirstTicket()">✓ Inizia giornata</button>
+    </div>
+  </div>
+</div>
+
 <div class="success-flash" id="successFlash">
   <span>✓ Vendita registrata</span>
   <span class="sf-amount" id="flashAmount">€ 0,00</span>
@@ -1332,6 +1350,38 @@ window.addEventListener('online', async () => {
 });
 window.addEventListener('offline', () => { isOnline = false; updateSyncBadge(); });
 
+// ============================================================
+// PRIMO TICKET GIORNATA
+// ============================================================
+function getTodayISO() {
+  return new Date().toLocaleDateString('it-IT', {year:'numeric',month:'2-digit',day:'2-digit'}).split('/').reverse().join('-');
+}
+
+async function checkFirstTicket() {
+  const today = getTodayISO();
+  if (localStorage.getItem('scopello_day_started') === today) return;
+  if (state.vendite.length > 0) {
+    try { localStorage.setItem('scopello_day_started', today); } catch(e) {}
+    return;
+  }
+  document.getElementById('firstTicketInput').value = 1;
+  document.getElementById('modalFirstTicket').classList.add('visible');
+}
+
+function applyFirstTicket() {
+  const val = parseInt(document.getElementById('firstTicketInput').value);
+  if (isNaN(val) || val < 1 || val > 999) { showErrorToast('Inserisci un numero tra 1 e 999'); return; }
+  const today = getTodayISO();
+  ticketCounter = val - 1;
+  try { localStorage.setItem('scopello_ticket_counter', ticketCounter); } catch(e) {}
+  try { localStorage.setItem('scopello_day_started', today); } catch(e) {}
+  const elSet = document.getElementById('ticketStartSet');
+  if (elSet) elSet.value = val;
+  closeModal('modalFirstTicket');
+  saveConfigToDB();
+  showInfoToast(`✓ Primo ticket: #${String(val).padStart(3,'0')}`);
+}
+
 // Auto-login: se la sessione è di oggi, salta il login
 function saveSession(op) {
   const today = new Date().toLocaleDateString('it-IT');
@@ -1355,6 +1405,7 @@ async function tryAutoLogin() {
     await syncPending();
     await loadTodayVendite();
     if (isOnline) startRealtime();
+    await checkFirstTicket();
   } catch(e) {}
 }
 (async () => { await tryAutoLogin(); })();
@@ -1749,7 +1800,8 @@ function saveConfigToDB() {
     primaLingua: CONFIG.primaLingua,
     capMax: CONFIG.capMax, capPremium: CONFIG.capPremium, capBase: CONFIG.capBase,
     prezzi: CONFIG.prezzi,
-    ticketStart: ticketCounter + 1
+    ticketStart: ticketCounter + 1,
+    ticketStartDate: getTodayISO()
   };
   db.from('app_config').select('key').eq('key','orari_cfg').maybeSingle()
     .then(({ data }) => {
@@ -1814,11 +1866,20 @@ async function loadOrariCfgFromDB() {
     [['priceBaseSet', CONFIG.prezzi.base],['pricePremiumSet', CONFIG.prezzi.premium],['priceRidottoSet', CONFIG.prezzi.ridotto]].forEach(([id, v]) => { const el = document.getElementById(id); if (el) el.textContent = v; });
     [['priceBaseDisplay', CONFIG.prezzi.base],['pricePremiumDisplay', CONFIG.prezzi.premium],['priceRidottoDisplay', CONFIG.prezzi.ridotto]].forEach(([id, v]) => { const el = document.getElementById(id); if (el) el.textContent = '€'+v; });
   }
-  if (val.ticketStart > 0 && ticketCounter === 0) {
-    ticketCounter = val.ticketStart - 1;
-    try { localStorage.setItem('scopello_ticket_counter', ticketCounter); } catch(e) {}
-    const el = document.getElementById('ticketStartSet');
-    if (el) el.value = val.ticketStart;
+  if (val.ticketStart > 0) {
+    const today = getTodayISO();
+    const dayStarted = localStorage.getItem('scopello_day_started');
+    const isNewDay = dayStarted !== today && state.vendite.length === 0;
+    if (ticketCounter === 0 || (val.ticketStartDate === today && isNewDay)) {
+      ticketCounter = val.ticketStart - 1;
+      try { localStorage.setItem('scopello_ticket_counter', ticketCounter); } catch(e) {}
+      if (val.ticketStartDate === today && isNewDay) {
+        try { localStorage.setItem('scopello_day_started', today); } catch(e) {}
+        closeModal('modalFirstTicket');
+      }
+      const el = document.getElementById('ticketStartSet');
+      if (el) el.value = val.ticketStart;
+    }
   }
   renderTurniVendita();
   if (document.getElementById('tab-turni') && document.getElementById('tab-turni').classList.contains('active')) renderTurni();
@@ -1905,6 +1966,7 @@ async function doLogin() {
       await syncPending();
       await loadTodayVendite();
       if (isOnline) startRealtime();
+      await checkFirstTicket();
     }, 900);
   } else {
     err.textContent = `Password non corretta. (${dbStatus})`;
