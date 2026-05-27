@@ -860,7 +860,7 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); }
     <div class="topbar">
       <div class="topbar-brand">
         <h1>Torre di Scopello</h1>
-        <p>Percorso Storico Naturalistico <span style="font-size:0.5rem;color:var(--muted);">v83</span></p>
+        <p>Percorso Storico Naturalistico <span style="font-size:0.5rem;color:var(--muted);">v84</span></p>
       </div>
       <div class="topbar-right">
         <span class="op-badge" id="syncBadge" style="font-size:0.65rem;">✓ Online</span>
@@ -1337,7 +1337,7 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); }
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
       <div>
         <div class="field-label">Data visita</div>
-        <input type="date" id="prenData" class="field-input" style="padding:9px 10px;font-size:0.9rem;margin-bottom:0;">
+        <input type="date" id="prenData" class="field-input" readonly style="padding:9px 10px;font-size:0.9rem;margin-bottom:0;background:var(--s1);cursor:default;">
       </div>
       <div>
         <div class="field-label">N. Lettini</div>
@@ -1363,7 +1363,7 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); }
       </div>
     </div>
     <div class="field-label">Note (facoltativo)</div>
-    <textarea id="prenNote" class="note-area" placeholder="Note aggiuntive..." style="height:56px;margin-bottom:12px;"></textarea>
+    <textarea id="prenNote" class="note-textarea" placeholder="Note aggiuntive..." style="height:56px;margin-bottom:12px;"></textarea>
     <div class="modal-btns">
       <button class="btn-m btn-m-cancel" onclick="closeModal('modalPren')">Annulla</button>
       <button class="btn-m btn-m-ok" onclick="salvaPrenotazione()">✓ Salva</button>
@@ -1426,7 +1426,7 @@ window.addEventListener('online', async () => {
   // Reset offline pendente
   const pendingReset = localStorage.getItem('scopello_pending_reset');
   if (pendingReset) {
-    await db.from('vendite').delete().eq('data', pendingReset);
+    await db.from('vendite').delete().eq('data', pendingReset).catch(() => {});
     await db.from('ingressi').delete().eq('data', pendingReset).catch(() => {});
     await db.from('rimborsi_giornata').delete().eq('data', pendingReset).catch(() => {});
     localStorage.removeItem('scopello_pending_reset');
@@ -1475,7 +1475,7 @@ async function checkFirstTicket() {
 
 function applyFirstTicket() {
   const val = parseInt(document.getElementById('firstTicketInput').value);
-  if (isNaN(val) || val < 1 || val > 999) { showErrorToast('Inserisci un numero tra 1 e 999'); return; }
+  if (isNaN(val) || val < 1 || val > 100) { showErrorToast('Inserisci un numero tra 1 e 100'); return; }
   const today = getTodayISO();
   ticketCounter = val - 1;
   try { localStorage.setItem('scopello_ticket_counter', ticketCounter); } catch(e) {}
@@ -1991,7 +1991,7 @@ async function loadOrariCfgFromDB() {
     if (itBtn) itBtn.classList.toggle('selected', CONFIG.primaLingua === 'it');
     if (enBtn) enBtn.classList.toggle('selected', CONFIG.primaLingua === 'en');
   }
-  if (val.capMax > 0) {
+  if (val.capMax >= 0) {
     CONFIG.capMax = val.capMax;
     try { localStorage.setItem('scopello_capmax', CONFIG.capMax); } catch(e) {}
     const el = document.getElementById('capSet'); if (el) el.textContent = CONFIG.capMax;
@@ -2179,6 +2179,7 @@ function doLogout() {
   state.ingressi = {};
   state.extraPosti = { premium: 0, base: 0 };
   state.note = { op1: [], op2: [] };
+  state.prenotazioni = [];
   CONFIG.orari.forEach(o => { state.turni[o] = { prenotati: 0 }; });
   const u = document.getElementById('undoBtn'); if (u) u.remove();
   resetSellForm();
@@ -2553,7 +2554,12 @@ function undoLastSale() {
 function doAnnullaVendita(vendita) {
   state.vendite = state.vendite.filter(v => v.id !== vendita.id);
   if (vendita.turno !== 'nessuna') state.turni[vendita.turno].prenotati = Math.max(0, state.turni[vendita.turno].prenotati - vendita.qty);
-  deleteVendita(vendita);
+  if (!vendita.dbId) {
+    pendingSync = pendingSync.filter(p => p.localId !== vendita.id);
+    savePending();
+  } else {
+    deleteVendita(vendita);
+  }
   updateCartUI();
   renderTurniVendita(); renderUndoBtn();
   if (document.getElementById('tab-storico').classList.contains('active')) renderStorico();
@@ -2593,6 +2599,10 @@ function showFlash(tot, tNum) {
 }
 
 let _errorToastTimer = null;
+function escHtml(s) {
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
 function showErrorToast(msg) {
   const t = document.getElementById('errorToast');
   if (!t) return;
@@ -2991,7 +3001,7 @@ function eseguiUpgrade() {
     }
   }
 
-  showErrorToast('⬆ Ticket ' + upgradeTicketNum + ' upgradato a Premium');
+  showInfoToast('⬆ Ticket ' + upgradeTicketNum + ' upgradato a Premium');
 }
 
 // ============================================================
@@ -3445,8 +3455,6 @@ function popolaSelectOrari() {
     sel.innerHTML = all.map(t => `<option value="${t}"${t===val?' selected':''}>${t}</option>`).join('');
   });
   refreshOrariPreview();
-
-  saveConfigToDB();
 }
 
 function refreshOrariPreview() {
@@ -3609,6 +3617,8 @@ async function resetDay() {
   state.integrazioni = [];
   state.ingressi = {};
   state.extraPosti = { premium: 0, base: 0 };
+  state.note = { op1: [], op2: [] };
+  state.prenotazioni = [];
   CONFIG.orari.forEach(o => { state.turni[o] = { prenotati: 0 }; });
   ticketCounter = 0;
 
@@ -3836,7 +3846,7 @@ function segnaIngressoBtn(ticketNum) {
   state.ingressi[ticketNum] = { ora };
   saveIngressi();
   renderIngresso();
-  showErrorToast('✓ Ticket ' + ticketNum + ' entrato alle ' + ora);
+  showInfoToast('✓ Ticket ' + ticketNum + ' entrato alle ' + ora);
 }
 
 function undoIngressoBtn(ticketNum) {
@@ -3917,7 +3927,7 @@ function prenDateLabel(iso) {
   const d = new Date(iso + 'T00:00:00');
   const today = getTodayISO();
   const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate()+1);
-  const tomorrowISO = tomorrow.toISOString().slice(0,10);
+  const tomorrowISO = tomorrow.toLocaleDateString('it-IT',{year:'numeric',month:'2-digit',day:'2-digit'}).split('/').reverse().join('-');
   const label = d.toLocaleDateString('it-IT', { weekday:'long', day:'numeric', month:'long' });
   let sub = '';
   if (iso === today) sub = 'Oggi';
@@ -3934,8 +3944,9 @@ function prenOggiLettiniPrenotati() {
 
 async function loadPrenotazioni() {
   if (!isOnline) return;
-  const today = getTodayISO();
-  const { data, error } = await db.from('prenotazioni').select('*').gte('data', today).order('data').order('created_at');
+  const past30 = new Date(); past30.setDate(past30.getDate() - 30);
+  const from = past30.toLocaleDateString('it-IT',{year:'numeric',month:'2-digit',day:'2-digit'}).split('/').reverse().join('-');
+  const { data, error } = await db.from('prenotazioni').select('*').gte('data', from).order('data').order('created_at');
   if (error || !data) return;
   state.prenotazioni = data;
   renderPrenotazioni();
@@ -3964,18 +3975,19 @@ function renderPrenotazioni() {
 
   list.innerHTML = filtered.map(p => {
     const arrivato = p.arrivato;
-    const pagChip = `<span class="pren-chip ${p.pagamento_acconto}">${p.pagamento_acconto}</span>`;
+    const safePag = ['cash','pos','altro'].includes(p.pagamento_acconto) ? p.pagamento_acconto : 'altro';
+    const pagChip = `<span class="pren-chip ${safePag}">${escHtml(p.pagamento_acconto)}</span>`;
     return `<div class="pren-card ${arrivato ? 'arrivato' : ''}">
       <div class="pren-top">
         <div>
-          <div class="pren-cognome">${arrivato ? '✓ ' : ''}${p.cognome}</div>
-          ${p.contatto ? `<div style="font-size:0.75rem;color:var(--muted);margin-top:2px;">${p.contatto}</div>` : ''}
+          <div class="pren-cognome">${arrivato ? '✓ ' : ''}${escHtml(p.cognome)}</div>
+          ${p.contatto ? `<div style="font-size:0.75rem;color:var(--muted);margin-top:2px;">${escHtml(p.contatto)}</div>` : ''}
         </div>
         <div class="pren-lettini">${p.lettini}<small>lettini</small></div>
       </div>
       <div class="pren-row">
         ${p.acconto > 0 ? `<span>Acconto: <b>€${Number(p.acconto).toFixed(2)}</b></span>${pagChip}` : '<span style="color:var(--muted)">Nessun acconto</span>'}
-        ${p.note ? `<span style="color:var(--muted);font-style:italic;">${p.note}</span>` : ''}
+        ${p.note ? `<span style="color:var(--muted);font-style:italic;">${escHtml(p.note)}</span>` : ''}
       </div>
       <div class="pren-actions">
         ${!arrivato ? `<button class="pren-btn ok" onclick="segnaArrivato('${p.id}')">✓ Arrivato</button>` : ''}
@@ -4006,7 +4018,7 @@ async function salvaPrenotazione() {
   const lettini = parseInt(document.getElementById('prenLettini').value);
   if (!cognome) { showErrorToast('Inserisci il cognome'); return; }
   if (!data) { showErrorToast('Inserisci la data'); return; }
-  if (isNaN(lettini) || lettini < 1) { showErrorToast('Inserisci il numero di lettini'); return; }
+  if (isNaN(lettini) || lettini < 1 || lettini > 30) { showErrorToast('Inserisci un numero di lettini tra 1 e 30'); return; }
   const row = {
     data,
     cognome,
@@ -4017,14 +4029,11 @@ async function salvaPrenotazione() {
     note: document.getElementById('prenNote').value.trim() || null,
     arrivato: false
   };
+  if (!isOnline) { showErrorToast('Offline: prenotazione non salvata'); return; }
+  const { error } = await db.from('prenotazioni').insert(row);
+  if (error) { showErrorToast('Errore salvataggio'); return; }
   closeModal('modalPren');
-  if (isOnline) {
-    const { error } = await db.from('prenotazioni').insert(row);
-    if (error) { showErrorToast('Errore salvataggio'); return; }
-    await loadPrenotazioni();
-  } else {
-    showErrorToast('Offline: prenotazione non salvata');
-  }
+  await loadPrenotazioni();
 }
 
 async function segnaArrivato(id) {
