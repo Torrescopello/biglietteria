@@ -780,12 +780,13 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); }
 
 /* ===== LOCK SCREEN ===== */
 #lockOverlay {
-  position: fixed; inset: 0; z-index: 9999;
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 9999;
   background: rgba(26,23,20,0.97);
-  display: none; flex-direction: column;
+  flex-direction: column;
   align-items: center; justify-content: center; gap: 16px;
+  display: none;
+  -webkit-transform: translateZ(0); transform: translateZ(0);
 }
-#lockOverlay.visible { display: flex; }
 .lock-title { font-family: var(--fd); color: #fff; font-size: 1.5rem; font-weight: normal; margin-top: 4px; }
 .lock-subtitle { font-size: 0.7rem; color: rgba(255,255,255,0.45); letter-spacing: 0.18em; text-transform: uppercase; }
 .lock-icon { font-size: 2.8rem; line-height: 1; }
@@ -855,7 +856,7 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); }
     <div class="topbar">
       <div class="topbar-brand">
         <h1>Torre di Scopello</h1>
-        <p>Percorso Storico Naturalistico <span style="font-size:0.5rem;color:var(--muted);">v75</span></p>
+        <p>Percorso Storico Naturalistico <span style="font-size:0.5rem;color:var(--muted);">v76</span></p>
       </div>
       <div class="topbar-right">
         <span class="op-badge" id="syncBadge" style="font-size:0.65rem;">✓ Online</span>
@@ -3768,21 +3769,23 @@ let _lockInput = '';
 
 function lockApp() {
   _lockInput = '';
-  _updateLockDots();
+  const overlay = document.getElementById('lockOverlay');
+  overlay.style.display = 'flex';
   document.getElementById('lockError').textContent = '';
-  document.getElementById('lockOverlay').classList.add('visible');
+  _updateLockDots();
   history.pushState({ locked: true }, '');
   window.addEventListener('popstate', _lockPopState);
 }
 
 function _lockPopState() {
-  if (document.getElementById('lockOverlay').classList.contains('visible')) {
+  const overlay = document.getElementById('lockOverlay');
+  if (overlay && overlay.style.display === 'flex') {
     history.pushState({ locked: true }, '');
   }
 }
 
 function _unlockApp() {
-  document.getElementById('lockOverlay').classList.remove('visible');
+  document.getElementById('lockOverlay').style.display = 'none';
   window.removeEventListener('popstate', _lockPopState);
   _lockInput = '';
   _updateLockDots();
