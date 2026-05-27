@@ -780,6 +780,30 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); }
 .pan-extra-val { font-size: 0.68rem; font-weight: 700; color: #a0ffcc; min-width: 36px; text-align: center; }
 
 
+/* ===== PRENOTAZIONI ===== */
+.pren-date-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.pren-date-nav button { background: var(--s1); border: 1.5px solid var(--border); border-radius: 8px; padding: 6px 12px; font-size: 1rem; cursor: pointer; color: var(--text); }
+.pren-date-label { font-family: var(--fd); font-size: 1rem; font-weight: normal; color: var(--text); }
+.pren-date-label small { font-size: 0.65rem; color: var(--muted); display: block; text-align: center; letter-spacing: 0.08em; text-transform: uppercase; }
+.pren-card { background: var(--white); border: 2px solid var(--border); border-radius: 14px; padding: 12px 14px; margin-bottom: 8px; }
+.pren-card.arrivato { opacity: 0.5; border-color: var(--green-border); background: var(--green-bg); }
+.pren-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px; }
+.pren-cognome { font-weight: 800; font-size: 1rem; color: var(--text); }
+.pren-lettini { font-family: var(--fd); font-size: 1.1rem; color: var(--gold); font-weight: 700; }
+.pren-lettini small { font-size: 0.6rem; color: var(--muted); font-weight: 600; display: block; text-align: right; }
+.pren-row { display: flex; gap: 12px; font-size: 0.78rem; color: var(--text2); margin-bottom: 6px; flex-wrap: wrap; }
+.pren-chip { background: var(--s1); border-radius: 6px; padding: 2px 7px; font-size: 0.7rem; font-weight: 700; }
+.pren-chip.cash { background: var(--green-bg); color: var(--green); }
+.pren-chip.pos { background: var(--sea-bg); color: var(--sea); }
+.pren-chip.altro { background: var(--gold-bg); color: var(--gold); }
+.pren-actions { display: flex; gap: 8px; margin-top: 8px; }
+.pren-btn { flex: 1; padding: 8px 6px; border-radius: 10px; border: 2px solid var(--border); background: var(--bg); font-size: 0.75rem; font-weight: 700; cursor: pointer; color: var(--text2); }
+.pren-btn.ok { border-color: var(--green-border); color: var(--green); background: var(--green-bg); }
+.pren-btn.del { border-color: var(--red-border); color: var(--red); background: var(--red-bg); }
+.pren-empty { text-align: center; padding: 30px 16px; color: var(--muted); font-size: 0.82rem; font-weight: 600; }
+.pren-summary { background: var(--gold-bg); border: 1.5px solid var(--gold-border); border-radius: 10px; padding: 8px 12px; margin-bottom: 12px; font-size: 0.8rem; color: var(--gold); font-weight: 700; text-align: center; }
+.btn-add-pren { width: 100%; padding: 14px; border-radius: 12px; border: 2px dashed var(--border); background: var(--bg); font-size: 0.85rem; font-weight: 700; color: var(--text2); cursor: pointer; margin-top: 4px; }
+
 @media (orientation: landscape) and (min-width: 600px) {
   .ticket-cards { grid-template-columns: repeat(4, 1fr); }
   .pay-row { grid-template-columns: repeat(6, 1fr); }
@@ -822,7 +846,7 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); }
     <div class="topbar">
       <div class="topbar-brand">
         <h1>Torre di Scopello</h1>
-        <p>Percorso Storico Naturalistico <span style="font-size:0.5rem;color:var(--muted);">v80</span></p>
+        <p>Percorso Storico Naturalistico <span style="font-size:0.5rem;color:var(--muted);">v81</span></p>
       </div>
       <div class="topbar-right">
         <span class="op-badge" id="syncBadge" style="font-size:0.65rem;">✓ Online</span>
@@ -837,6 +861,7 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); }
       <button class="tab-btn" onclick="switchTab('storico')">📋 Storico</button>
       <button class="tab-btn" onclick="switchTab('cassa')">💰 Cassa</button>
       <button class="tab-btn" onclick="switchTab('ingresso')">🚪 Ingresso</button>
+      <button class="tab-btn" onclick="switchTab('prenotazioni')">📅 Prenotazioni</button>
     </div>
   </div>
 
@@ -1139,6 +1164,18 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); }
     <div class="ingresso-turni" id="ingressoTurni"></div>
   </div>
 
+  <!-- TAB PRENOTAZIONI -->
+  <div id="tab-prenotazioni" class="tab-content">
+    <div class="pren-date-nav">
+      <button onclick="prenNavDate(-1)">‹</button>
+      <div class="pren-date-label" id="prenDateLabel">—<small>—</small></div>
+      <button onclick="prenNavDate(+1)">›</button>
+    </div>
+    <div id="prenSummary"></div>
+    <div id="prenList"></div>
+    <button class="btn-add-pren" onclick="openModalPren()">+ Aggiungi prenotazione</button>
+  </div>
+
   </div><!-- /tab-scroll-area -->
 
   <!-- BOTTONE FLOTTANTE CAMBIO OPERATORE -->
@@ -1277,6 +1314,47 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); }
   </div>
 </div>
 
+<!-- MODAL NUOVA PRENOTAZIONE -->
+<div class="modal-overlay" id="modalPren">
+  <div class="modal" style="max-width:420px;">
+    <h2 style="margin-bottom:12px;">📅 Nuova prenotazione</h2>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+      <div>
+        <div class="field-label">Data visita</div>
+        <input type="date" id="prenData" class="field-input" style="padding:9px 10px;font-size:0.9rem;margin-bottom:0;">
+      </div>
+      <div>
+        <div class="field-label">N. Lettini</div>
+        <input type="number" id="prenLettini" class="field-input" min="1" max="30" value="1" inputmode="numeric" style="padding:9px 10px;font-size:0.9rem;margin-bottom:0;">
+      </div>
+    </div>
+    <div class="field-label">Cognome</div>
+    <input type="text" id="prenCognome" class="field-input" placeholder="Cognome cliente">
+    <div class="field-label">Contatto (tel / email)</div>
+    <input type="text" id="prenContatto" class="field-input" placeholder="Facoltativo">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">
+      <div>
+        <div class="field-label">Acconto €</div>
+        <input type="number" id="prenAcconto" class="field-input" min="0" step="0.01" value="0" inputmode="decimal" style="padding:9px 10px;font-size:0.9rem;margin-bottom:0;">
+      </div>
+      <div>
+        <div class="field-label">Metodo acconto</div>
+        <select id="prenPagamento" class="field-input" style="padding:9px 10px;font-size:0.9rem;margin-bottom:0;">
+          <option value="cash">Cash</option>
+          <option value="pos">POS</option>
+          <option value="altro">Altro</option>
+        </select>
+      </div>
+    </div>
+    <div class="field-label">Note (facoltativo)</div>
+    <textarea id="prenNote" class="note-area" placeholder="Note aggiuntive..." style="height:56px;margin-bottom:12px;"></textarea>
+    <div class="modal-btns">
+      <button class="btn-m btn-m-cancel" onclick="closeModal('modalPren')">Annulla</button>
+      <button class="btn-m btn-m-ok" onclick="salvaPrenotazione()">✓ Salva</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL PRIMO TICKET GIORNATA -->
 <div class="modal-overlay" id="modalFirstTicket">
   <div class="modal">
@@ -1404,7 +1482,7 @@ async function tryAutoLogin() {
     updateSyncBadge();
     await syncPending();
     await loadTodayVendite();
-    if (isOnline) startRealtime();
+    if (isOnline) { startRealtime(); loadPrenotazioni(); }
     await checkFirstTicket();
   } catch(e) {}
 }
@@ -1894,7 +1972,8 @@ let state = {
   rimborsi: [],
   integrazioni: [],
   ingressi: {},
-  extraPosti: { premium: 0, base: 0 }
+  extraPosti: { premium: 0, base: 0 },
+  prenotazioni: []
 };
 let cart = {};
 CONFIG.orari.forEach(o => { state.turni[o] = { prenotati: 0 }; });
@@ -1965,7 +2044,7 @@ async function doLogin() {
       // Prima sincronizza le vendite offline, poi carica dal DB
       await syncPending();
       await loadTodayVendite();
-      if (isOnline) startRealtime();
+      if (isOnline) { startRealtime(); loadPrenotazioni(); }
       await checkFirstTicket();
     }, 900);
   } else {
@@ -2084,14 +2163,15 @@ setInterval(() => {
 }, 60000);
 
 function switchTab(name) {
-  document.querySelectorAll('.tab-btn').forEach((b,i) => b.classList.toggle('active', ['vendita','turni','storico','cassa','ingresso'][i] === name));
+  document.querySelectorAll('.tab-btn').forEach((b,i) => b.classList.toggle('active', ['vendita','turni','storico','cassa','ingresso','prenotazioni'][i] === name));
   document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
   document.getElementById('tab-'+name).classList.add('active');
-  if (name === 'vendita')   { renderTurniVendita(); updateCartUI(); updateSummary(); }
-  if (name === 'turni')     renderTurni();
-  if (name === 'storico')   renderStorico();
-  if (name === 'cassa')     renderCassa();
-  if (name === 'ingresso')  renderIngresso();
+  if (name === 'vendita')       { renderTurniVendita(); updateCartUI(); updateSummary(); }
+  if (name === 'turni')         renderTurni();
+  if (name === 'storico')       renderStorico();
+  if (name === 'cassa')         renderCassa();
+  if (name === 'ingresso')      renderIngresso();
+  if (name === 'prenotazioni')  renderPrenotazioni();
 }
 
 // ============================================================
@@ -2173,8 +2253,9 @@ function addToCart(tipo) {
   if (tipo === 'premium') {
     const netti = venditeNettePerTipo('premium');
     const inCarrello = cart['premium'] || 0;
-    if (netti + inCarrello >= CONFIG.capPremium + state.extraPosti.premium) {
-      showErrorToast(`Lettini esauriti — max ${CONFIG.capPremium + state.extraPosti.premium} al giorno`); return;
+    const prenotati = prenOggiLettiniPrenotati();
+    if (netti + inCarrello + prenotati >= CONFIG.capPremium + state.extraPosti.premium) {
+      showErrorToast(`Lettini esauriti — max ${CONFIG.capPremium + state.extraPosti.premium} (${prenotati} prenotati)`); return;
     }
   }
   // Controllo limite giornaliero base (include ridotto e nopay, cap + extra)
@@ -2227,7 +2308,7 @@ function updateCartUI() {
   const labels = { base:'Base', premium:'Premium', ridotto:'Ridotto', nopay:'Non pagante' };
 
   // Badge sulle card — posti rimasti = cap + extra - venduti (ridotto+nopay contano come base)
-  const rimPrem = Math.max(0, CONFIG.capPremium + state.extraPosti.premium - venditeNettePerTipo('premium'));
+  const rimPrem = Math.max(0, CONFIG.capPremium + state.extraPosti.premium - venditeNettePerTipo('premium') - prenOggiLettiniPrenotati());
   const rimBase = Math.max(0, CONFIG.capBase + state.extraPosti.base
     - venditeNettePerTipo('base') - venditeNettePerTipo('ridotto') - venditeNettePerTipo('nopay'));
   types.forEach(t => {
@@ -3697,6 +3778,145 @@ function undoIngressoBtn(ticketNum) {
 
 function closeModal(id) { document.getElementById(id).classList.remove('visible'); }
 
+// ============================================================
+// PRENOTAZIONI
+// ============================================================
+let _prenViewDate = getTodayISO();
+
+function prenNavDate(delta) {
+  const d = new Date(_prenViewDate + 'T00:00:00');
+  d.setDate(d.getDate() + delta);
+  _prenViewDate = d.toISOString().slice(0, 10);
+  renderPrenotazioni();
+}
+
+function prenDateLabel(iso) {
+  const d = new Date(iso + 'T00:00:00');
+  const today = getTodayISO();
+  const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate()+1);
+  const tomorrowISO = tomorrow.toISOString().slice(0,10);
+  const label = d.toLocaleDateString('it-IT', { weekday:'long', day:'numeric', month:'long' });
+  let sub = '';
+  if (iso === today) sub = 'Oggi';
+  else if (iso === tomorrowISO) sub = 'Domani';
+  return { label, sub };
+}
+
+function prenOggiLettiniPrenotati() {
+  const today = getTodayISO();
+  return state.prenotazioni
+    .filter(p => p.data === today && !p.arrivato)
+    .reduce((s, p) => s + p.lettini, 0);
+}
+
+async function loadPrenotazioni() {
+  if (!isOnline) return;
+  const today = getTodayISO();
+  const { data, error } = await db.from('prenotazioni').select('*').gte('data', today).order('data').order('created_at');
+  if (error || !data) return;
+  state.prenotazioni = data;
+  renderPrenotazioni();
+  updateCartUI();
+}
+
+function renderPrenotazioni() {
+  const { label, sub } = prenDateLabel(_prenViewDate);
+  document.getElementById('prenDateLabel').innerHTML = label + (sub ? `<small>${sub}</small>` : '');
+
+  const list = document.getElementById('prenList');
+  const summary = document.getElementById('prenSummary');
+  const filtered = state.prenotazioni.filter(p => p.data === _prenViewDate);
+  const totLettini = filtered.filter(p => !p.arrivato).reduce((s,p)=>s+p.lettini,0);
+  const arrivati = filtered.filter(p => p.arrivato).length;
+
+  if (filtered.length === 0) {
+    summary.innerHTML = '';
+    list.innerHTML = `<div class="pren-empty">Nessuna prenotazione per questa data</div>`;
+    return;
+  }
+
+  summary.innerHTML = totLettini > 0
+    ? `<div class="pren-summary">🏖 ${totLettini} lettini prenotati · ${arrivati} arrivati</div>`
+    : `<div class="pren-summary" style="background:var(--green-bg);border-color:var(--green-border);color:var(--green);">✓ Tutti arrivati</div>`;
+
+  list.innerHTML = filtered.map(p => {
+    const arrivato = p.arrivato;
+    const pagChip = `<span class="pren-chip ${p.pagamento_acconto}">${p.pagamento_acconto}</span>`;
+    return `<div class="pren-card ${arrivato ? 'arrivato' : ''}">
+      <div class="pren-top">
+        <div>
+          <div class="pren-cognome">${arrivato ? '✓ ' : ''}${p.cognome}</div>
+          ${p.contatto ? `<div style="font-size:0.75rem;color:var(--muted);margin-top:2px;">${p.contatto}</div>` : ''}
+        </div>
+        <div class="pren-lettini">${p.lettini}<small>lettini</small></div>
+      </div>
+      <div class="pren-row">
+        ${p.acconto > 0 ? `<span>Acconto: <b>€${Number(p.acconto).toFixed(2)}</b></span>${pagChip}` : '<span style="color:var(--muted)">Nessun acconto</span>'}
+        ${p.note ? `<span style="color:var(--muted);font-style:italic;">${p.note}</span>` : ''}
+      </div>
+      <div class="pren-actions">
+        ${!arrivato ? `<button class="pren-btn ok" onclick="segnaArrivato('${p.id}')">✓ Arrivato</button>` : ''}
+        <button class="pren-btn del" onclick="eliminaPrenotazione('${p.id}')">🗑 Elimina</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function openModalPren() {
+  document.getElementById('prenData').value = _prenViewDate;
+  document.getElementById('prenCognome').value = '';
+  document.getElementById('prenLettini').value = '1';
+  document.getElementById('prenContatto').value = '';
+  document.getElementById('prenAcconto').value = '0';
+  document.getElementById('prenPagamento').value = 'cash';
+  document.getElementById('prenNote').value = '';
+  document.getElementById('modalPren').classList.add('visible');
+  setTimeout(() => document.getElementById('prenCognome').focus(), 100);
+}
+
+async function salvaPrenotazione() {
+  const cognome = document.getElementById('prenCognome').value.trim();
+  const data = document.getElementById('prenData').value;
+  const lettini = parseInt(document.getElementById('prenLettini').value);
+  if (!cognome) { showErrorToast('Inserisci il cognome'); return; }
+  if (!data) { showErrorToast('Inserisci la data'); return; }
+  if (isNaN(lettini) || lettini < 1) { showErrorToast('Inserisci il numero di lettini'); return; }
+  const row = {
+    data,
+    cognome,
+    lettini,
+    contatto: document.getElementById('prenContatto').value.trim() || null,
+    acconto: parseFloat(document.getElementById('prenAcconto').value) || 0,
+    pagamento_acconto: document.getElementById('prenPagamento').value,
+    note: document.getElementById('prenNote').value.trim() || null,
+    arrivato: false
+  };
+  closeModal('modalPren');
+  if (isOnline) {
+    const { error } = await db.from('prenotazioni').insert(row);
+    if (error) { showErrorToast('Errore salvataggio'); return; }
+    await loadPrenotazioni();
+  } else {
+    showErrorToast('Offline: prenotazione non salvata');
+  }
+}
+
+async function segnaArrivato(id) {
+  if (!isOnline) { showErrorToast('Offline: impossibile aggiornare'); return; }
+  await db.from('prenotazioni').update({ arrivato: true }).eq('id', id);
+  await loadPrenotazioni();
+  updateCartUI();
+  showInfoToast('✓ Cliente segnato come arrivato');
+}
+
+async function eliminaPrenotazione(id) {
+  if (!confirm('Eliminare questa prenotazione?')) return;
+  if (!isOnline) { showErrorToast('Offline: impossibile eliminare'); return; }
+  await db.from('prenotazioni').delete().eq('id', id);
+  await loadPrenotazioni();
+  updateCartUI();
+}
+
 function renderAll() {
   document.getElementById('priceBaseDisplay').textContent = '€' + CONFIG.prezzi.base;
   document.getElementById('pricePremiumDisplay').textContent = '€' + CONFIG.prezzi.premium;
@@ -3776,6 +3996,11 @@ function startRealtime() {
       event: '*', schema: 'public', table: 'app_config', filter: `key=eq.orari_cfg`
     }, () => {
       loadOrariCfgFromDB();
+    })
+    .on('postgres_changes', {
+      event: '*', schema: 'public', table: 'prenotazioni'
+    }, () => {
+      loadPrenotazioni();
     })
     .subscribe();
 }
