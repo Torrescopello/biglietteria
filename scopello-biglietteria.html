@@ -1674,6 +1674,19 @@ async function loadTodayVendite() {
   const { data, error } = await db.from('vendite').select('*').eq('data', today).order('created_at', { ascending: true });
   if (error || !data) return;
 
+  // Rimuove duplicati dal DB: stessa ticket_num+tipo → tieni il primo (created_at minore), cancella gli altri
+  const seen = {};
+  const toDelete = [];
+  data.forEach(v => {
+    if (!v.ticket_num) return;
+    const key = v.ticket_num + '|' + v.tipo + '|' + v.turno;
+    if (seen[key]) { toDelete.push(v.id); } else { seen[key] = true; }
+  });
+  if (toDelete.length > 0) {
+    await db.from('vendite').delete().in('id', toDelete).catch(() => {});
+    data.splice(0, data.length, ...data.filter(v => !toDelete.includes(v.id)));
+  }
+
   // Ricarica extraPosti e integrazioni dal localStorage
   try {
     const extra = JSON.parse(localStorage.getItem('scopello_extra_' + today) || 'null');
