@@ -1591,6 +1591,17 @@ async function syncPending() {
   savePending();
   for (const row of toSync) {
     const { localId, ...data } = row;
+    // Controlla se il record esiste già nel DB (evita duplicati da retry su rete instabile)
+    if (data.ticket_num) {
+      const { data: existing } = await db.from('vendite')
+        .select('id').eq('data', data.data).eq('ticket_num', data.ticket_num)
+        .eq('tipo', data.tipo).eq('turno', data.turno).limit(1);
+      if (existing && existing.length > 0) {
+        const v = state.vendite.find(x => x.id === localId);
+        if (v) v.dbId = existing[0].id;
+        continue;
+      }
+    }
     const { data: inserted, error } = await db.from('vendite').insert(data).select('id').single();
     if (error) { pendingSync.push(row); savePending(); }
     else if (inserted && localId) {
@@ -2502,7 +2513,11 @@ function confirmSale() {
   document.getElementById('modalConferma').classList.add('visible');
 }
 
+let _saleInProgress = false;
+
 async function executeSale() {
+  if (_saleInProgress) return;
+  _saleInProgress = true;
   const now = new Date();
   const tNum = getNextTicketNum();
   const pago = state.paySel || 'gratis';
@@ -2531,6 +2546,8 @@ async function executeSale() {
   resetSellForm();
   renderTurniVendita();
   renderUndoBtn();
+
+  _saleInProgress = false;
 
   // Sync DB in background (non blocca UI)
   entries.forEach(v => saveVendita(v));
