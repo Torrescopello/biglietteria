@@ -222,6 +222,7 @@ td.td-ora { color: var(--text); font-weight: 700; }
 .pay-cash { background: var(--green-bg); color: var(--green); }
 .pay-pos { background: var(--sea-bg); color: var(--sea); }
 .pay-posplus { background: var(--gold-bg); color: var(--gold); }
+.pay-gratis { background: var(--purple-bg); color: var(--purple); }
 .tipo-pill {
   display: inline-block; padding: 2px 8px; border-radius: 6px; font-size: 0.68rem; font-weight: 700;
   text-transform: uppercase; letter-spacing: 0.06em; white-space: nowrap;
@@ -432,7 +433,7 @@ td.td-ora { color: var(--text); font-weight: 700; }
           <button class="btn-csv" onclick="exportCSV()">📥 Esporta CSV</button>
         </div>
       </div>
-      <div id="tableWrap"><div class="loading"><div class="loading-spinner"></div>Caricamento dati...</div></div>
+      <div id="tableWrap" style="overflow-x:auto"><div class="loading"><div class="loading-spinner"></div>Caricamento dati...</div></div>
     </div>
 
     <!-- DETTAGLIO TRANSAZIONI -->
@@ -465,7 +466,7 @@ td.td-ora { color: var(--text); font-weight: 700; }
         <button class="filter-btn" onclick="setFilter('op','op2')">Cassa 2</button>
         <button class="filter-btn" onclick="setFilter('op','dir')">Direttore</button>
       </div>
-      <div id="dettaglioWrap"><div class="loading"><div class="loading-spinner"></div>Caricamento...</div></div>
+      <div id="dettaglioWrap" style="overflow-x:auto"><div class="loading"><div class="loading-spinner"></div>Caricamento...</div></div>
     </div>
 
   </div>
@@ -474,7 +475,7 @@ td.td-ora { color: var(--text); font-weight: 700; }
 <script>
 const SUPABASE_URL = 'https://jhvuucvzhtuvybcsoxts.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpodnV1Y3Z6aHR1dnliY3NveHRzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2NDM2NTMsImV4cCI6MjA4ODIxOTY1M30.2at0j_pKSw3AbbEO0nfNKpHay43FW32tiBDmszaNInI';
-const DIR_PW = 'scopello2024';
+let DIR_PW = 'scopello2024';
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let currentPeriod = 'today';
@@ -482,6 +483,19 @@ let allData = [];
 let chartGiorni = null, chartTipi = null, chartOre = null, chartPag = null, chartOp = null;
 let realtimeChannel = null;
 let filterTipo = '', filterPag = '', filterOp = '';
+
+// ===== CARICA PASSWORD DA SUPABASE =====
+async function loadDirPw() {
+  const { data } = await db.from('app_config').select('value').eq('key','passwords').maybeSingle();
+  if (data?.value?.dir) DIR_PW = data.value.dir;
+}
+loadDirPw();
+
+// ===== SANITIZE =====
+function esc(str) {
+  if (str == null) return '—';
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
 
 // ===== LOGIN =====
 function repLogin() {
@@ -518,6 +532,12 @@ function setPeriod(p) {
   const btns = document.querySelectorAll('.period-btn');
   const idx = ['today','week','month','season'].indexOf(p);
   if (idx >= 0) btns[idx].classList.add('active');
+  // Reset filtri al cambio periodo per evitare confusione
+  filterTipo = ''; filterPag = ''; filterOp = '';
+  document.querySelectorAll('.filter-btn').forEach(b => {
+    const oc = b.getAttribute('onclick') || '';
+    b.classList.toggle('active', oc.includes("''"));
+  });
   loadData();
   // Realtime solo per "oggi"
   if (p === 'today') startRealtime(); else stopRealtime();
@@ -528,7 +548,7 @@ function getDateRange() {
   const fmt = d => d.toISOString().split('T')[0];
   if (currentPeriod === 'today') { const t = fmt(today); return { from: t, to: t }; }
   if (currentPeriod === 'week') {
-    const mon = new Date(today); mon.setDate(today.getDate() - today.getDay() + 1);
+    const mon = new Date(today); mon.setDate(today.getDate() - (today.getDay() || 7) + 1);
     return { from: fmt(mon), to: fmt(today) };
   }
   if (currentPeriod === 'month') {
@@ -579,7 +599,7 @@ function setLiveOnline() {
 function setLiveOffline() {
   const b = document.getElementById('liveBadge');
   b.className = 'live-badge offline';
-  b.innerHTML = '<span class="live-dot"></span>Offline';
+  b.innerHTML = '<span class="live-dot"></span>Solo storico';
 }
 
 // ===== HELPERS =====
@@ -588,8 +608,8 @@ function fmtShort(n) { return '€ ' + Number(n).toFixed(0).replace('.', ','); }
 function opName(op) { return op === 'op1' ? 'Cassa 1' : op === 'op2' ? 'Cassa 2' : 'Direttore'; }
 function tipoLabel(t) { return { base:'Base', premium:'Premium', ridotto:'Ridotto', nopay:'Non pag.' }[t] || t; }
 function tipoClass(t) { return 'tipo-' + (t || 'base'); }
-function pagClass(p) { return p === 'cash' ? 'pay-cash' : p === 'pos' ? 'pay-pos' : 'pay-posplus'; }
-function pagLabel(p) { return p === 'cash' ? 'Contanti' : p === 'pos' ? 'POS' : 'POS+'; }
+function pagClass(p) { return p === 'cash' ? 'pay-cash' : p === 'pos' ? 'pay-pos' : p === 'posplus' ? 'pay-posplus' : 'pay-gratis'; }
+function pagLabel(p) { return p === 'cash' ? 'Contanti' : p === 'pos' ? 'POS' : p === 'posplus' ? 'POS+' : 'Gratuito'; }
 
 function fmtDatetime(iso) {
   if (!iso) return '—';
@@ -826,7 +846,7 @@ function renderTable() {
     d.visitatori += v.qty; d.totale += Number(v.totale);
     if (v.pagamento==='cash') d.cash += Number(v.totale);
     else if (v.pagamento==='pos') d.pos += Number(v.totale);
-    else d.posplus += Number(v.totale);
+    else if (v.pagamento==='posplus') d.posplus += Number(v.totale);
     if (v.tipo==='base') d.base += v.qty;
     else if (v.tipo==='premium') d.premium += v.qty;
     else if (v.tipo==='ridotto') d.ridotto += v.qty;
@@ -931,12 +951,12 @@ function renderDettaglio() {
       </tr></thead>
       <tbody>
         ${data.map(v => `<tr>
-          <td class="td-ticket">${v.ticket_num || '—'}</td>
+          <td class="td-ticket">${esc(v.ticket_num)}</td>
           <td class="td-date">${fmtDate(v.data)}</td>
-          <td class="td-ora">${v.ora ? v.ora.substring(0,5) : fmtDatetime(v.created_at)}</td>
-          <td>${v.turno || '—'}</td>
+          <td class="td-ora">${v.ora ? esc(v.ora.substring(0,5)) : fmtDatetime(v.created_at)}</td>
+          <td>${esc(v.turno)}</td>
           <td><span class="tipo-pill ${tipoClass(v.tipo)}">${tipoLabel(v.tipo)}</span></td>
-          <td>${v.qty}</td>
+          <td>${Number(v.qty)}</td>
           <td>${fmt(Number(v.prezzo)||0)}</td>
           <td><span class="pay-pill ${pagClass(v.pagamento)}">${pagLabel(v.pagamento)}</span></td>
           <td class="op-label">${opName(v.operatore)}</td>
@@ -946,14 +966,29 @@ function renderDettaglio() {
     </table>`;
 }
 
-// ===== EXPORT CSV RIEPILOGO =====
+// ===== EXPORT CSV RIEPILOGO (aggregato per giorno) =====
 function exportCSV() {
   const { from, to } = getDateRange();
-  const rows = [['Data','Turno','#Ticket','Tipo','Qty','Prezzo','Totale','Pagamento','Operatore','Ora']];
-  [...allData].forEach(v => {
-    rows.push([v.data, v.turno, v.ticket_num||'', v.tipo, v.qty, v.prezzo, v.totale, v.pagamento, opName(v.operatore), v.ora||'']);
+  const byDay = {};
+  allData.forEach(v => {
+    if (!byDay[v.data]) byDay[v.data] = { data:v.data, visitatori:0, totale:0, cash:0, pos:0, posplus:0, base:0, premium:0, ridotto:0, nopay:0 };
+    const d = byDay[v.data];
+    d.visitatori += v.qty; d.totale += Number(v.totale);
+    if (v.pagamento==='cash') d.cash += Number(v.totale);
+    else if (v.pagamento==='pos') d.pos += Number(v.totale);
+    else if (v.pagamento==='posplus') d.posplus += Number(v.totale);
+    if (v.tipo==='base') d.base += v.qty;
+    else if (v.tipo==='premium') d.premium += v.qty;
+    else if (v.tipo==='ridotto') d.ridotto += v.qty;
+    else if (v.tipo==='nopay') d.nopay += v.qty;
   });
-  _downloadCSV(rows, `scopello-report-${from}-${to}.csv`);
+  const days = Object.values(byDay).sort((a,b)=>a.data.localeCompare(b.data));
+  const rows = [['Data','Visitatori','Base','Premium','Ridotto','Non pag.','Contanti','POS','POS+','Totale']];
+  days.forEach(d => {
+    rows.push([d.data, d.visitatori, d.base, d.premium, d.ridotto, d.nopay,
+      d.cash.toFixed(2), d.pos.toFixed(2), d.posplus.toFixed(2), d.totale.toFixed(2)]);
+  });
+  _downloadCSV(rows, `scopello-riepilogo-${from}-${to}.csv`);
 }
 
 // ===== EXPORT CSV DETTAGLIO =====
