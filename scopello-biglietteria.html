@@ -1666,7 +1666,7 @@ async function loadTodayVendite() {
   const storedRimborsi = (() => { try { return JSON.parse(localStorage.getItem('scopello_rimborsi') || '[]'); } catch(e) { return []; } })();
   const today = new Date().toLocaleDateString('it-IT', {year:'numeric',month:'2-digit',day:'2-digit'}).split('/').reverse().join('-');
   const { data, error } = await db.from('vendite').select('*').eq('data', today).order('created_at', { ascending: true });
-  if (error || !data) return;
+  if (error || !data) { if (error) showErrorToast('Errore caricamento vendite: ' + (error.message || '')); return; }
 
   // Ricarica extraPosti e integrazioni dal localStorage
   try {
@@ -4096,7 +4096,8 @@ async function salvaPrenotazione() {
 
 async function segnaArrivato(id) {
   if (!isOnline) { showErrorToast('Offline: impossibile aggiornare'); return; }
-  await db.from('prenotazioni').update({ arrivato: true }).eq('id', id);
+  const { error } = await db.from('prenotazioni').update({ arrivato: true }).eq('id', id);
+  if (error) { showErrorToast('Errore aggiornamento prenotazione'); return; }
   await loadPrenotazioni();
   updateCartUI();
   showInfoToast('✓ Cliente segnato come arrivato');
@@ -4105,7 +4106,8 @@ async function segnaArrivato(id) {
 async function eliminaPrenotazione(id) {
   if (!confirm('Eliminare questa prenotazione?')) return;
   if (!isOnline) { showErrorToast('Offline: impossibile eliminare'); return; }
-  await db.from('prenotazioni').delete().eq('id', id);
+  const { error } = await db.from('prenotazioni').delete().eq('id', id);
+  if (error) { showErrorToast('Errore eliminazione prenotazione'); return; }
   await loadPrenotazioni();
   updateCartUI();
 }
