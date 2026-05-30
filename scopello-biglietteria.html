@@ -1384,7 +1384,8 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); }
              margin:10px 0 4px;"
       onkeydown="if(event.key==='Enter')applyFirstTicket()">
     <div class="modal-btns" style="margin-top:12px;">
-      <button class="btn-m btn-m-ok" style="grid-column:1/-1;" onclick="applyFirstTicket()">✓ Inizia giornata</button>
+      <button class="btn-m btn-m-ok" onclick="applyFirstTicket()">✓ Inizia giornata</button>
+      <button class="btn-m btn-m-cancel" onclick="closeModal('modalFirstTicket')">Annulla</button>
     </div>
   </div>
 </div>
@@ -1475,7 +1476,7 @@ async function checkFirstTicket() {
 
 function applyFirstTicket() {
   const val = parseInt(document.getElementById('firstTicketInput').value);
-  if (isNaN(val) || val < 1 || val > 100) { showErrorToast('Inserisci un numero tra 1 e 100'); return; }
+  if (isNaN(val) || val < 1 || val > 999) { showErrorToast('Inserisci un numero tra 1 e 999'); return; }
   const today = getTodayISO();
   ticketCounter = val - 1;
   try { localStorage.setItem('scopello_ticket_counter', ticketCounter); } catch(e) {}
@@ -1511,7 +1512,11 @@ async function tryAutoLogin() {
     await loadTodayVendite();
     if (isOnline) { startRealtime(); loadPrenotazioni(); await loadGiornataSync(); }
     await checkFirstTicket();
-  } catch(e) {}
+  } catch(e) {
+    console.error('Auto-login fallito:', e);
+    localStorage.removeItem('scopello_session');
+    showScreen('loginScreen');
+  }
 }
 (async () => { await tryAutoLogin(); })();
 
@@ -1820,13 +1825,9 @@ function saveGiornataSync() {
   if (!isOnline) return;
   const today = getTodayISO();
   const payload = { data: today, extraPosti: state.extraPosti, ingressi: state.ingressi, integrazioni: state.integrazioni };
-  db.from('app_config').select('key').eq('key','stato_oggi').maybeSingle()
-    .then(({ data }) => {
-      const op = data
-        ? db.from('app_config').update({ value: payload }).eq('key','stato_oggi')
-        : db.from('app_config').insert({ key:'stato_oggi', value: payload });
-      op.then(()=>{}).catch(()=>{});
-    }).catch(()=>{});
+  db.from('app_config')
+    .upsert({ key: 'stato_oggi', value: payload }, { onConflict: 'key' })
+    .catch(() => {});
 }
 
 async function loadGiornataSync() {
@@ -2077,6 +2078,21 @@ function selectOp(op) {
   document.getElementById('opBtnDir').classList.toggle('selected', op === 'dir');
 }
 
+function cleanOldLocalStorage() {
+  const today = getTodayISO();
+  try {
+    const keys = Object.keys(localStorage);
+    keys.forEach(k => {
+      if ((k.startsWith('scopello_ingressi_') ||
+           k.startsWith('scopello_extra_') ||
+           k.startsWith('scopello_integrazioni_')) &&
+          !k.endsWith(today)) {
+        localStorage.removeItem(k);
+      }
+    });
+  } catch(e) {}
+}
+
 async function doLogin() {
   // Carica password dal DB con timeout 5s per non bloccare il login offline
   const dbOk = await loadPasswordsFromDB().catch(() => false);
@@ -2105,6 +2121,7 @@ async function doLogin() {
       successMsg.classList.remove('visible');
       box.classList.remove('success');
       showScreen('appScreen');
+      cleanOldLocalStorage();
       updateOpLabels();
       loadTicketCounter();
       renderAll();
@@ -2129,11 +2146,14 @@ async function doLogin() {
 let switchSelectedOp = 1;
 
 function openSwitchOp() {
-  switchSelectedOp = 1;
+  // Preseleziona l'operatore corrente invece di sempre Cassa 1
+  const currentOp = state.operatore === 'dir' ? 'dir' : (state.operatore === 'op2' ? 2 : 1);
+  switchSelectedOp = currentOp;
   document.getElementById('swBtn1').textContent = CONFIG.nomiCasse.op1;
   document.getElementById('swBtn2').textContent = CONFIG.nomiCasse.op2;
   ['swBtn1','swBtn2','swBtnDir'].forEach(id => document.getElementById(id).classList.remove('selected'));
-  document.getElementById('swBtn1').classList.add('selected');
+  const selBtnId = currentOp === 'dir' ? 'swBtnDir' : currentOp === 2 ? 'swBtn2' : 'swBtn1';
+  document.getElementById(selBtnId).classList.add('selected');
   document.getElementById('swPwInput').value = '';
   document.getElementById('swPwError').textContent = '';
   document.getElementById('modalSwitchOp').classList.add('visible');
@@ -2207,12 +2227,12 @@ function updateClock() {
 }
 setInterval(updateClock, 1000); updateClock();
 
-// Aggiornamento live panoramica ogni 3 secondi
+// Aggiornamento live panoramica ogni 10 secondi
 setInterval(() => {
   if (document.getElementById('tab-ingresso') && document.getElementById('tab-ingresso').classList.contains('active')) {
     renderIngresso();
   }
-}, 3000);
+}, 10000);
 
 // Ogni minuto ricontrolla i turni: aggiorna chip e deseleziona se il turno selezionato è passato
 setInterval(() => {
@@ -2268,14 +2288,12 @@ async function syncTicketCounterFromDB() {
 
 function getNextTicketNum() {
   ticketCounter++;
-  if (ticketCounter > 100) ticketCounter = 1;
   try { localStorage.setItem('scopello_ticket_counter', ticketCounter); } catch(e) {}
   return '#' + String(ticketCounter).padStart(3, '0');
 }
 
 function peekNextTicketNum() {
-  const next = ticketCounter >= 100 ? 1 : ticketCounter + 1;
-  return '#' + String(next).padStart(3, '0');
+  return '#' + String(ticketCounter + 1).padStart(3, '0');
 }
 
 // Nota: il counter viene sincronizzato col massimo dal DB ad ogni login
@@ -2291,7 +2309,7 @@ function loadTicketCounter() {
 function applyTicketStart() {
   const el = document.getElementById('ticketStartSet');
   const val = parseInt(el.value);
-  if (isNaN(val) || val < 1 || val > 100) { alert('Inserisci un numero tra 1 e 100.'); return; }
+  if (isNaN(val) || val < 1 || val > 999) { alert('Inserisci un numero tra 1 e 999.'); return; }
   ticketCounter = val - 1;
   try { localStorage.setItem('scopello_ticket_counter', ticketCounter); } catch(e) {}
   saveConfigToDB();
@@ -2346,6 +2364,28 @@ function addToCart(tipo) {
 }
 
 function changeCartQty(tipo, d) {
+  if (d > 0) {
+    // Stesso controllo di addToCart
+    if (state.turnoSel && state.turnoSel !== 'nessuna') {
+      const liberi = CONFIG.capMax - (state.turni[state.turnoSel]?.prenotati || 0);
+      if (cartTotalQty() >= liberi) { showErrorToast(`Turno ${state.turnoSel}: solo ${liberi} posti disponibili.`); return; }
+    }
+    if (tipo === 'premium') {
+      const netti = venditeNettePerTipo('premium');
+      const inCarrello = cart['premium'] || 0;
+      const prenotati = prenOggiLettiniPrenotati();
+      if (netti + inCarrello + prenotati >= CONFIG.capPremium + state.extraPosti.premium) {
+        showErrorToast(`Lettini esauriti — max ${CONFIG.capPremium + state.extraPosti.premium}`); return;
+      }
+    }
+    if (tipo === 'base' || tipo === 'ridotto' || tipo === 'nopay') {
+      const netti = venditeNettePerTipo('base') + venditeNettePerTipo('ridotto') + venditeNettePerTipo('nopay');
+      const inCarrello = (cart['base'] || 0) + (cart['ridotto'] || 0) + (cart['nopay'] || 0);
+      if (netti + inCarrello >= CONFIG.capBase + state.extraPosti.base) {
+        showErrorToast(`Posti esauriti — max ${CONFIG.capBase + state.extraPosti.base} al giorno`); return;
+      }
+    }
+  }
   cart[tipo] = Math.max(0, (cart[tipo] || 0) + d);
   if (cart[tipo] === 0) delete cart[tipo];
   updateCartUI();
@@ -2502,7 +2542,10 @@ function confirmSale() {
   document.getElementById('modalConferma').classList.add('visible');
 }
 
+let _saleInProgress = false;
 async function executeSale() {
+  if (_saleInProgress) return;
+  _saleInProgress = true;
   const now = new Date();
   const tNum = getNextTicketNum();
   const pago = state.paySel || 'gratis';
@@ -2534,6 +2577,7 @@ async function executeSale() {
 
   // Sync DB in background (non blocca UI)
   entries.forEach(v => saveVendita(v));
+  _saleInProgress = false;
 
   // Avviso disponibilità bassa
   checkCapAlert();
@@ -2959,6 +3003,14 @@ function eseguiUpgrade() {
   if (!upgRighe.length) { closeModal('modalUpgrade'); return; }
 
   const qtyTot = upgRighe.reduce((a,v) => a + v.qty, 0);
+  // Controlla capienza Premium prima dell'upgrade
+  const nettiPremium = venditeNettePerTipo('premium');
+  const capTot = CONFIG.capPremium + (state.extraPosti?.premium || 0);
+  if (nettiPremium + qtyTot > capTot) {
+    showErrorToast(`Lettini Premium esauriti — max ${capTot}`);
+    if (btn) btn.disabled = false;
+    return;
+  }
   const totDiff = upgRighe.reduce((a, v) => {
     const prezzoOrig = v.tipo === 'ridotto' ? CONFIG.prezzi.ridotto : CONFIG.prezzi.base;
     return a + (CONFIG.prezzi.premium - prezzoOrig) * v.qty;
@@ -3122,9 +3174,9 @@ function renderNoteList() {
   if (!note.length) { el.innerHTML = ''; return; }
   el.innerHTML = note.map((n, i) => `
     <div class="note-item">
-      <span class="note-item-text">${n.testo}</span>
-      <span class="note-item-meta">${n.ora}</span>
-      <button class="note-item-del" onclick="deleteNote('${op}',${i})" title="Elimina">✕</button>
+      <span class="note-item-text">${escHtml(n.testo)}</span>
+      <span class="note-item-meta">${escHtml(n.ora)}</span>
+      <button class="note-item-del" onclick="deleteNote('${escHtml(op)}',${i})" title="Elimina">✕</button>
     </div>`).join('');
 }
 
@@ -3254,7 +3306,7 @@ function renderCassa() {
       const nopay   = vvNetti.filter(v=>v.tipo==='nopay').reduce((a,v)=>a+v.qty,0);
       const note = op !== 'dir' && Array.isArray(state.note[op]) ? state.note[op] : [];
       const noteHTML = note.length
-        ? note.map(n => `<div class="op-note-display visible" style="margin-bottom:4px;">📝 <strong>${n.ora}</strong> — ${n.testo}</div>`).join('')
+        ? note.map(n => `<div class="op-note-display visible" style="margin-bottom:4px;">📝 <strong>${escHtml(n.ora)}</strong> — ${escHtml(n.testo)}</div>`).join('')
         : '';
       return `<div class="op-resoconto">
         <div class="op-name">${op === 'dir' ? '👑 Direttore' : CONFIG.nomiCasse[op]}</div>
@@ -3606,7 +3658,8 @@ function exportCSV() {
 }
 
 async function resetDay() {
-  if (!confirm('Sei sicuro di voler resettare tutti i dati della giornata?')) return;
+  if (!confirm('Sei sicuro di voler resettare tutti i dati della giornata?\n\nQuesta operazione è IRREVERSIBILE.')) return;
+  if (!confirm('Conferma reset: tutti i biglietti e gli incassi di oggi verranno eliminati definitivamente.')) return;
 
   const today = new Date().toLocaleDateString('it-IT', {year:'numeric',month:'2-digit',day:'2-digit'}).split('/').reverse().join('-');
 
@@ -3624,6 +3677,9 @@ async function resetDay() {
 
   localStorage.removeItem('scopello_rimborsi');
   localStorage.removeItem('scopello_integrazioni_' + today);
+  localStorage.removeItem('scopello_ingressi_' + today);
+  localStorage.removeItem('scopello_extra_' + today);
+  localStorage.removeItem('scopello_day_started');
   localStorage.setItem('scopello_ticket_counter', 0);
   saveIntegrazioni();
   saveIngressi();
@@ -3638,13 +3694,15 @@ async function resetDay() {
 
   // 2. Poi cancella dal DB (il realtime troverà localStorage già vuoto)
   if (isOnline) {
-    await db.from('vendite').delete().eq('data', today);
+    const { error: errV } = await db.from('vendite').delete().eq('data', today);
+    if (errV) showErrorToast('⚠ Errore cancellazione vendite dal DB — riprova');
     await db.from('ingressi').delete().eq('data', today).catch(() => {});
     await db.from('rimborsi_giornata').delete().eq('data', today).catch(() => {});
     await db.from('app_config').delete().eq('key', 'stato_oggi').catch(() => {});
   } else {
     localStorage.setItem('scopello_pending_reset', today);
   }
+  showInfoToast('✓ Giornata azzerata');
 }
 
 // ============================================================
