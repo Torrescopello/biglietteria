@@ -24,6 +24,8 @@
   --gold-bg: #fdf5e0;
   --red: #b83020;
   --red-bg: #fdecea;
+  --purple: #7b3fa0;
+  --purple-bg: #f3eafa;
   --stone: #8B6914;
   --fd: 'Playfair Display', Georgia, serif;
   --fu: 'DM Sans', -apple-system, sans-serif;
@@ -74,6 +76,18 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); min-he
 .header-brand p { font-size: 0.62rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
 .header-right { display: flex; align-items: center; gap: 12px; }
 .last-update { font-size: 0.72rem; color: var(--muted); }
+.live-badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 4px 10px; border-radius: 20px; font-size: 0.68rem; font-weight: 700;
+  background: var(--green-bg); color: var(--green); border: 1.5px solid #a8dfc0;
+}
+.live-dot {
+  width: 7px; height: 7px; border-radius: 50%; background: var(--green);
+  animation: pulse 1.5s ease-in-out infinite;
+}
+@keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.3; } }
+.live-badge.offline { background: var(--red-bg); color: var(--red); border-color: #f0a8a0; }
+.live-badge.offline .live-dot { background: var(--red); animation: none; }
 .btn-refresh {
   padding: 8px 16px; border-radius: 8px; border: 1.5px solid var(--border);
   background: var(--white); font-family: var(--fu); font-size: 0.78rem; font-weight: 600;
@@ -115,18 +129,28 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); min-he
 .btn-apply:hover { background: #0e3870; }
 
 /* ===== CONTENT ===== */
-.content { padding: 28px; max-width: 1200px; margin: 0 auto; }
+.content { padding: 28px; max-width: 1400px; margin: 0 auto; }
+
+/* ===== SECTION TITLE ===== */
+.section-title {
+  font-family: var(--fd); font-size: 1rem; font-weight: 400; color: var(--text);
+  margin-bottom: 16px; margin-top: 8px;
+  display: flex; align-items: center; gap: 10px;
+}
+.section-title::after {
+  content: ''; flex: 1; height: 1px; background: var(--border);
+}
 
 /* ===== KPI CARDS ===== */
-.kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 28px; }
+.kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-bottom: 28px; }
 .kpi-card {
   background: var(--white); border: 1.5px solid var(--border); border-radius: 16px;
-  padding: 20px 22px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  padding: 18px 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);
   transition: transform 0.15s, box-shadow 0.15s;
 }
 .kpi-card:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(0,0,0,0.08); }
 .kpi-label { font-size: 0.62rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.12em; color: var(--muted); margin-bottom: 8px; }
-.kpi-val { font-family: var(--fd); font-size: 2.2rem; font-weight: 400; color: var(--text); line-height: 1; margin-bottom: 4px; font-variant-numeric: tabular-nums; }
+.kpi-val { font-family: var(--fd); font-size: 2rem; font-weight: 400; color: var(--text); line-height: 1; margin-bottom: 4px; font-variant-numeric: tabular-nums; }
 .kpi-sub { font-size: 0.72rem; color: var(--muted); font-weight: 500; }
 .kpi-card.k-green { border-color: #b8e0cc; }
 .kpi-card.k-green .kpi-val { color: var(--green); }
@@ -134,16 +158,21 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); min-he
 .kpi-card.k-sea .kpi-val { color: var(--sea); }
 .kpi-card.k-gold { border-color: #e8d080; }
 .kpi-card.k-gold .kpi-val { color: var(--gold); }
+.kpi-card.k-purple { border-color: #d4a8e8; }
+.kpi-card.k-purple .kpi-val { color: var(--purple); }
+.kpi-card.k-stone { border-color: #c8a850; }
+.kpi-card.k-stone .kpi-val { color: var(--stone); }
 
 /* ===== CHARTS ===== */
 .charts-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; margin-bottom: 28px; }
+.charts-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin-bottom: 28px; }
 .chart-card {
   background: var(--white); border: 1.5px solid var(--border); border-radius: 16px;
   padding: 22px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);
 }
 .chart-title { font-family: var(--fd); font-size: 1rem; font-weight: 400; color: var(--text); margin-bottom: 4px; }
 .chart-sub { font-size: 0.7rem; color: var(--muted); margin-bottom: 18px; }
-.chart-wrap { position: relative; height: 220px; }
+.chart-wrap { position: relative; height: 200px; }
 
 /* ===== BREAKDOWN GRID ===== */
 .breakdown-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin-bottom: 28px; }
@@ -155,7 +184,7 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); min-he
 .breakdown-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border); }
 .breakdown-row:last-child { border-bottom: none; }
 .br-label { display: flex; align-items: center; gap: 8px; font-size: 0.82rem; color: var(--text2); font-weight: 500; }
-.br-dot { width: 8px; height: 8px; border-radius: 50%; }
+.br-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
 .br-val { font-size: 0.86rem; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; }
 .br-bar-wrap { background: var(--bg); border-radius: 99px; height: 4px; margin-top: 4px; overflow: hidden; }
 .br-bar { height: 100%; border-radius: 99px; transition: width 0.6s ease; }
@@ -165,8 +194,10 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); min-he
   background: var(--white); border: 1.5px solid var(--border); border-radius: 16px;
   padding: 22px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); margin-bottom: 28px;
 }
-.table-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+.table-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; flex-wrap: wrap; gap: 10px; }
 .table-title { font-family: var(--fd); font-size: 1rem; font-weight: 400; color: var(--text); }
+.table-actions { display: flex; gap: 8px; align-items: center; }
+.table-count { font-size: 0.72rem; color: var(--muted); font-weight: 600; }
 .btn-csv {
   padding: 7px 16px; border-radius: 8px; border: 1.5px solid var(--border);
   background: var(--white); font-family: var(--fu); font-size: 0.75rem; font-weight: 600;
@@ -175,20 +206,46 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); min-he
 .btn-csv:hover { border-color: var(--green); color: var(--green); }
 table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
 thead tr { border-bottom: 2px solid var(--border); }
-th { text-align: left; padding: 8px 12px; font-size: 0.66rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); }
+th { text-align: left; padding: 8px 12px; font-size: 0.66rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); white-space: nowrap; }
 tbody tr { border-bottom: 1px solid var(--border); transition: background 0.1s; }
 tbody tr:last-child { border-bottom: none; }
 tbody tr:hover { background: var(--bg); }
 td { padding: 10px 12px; color: var(--text2); font-weight: 500; font-variant-numeric: tabular-nums; }
 td.td-date { font-weight: 700; color: var(--text); }
 td.td-total { font-family: var(--fd); font-size: 1rem; color: var(--text); }
+td.td-ticket { font-family: var(--fd); font-size: 0.92rem; color: var(--sea); font-weight: 700; }
+td.td-ora { color: var(--text); font-weight: 700; }
 .pay-pill {
   display: inline-block; padding: 2px 8px; border-radius: 6px; font-size: 0.68rem; font-weight: 700;
-  text-transform: uppercase; letter-spacing: 0.06em;
+  text-transform: uppercase; letter-spacing: 0.06em; white-space: nowrap;
 }
 .pay-cash { background: var(--green-bg); color: var(--green); }
 .pay-pos { background: var(--sea-bg); color: var(--sea); }
 .pay-posplus { background: var(--gold-bg); color: var(--gold); }
+.pay-gratis { background: var(--purple-bg); color: var(--purple); }
+.tipo-pill {
+  display: inline-block; padding: 2px 8px; border-radius: 6px; font-size: 0.68rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.06em; white-space: nowrap;
+}
+.tipo-base { background: var(--sea-bg); color: var(--sea); }
+.tipo-premium { background: var(--gold-bg); color: var(--gold); }
+.tipo-ridotto { background: var(--green-bg); color: var(--green); }
+.tipo-nopay { background: var(--purple-bg); color: var(--purple); }
+.op-label { font-size: 0.78rem; color: var(--text2); font-weight: 600; }
+
+/* ===== FILTER BAR ===== */
+.filter-bar {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  padding: 12px 0; margin-bottom: 12px; border-bottom: 1px solid var(--border);
+}
+.filter-label { font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); }
+.filter-btn {
+  padding: 5px 14px; border-radius: 20px; border: 1.5px solid var(--border);
+  background: none; font-family: var(--fu); font-size: 0.74rem; font-weight: 600;
+  color: var(--text2); cursor: pointer; transition: all 0.12s;
+}
+.filter-btn.active { background: var(--text); color: #fff; border-color: var(--text); }
+.filter-sep { width: 1px; height: 18px; background: var(--border); }
 
 /* ===== LOADING ===== */
 .loading {
@@ -214,13 +271,16 @@ td.td-total { font-family: var(--fd); font-size: 1rem; color: var(--text); }
 .turni-bar { height: 100%; border-radius: 99px; transition: width 0.6s ease; }
 .turni-count { font-size: 0.78rem; color: var(--muted); min-width: 60px; text-align: right; font-variant-numeric: tabular-nums; }
 
-@media (max-width: 768px) {
+@media (max-width: 900px) {
   .charts-grid { grid-template-columns: 1fr; }
+  .charts-grid-3 { grid-template-columns: 1fr; }
   .breakdown-grid { grid-template-columns: 1fr; }
   .content { padding: 16px; }
   .period-bar { padding: 10px 16px; }
   .header { padding: 12px 16px; }
   .kpi-grid { grid-template-columns: 1fr 1fr; }
+  table { font-size: 0.76rem; }
+  th, td { padding: 8px 8px; }
 }
 </style>
 </head>
@@ -250,6 +310,7 @@ td.td-total { font-family: var(--fd); font-size: 1rem; color: var(--text); }
     </div>
     <div class="header-right">
       <span class="last-update" id="lastUpdate">—</span>
+      <span class="live-badge" id="liveBadge"><span class="live-dot"></span>Live</span>
       <button class="btn-refresh" onclick="loadData()">↻ Aggiorna</button>
       <button class="btn-logout-r" onclick="repLogout()">Esci</button>
     </div>
@@ -271,17 +332,17 @@ td.td-total { font-family: var(--fd); font-size: 1rem; color: var(--text); }
 
   <div class="content">
 
-    <!-- KPI -->
-    <div class="kpi-grid">
+    <!-- KPI ROW 1 -->
+    <div class="kpi-grid" id="kpiGrid">
       <div class="kpi-card k-green">
         <div class="kpi-label">Incasso totale</div>
         <div class="kpi-val" id="kpiIncasso">—</div>
         <div class="kpi-sub" id="kpiIncassoSub">nel periodo selezionato</div>
       </div>
       <div class="kpi-card">
-        <div class="kpi-label">Visitatori</div>
+        <div class="kpi-label">Visitatori totali</div>
         <div class="kpi-val" id="kpiVisitatori">—</div>
-        <div class="kpi-sub">biglietti venduti</div>
+        <div class="kpi-sub" id="kpiVisitatoriSub">biglietti venduti</div>
       </div>
       <div class="kpi-card k-sea">
         <div class="kpi-label">Scontrino medio</div>
@@ -293,9 +354,29 @@ td.td-total { font-family: var(--fd); font-size: 1rem; color: var(--text); }
         <div class="kpi-val" id="kpiGiorni">—</div>
         <div class="kpi-sub">con almeno 1 vendita</div>
       </div>
+      <div class="kpi-card k-stone">
+        <div class="kpi-label">Biglietti Base</div>
+        <div class="kpi-val" id="kpiBase">—</div>
+        <div class="kpi-sub" id="kpiBaseSub">—</div>
+      </div>
+      <div class="kpi-card k-gold">
+        <div class="kpi-label">Biglietti Premium</div>
+        <div class="kpi-val" id="kpiPremium">—</div>
+        <div class="kpi-sub" id="kpiPremiumSub">—</div>
+      </div>
+      <div class="kpi-card k-green">
+        <div class="kpi-label">Biglietti Ridotti</div>
+        <div class="kpi-val" id="kpiRidotto">—</div>
+        <div class="kpi-sub" id="kpiRidottoSub">—</div>
+      </div>
+      <div class="kpi-card k-purple">
+        <div class="kpi-label">Non paganti</div>
+        <div class="kpi-val" id="kpiNopay">—</div>
+        <div class="kpi-sub">gratuiti / omaggio</div>
+      </div>
     </div>
 
-    <!-- CHARTS -->
+    <!-- CHARTS ROW 1 -->
     <div class="charts-grid">
       <div class="chart-card">
         <div class="chart-title">Incassi giornalieri</div>
@@ -304,8 +385,27 @@ td.td-total { font-family: var(--fd); font-size: 1rem; color: var(--text); }
       </div>
       <div class="chart-card">
         <div class="chart-title">Tipo biglietto</div>
-        <div class="chart-sub">Base vs Premium</div>
+        <div class="chart-sub">Distribuzione visitatori per categoria</div>
         <div class="chart-wrap"><canvas id="chartTipi"></canvas></div>
+      </div>
+    </div>
+
+    <!-- CHARTS ROW 2 -->
+    <div class="charts-grid-3">
+      <div class="chart-card">
+        <div class="chart-title">Vendite per ora</div>
+        <div class="chart-sub">Numero transazioni per fascia oraria</div>
+        <div class="chart-wrap"><canvas id="chartOre"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Metodo di pagamento</div>
+        <div class="chart-sub">Distribuzione per tipo pagamento</div>
+        <div class="chart-wrap"><canvas id="chartPagamenti"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Operatori</div>
+        <div class="chart-sub">Incasso per cassa / operatore</div>
+        <div class="chart-wrap"><canvas id="chartOperatori"></canvas></div>
       </div>
     </div>
 
@@ -325,13 +425,48 @@ td.td-total { font-family: var(--fd); font-size: 1rem; color: var(--text); }
       </div>
     </div>
 
-    <!-- TABELLA -->
-    <div class="table-card">
+    <!-- RIEPILOGO PER GIORNO (multi-day) -->
+    <div class="table-card" id="cardRiepilogo">
       <div class="table-header">
         <div class="table-title">Riepilogo per giorno</div>
-        <button class="btn-csv" onclick="exportCSV()">📥 Esporta CSV</button>
+        <div class="table-actions">
+          <button class="btn-csv" onclick="exportCSV()">📥 Esporta CSV</button>
+        </div>
       </div>
-      <div id="tableWrap"><div class="loading"><div class="loading-spinner"></div>Caricamento dati...</div></div>
+      <div id="tableWrap" style="overflow-x:auto"><div class="loading"><div class="loading-spinner"></div>Caricamento dati...</div></div>
+    </div>
+
+    <!-- DETTAGLIO TRANSAZIONI -->
+    <div class="table-card">
+      <div class="table-header">
+        <div class="table-title">Dettaglio transazioni</div>
+        <div class="table-actions">
+          <span class="table-count" id="detCount"></span>
+          <button class="btn-csv" onclick="exportDettaglioCSV()">📥 Esporta CSV</button>
+        </div>
+      </div>
+      <!-- Filtri -->
+      <div class="filter-bar">
+        <span class="filter-label">Tipo</span>
+        <button class="filter-btn active" onclick="setFilter('tipo','')">Tutti</button>
+        <button class="filter-btn" onclick="setFilter('tipo','base')">Base</button>
+        <button class="filter-btn" onclick="setFilter('tipo','premium')">Premium</button>
+        <button class="filter-btn" onclick="setFilter('tipo','ridotto')">Ridotto</button>
+        <button class="filter-btn" onclick="setFilter('tipo','nopay')">Non pag.</button>
+        <div class="filter-sep"></div>
+        <span class="filter-label">Pagamento</span>
+        <button class="filter-btn active" onclick="setFilter('pag','')">Tutti</button>
+        <button class="filter-btn" onclick="setFilter('pag','cash')">Contanti</button>
+        <button class="filter-btn" onclick="setFilter('pag','pos')">POS</button>
+        <button class="filter-btn" onclick="setFilter('pag','posplus')">POS+</button>
+        <div class="filter-sep"></div>
+        <span class="filter-label">Operatore</span>
+        <button class="filter-btn active" onclick="setFilter('op','')">Tutti</button>
+        <button class="filter-btn" onclick="setFilter('op','op1')">Cassa 1</button>
+        <button class="filter-btn" onclick="setFilter('op','op2')">Cassa 2</button>
+        <button class="filter-btn" onclick="setFilter('op','dir')">Direttore</button>
+      </div>
+      <div id="dettaglioWrap" style="overflow-x:auto"><div class="loading"><div class="loading-spinner"></div>Caricamento...</div></div>
     </div>
 
   </div>
@@ -340,12 +475,27 @@ td.td-total { font-family: var(--fd); font-size: 1rem; color: var(--text); }
 <script>
 const SUPABASE_URL = 'https://jhvuucvzhtuvybcsoxts.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpodnV1Y3Z6aHR1dnliY3NveHRzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2NDM2NTMsImV4cCI6MjA4ODIxOTY1M30.2at0j_pKSw3AbbEO0nfNKpHay43FW32tiBDmszaNInI';
-const DIR_PW = 'scopello2024';
+let DIR_PW = 'scopello2024';
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let currentPeriod = 'today';
 let allData = [];
-let chartGiorni = null, chartTipi = null;
+let chartGiorni = null, chartTipi = null, chartOre = null, chartPag = null, chartOp = null;
+let realtimeChannel = null;
+let filterTipo = '', filterPag = '', filterOp = '';
+
+// ===== CARICA PASSWORD DA SUPABASE =====
+async function loadDirPw() {
+  const { data } = await db.from('app_config').select('value').eq('key','passwords').maybeSingle();
+  if (data?.value?.dir) DIR_PW = data.value.dir;
+}
+loadDirPw();
+
+// ===== SANITIZE =====
+function esc(str) {
+  if (str == null) return '—';
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
 
 // ===== LOGIN =====
 function repLogin() {
@@ -355,6 +505,7 @@ function repLogin() {
     document.getElementById('appScreen').style.display = 'block';
     initDates();
     loadData();
+    startRealtime();
   } else {
     document.getElementById('repErr').textContent = 'Password non corretta.';
     document.getElementById('repPw').style.borderColor = 'var(--red)';
@@ -365,6 +516,7 @@ function repLogout() {
   document.getElementById('loginScreen').style.display = 'flex';
   document.getElementById('appScreen').style.display = 'none';
   document.getElementById('repPw').value = '';
+  stopRealtime();
 }
 
 // ===== PERIOD =====
@@ -380,33 +532,33 @@ function setPeriod(p) {
   const btns = document.querySelectorAll('.period-btn');
   const idx = ['today','week','month','season'].indexOf(p);
   if (idx >= 0) btns[idx].classList.add('active');
+  // Reset filtri al cambio periodo per evitare confusione
+  filterTipo = ''; filterPag = ''; filterOp = '';
+  document.querySelectorAll('.filter-btn').forEach(b => {
+    const oc = b.getAttribute('onclick') || '';
+    b.classList.toggle('active', oc.includes("''"));
+  });
   loadData();
+  // Realtime solo per "oggi"
+  if (p === 'today') startRealtime(); else stopRealtime();
 }
 
 function getDateRange() {
   const today = new Date();
   const fmt = d => d.toISOString().split('T')[0];
-  if (currentPeriod === 'today') {
-    const t = fmt(today);
-    return { from: t, to: t };
-  }
+  if (currentPeriod === 'today') { const t = fmt(today); return { from: t, to: t }; }
   if (currentPeriod === 'week') {
-    const mon = new Date(today);
-    mon.setDate(today.getDate() - today.getDay() + 1);
+    const mon = new Date(today); mon.setDate(today.getDate() - (today.getDay() || 7) + 1);
     return { from: fmt(mon), to: fmt(today) };
   }
   if (currentPeriod === 'month') {
-    const first = new Date(today.getFullYear(), today.getMonth(), 1);
-    return { from: fmt(first), to: fmt(today) };
+    return { from: fmt(new Date(today.getFullYear(), today.getMonth(), 1)), to: fmt(today) };
   }
   if (currentPeriod === 'season') {
     return { from: `${today.getFullYear()}-01-01`, to: fmt(today) };
   }
   if (currentPeriod === 'custom') {
-    return {
-      from: document.getElementById('dateFrom').value,
-      to: document.getElementById('dateTo').value
-    };
+    return { from: document.getElementById('dateFrom').value, to: document.getElementById('dateTo').value };
   }
   return { from: fmt(today), to: fmt(today) };
 }
@@ -415,24 +567,75 @@ function getDateRange() {
 async function loadData() {
   const { from, to } = getDateRange();
   const { data, error } = await db.from('vendite').select('*').gte('data', from).lte('data', to).order('created_at', { ascending: true });
-  if (error) { console.error(error); return; }
+  if (error) { console.error(error); setLiveOffline(); return; }
   allData = data || [];
-  document.getElementById('lastUpdate').textContent = 'Aggiornato: ' + new Date().toLocaleTimeString('it-IT', {hour:'2-digit',minute:'2-digit'});
+  document.getElementById('lastUpdate').textContent = 'Aggiornato: ' + new Date().toLocaleTimeString('it-IT', {hour:'2-digit',minute:'2-digit',second:'2-digit'});
   renderAll();
 }
 
-// ===== RENDER =====
+// ===== REALTIME =====
+function startRealtime() {
+  if (realtimeChannel) return;
+  const today = new Date().toISOString().split('T')[0];
+  realtimeChannel = db.channel('report-live')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'vendite', filter: `data=eq.${today}` },
+      async () => { await loadData(); })
+    .subscribe(status => {
+      if (status === 'SUBSCRIBED') setLiveOnline();
+      else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') setLiveOffline();
+    });
+}
+
+function stopRealtime() {
+  if (realtimeChannel) { db.removeChannel(realtimeChannel); realtimeChannel = null; }
+  setLiveOffline();
+}
+
+function setLiveOnline() {
+  const b = document.getElementById('liveBadge');
+  b.className = 'live-badge';
+  b.innerHTML = '<span class="live-dot"></span>Live';
+}
+function setLiveOffline() {
+  const b = document.getElementById('liveBadge');
+  b.className = 'live-badge offline';
+  b.innerHTML = '<span class="live-dot"></span>Solo storico';
+}
+
+// ===== HELPERS =====
+function fmt(n) { return '€ ' + Number(n).toFixed(2).replace('.', ','); }
+function fmtShort(n) { return '€ ' + Number(n).toFixed(0).replace('.', ','); }
+function opName(op) { return op === 'op1' ? 'Cassa 1' : op === 'op2' ? 'Cassa 2' : 'Direttore'; }
+function tipoLabel(t) { return { base:'Base', premium:'Premium', ridotto:'Ridotto', nopay:'Non pag.' }[t] || t; }
+function tipoClass(t) { return 'tipo-' + (t || 'base'); }
+function pagClass(p) { return p === 'cash' ? 'pay-cash' : p === 'pos' ? 'pay-pos' : p === 'posplus' ? 'pay-posplus' : 'pay-gratis'; }
+function pagLabel(p) { return p === 'cash' ? 'Contanti' : p === 'pos' ? 'POS' : p === 'posplus' ? 'POS+' : 'Gratuito'; }
+
+function fmtDatetime(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return d.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+}
+function fmtDate(iso) {
+  if (!iso) return '—';
+  const [y,m,dd] = iso.split('T')[0].split('-');
+  return `${dd}/${m}/${y}`;
+}
+
+// ===== RENDER ALL =====
 function renderAll() {
   renderKPI();
   renderChartGiorni();
   renderChartTipi();
+  renderChartOre();
+  renderChartPagamenti();
+  renderChartOperatori();
   renderBreakdown();
   renderTable();
+  renderDettaglio();
 }
 
-function fmt(n) { return '€ ' + Number(n).toFixed(2).replace('.', ','); }
-function fmtShort(n) { return '€ ' + Number(n).toFixed(0).replace('.', ','); }
-
+// ===== KPI =====
 function renderKPI() {
   const totale = allData.reduce((a,v) => a + Number(v.totale), 0);
   const visitatori = allData.reduce((a,v) => a + v.qty, 0);
@@ -440,125 +643,190 @@ function renderKPI() {
   const media = transazioni ? totale / transazioni : 0;
   const giorni = new Set(allData.map(v => v.data)).size;
 
+  const qBase     = allData.filter(v=>v.tipo==='base').reduce((a,v)=>a+v.qty,0);
+  const qPremium  = allData.filter(v=>v.tipo==='premium').reduce((a,v)=>a+v.qty,0);
+  const qRidotto  = allData.filter(v=>v.tipo==='ridotto').reduce((a,v)=>a+v.qty,0);
+  const qNopay    = allData.filter(v=>v.tipo==='nopay').reduce((a,v)=>a+v.qty,0);
+
+  const iBase    = allData.filter(v=>v.tipo==='base').reduce((a,v)=>a+Number(v.totale),0);
+  const iPremium = allData.filter(v=>v.tipo==='premium').reduce((a,v)=>a+Number(v.totale),0);
+  const iRidotto = allData.filter(v=>v.tipo==='ridotto').reduce((a,v)=>a+Number(v.totale),0);
+
   document.getElementById('kpiIncasso').textContent = fmt(totale);
+  document.getElementById('kpiIncassoSub').textContent = `${transazioni} transazioni`;
   document.getElementById('kpiVisitatori').textContent = visitatori.toLocaleString('it-IT');
+  document.getElementById('kpiVisitatoriSub').textContent = `${transazioni} transazioni`;
   document.getElementById('kpiMedia').textContent = fmt(media);
   document.getElementById('kpiGiorni').textContent = giorni;
-  document.getElementById('kpiIncassoSub').textContent = `${transazioni} transazioni`;
+
+  document.getElementById('kpiBase').textContent = qBase;
+  document.getElementById('kpiBaseSub').textContent = fmt(iBase);
+  document.getElementById('kpiPremium').textContent = qPremium;
+  document.getElementById('kpiPremiumSub').textContent = fmt(iPremium);
+  document.getElementById('kpiRidotto').textContent = qRidotto;
+  document.getElementById('kpiRidottoSub').textContent = fmt(iRidotto);
+  document.getElementById('kpiNopay').textContent = qNopay;
 }
 
+// ===== CHART: INCASSI GIORNALIERI =====
 function renderChartGiorni() {
   const byDay = {};
-  allData.forEach(v => {
-    if (!byDay[v.data]) byDay[v.data] = 0;
-    byDay[v.data] += Number(v.totale);
-  });
+  allData.forEach(v => { byDay[v.data] = (byDay[v.data]||0) + Number(v.totale); });
   const labels = Object.keys(byDay).sort();
   const values = labels.map(d => byDay[d]);
-  const fmtDate = d => {
-    const [y,m,dd] = d.split('-');
-    return `${dd}/${m}`;
-  };
+  const fmtLbl = d => { const [y,m,dd] = d.split('-'); return `${dd}/${m}`; };
 
   if (chartGiorni) chartGiorni.destroy();
-  const ctx = document.getElementById('chartGiorni').getContext('2d');
-  chartGiorni = new Chart(ctx, {
+  chartGiorni = new Chart(document.getElementById('chartGiorni').getContext('2d'), {
     type: 'bar',
-    data: {
-      labels: labels.map(fmtDate),
-      datasets: [{
-        label: 'Incasso (€)',
-        data: values,
-        backgroundColor: 'rgba(26,122,68,0.15)',
-        borderColor: 'rgba(26,122,68,0.8)',
-        borderWidth: 2,
-        borderRadius: 6,
-      }]
-    },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { display: false } },
+    data: { labels: labels.map(fmtLbl), datasets: [{ label:'Incasso (€)', data: values,
+      backgroundColor:'rgba(26,122,68,0.15)', borderColor:'rgba(26,122,68,0.8)',
+      borderWidth:2, borderRadius:6 }] },
+    options: { responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ display:false } },
       scales: {
-        y: { grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { callback: v => '€'+v, font: { size: 11 } } },
-        x: { grid: { display: false }, ticks: { font: { size: 11 } } }
+        y:{ grid:{ color:'rgba(0,0,0,0.05)' }, ticks:{ callback:v=>'€'+v, font:{size:11} } },
+        x:{ grid:{ display:false }, ticks:{ font:{size:11} } }
       }
     }
   });
 }
 
+// ===== CHART: TIPO BIGLIETTO =====
 function renderChartTipi() {
-  const base = allData.filter(v=>v.tipo==='base').reduce((a,v)=>a+v.qty,0);
+  const base    = allData.filter(v=>v.tipo==='base').reduce((a,v)=>a+v.qty,0);
   const premium = allData.filter(v=>v.tipo==='premium').reduce((a,v)=>a+v.qty,0);
+  const ridotto = allData.filter(v=>v.tipo==='ridotto').reduce((a,v)=>a+v.qty,0);
+  const nopay   = allData.filter(v=>v.tipo==='nopay').reduce((a,v)=>a+v.qty,0);
 
   if (chartTipi) chartTipi.destroy();
-  const ctx = document.getElementById('chartTipi').getContext('2d');
-  chartTipi = new Chart(ctx, {
+  chartTipi = new Chart(document.getElementById('chartTipi').getContext('2d'), {
     type: 'doughnut',
     data: {
-      labels: ['Base', 'Premium'],
-      datasets: [{
-        data: [base, premium],
-        backgroundColor: ['rgba(20,84,160,0.15)', 'rgba(168,120,0,0.15)'],
-        borderColor: ['rgba(20,84,160,0.8)', 'rgba(168,120,0,0.8)'],
-        borderWidth: 2,
-      }]
+      labels: ['Base', 'Premium', 'Ridotto', 'Non pag.'],
+      datasets: [{ data: [base, premium, ridotto, nopay],
+        backgroundColor: ['rgba(20,84,160,0.18)','rgba(168,120,0,0.18)','rgba(26,122,68,0.18)','rgba(123,63,160,0.18)'],
+        borderColor:     ['rgba(20,84,160,0.9)','rgba(168,120,0,0.9)','rgba(26,122,68,0.9)','rgba(123,63,160,0.9)'],
+        borderWidth: 2 }]
     },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: {
-        legend: { position: 'bottom', labels: { font: { size: 12 }, padding: 16 } }
-      },
-      cutout: '65%'
+    options: { responsive:true, maintainAspectRatio:false, cutout:'62%',
+      plugins:{ legend:{ position:'bottom', labels:{ font:{size:11}, padding:12 } } }
     }
   });
 }
 
+// ===== CHART: VENDITE PER ORA =====
+function renderChartOre() {
+  const byOra = {};
+  allData.forEach(v => {
+    const ora = v.ora ? v.ora.substring(0,5) : (v.created_at ? new Date(v.created_at).toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'}) : '??');
+    byOra[ora] = (byOra[ora]||0) + v.qty;
+  });
+  const labels = Object.keys(byOra).sort();
+  const values = labels.map(o => byOra[o]);
+
+  if (chartOre) chartOre.destroy();
+  chartOre = new Chart(document.getElementById('chartOre').getContext('2d'), {
+    type: 'bar',
+    data: { labels, datasets: [{ label:'Visitatori', data: values,
+      backgroundColor:'rgba(20,84,160,0.15)', borderColor:'rgba(20,84,160,0.8)',
+      borderWidth:2, borderRadius:4 }] },
+    options: { responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ display:false } },
+      scales: {
+        y:{ grid:{ color:'rgba(0,0,0,0.05)' }, ticks:{ font:{size:10}, stepSize:1 } },
+        x:{ grid:{ display:false }, ticks:{ font:{size:10} } }
+      }
+    }
+  });
+}
+
+// ===== CHART: PAGAMENTI =====
+function renderChartPagamenti() {
+  const cash    = allData.filter(v=>v.pagamento==='cash').reduce((a,v)=>a+Number(v.totale),0);
+  const pos     = allData.filter(v=>v.pagamento==='pos').reduce((a,v)=>a+Number(v.totale),0);
+  const posplus = allData.filter(v=>v.pagamento==='posplus').reduce((a,v)=>a+Number(v.totale),0);
+
+  if (chartPag) chartPag.destroy();
+  chartPag = new Chart(document.getElementById('chartPagamenti').getContext('2d'), {
+    type: 'doughnut',
+    data: {
+      labels: ['Contanti','POS','POS+'],
+      datasets: [{ data: [cash, pos, posplus],
+        backgroundColor: ['rgba(26,122,68,0.18)','rgba(20,84,160,0.18)','rgba(168,120,0,0.18)'],
+        borderColor:     ['rgba(26,122,68,0.9)','rgba(20,84,160,0.9)','rgba(168,120,0,0.9)'],
+        borderWidth: 2 }]
+    },
+    options: { responsive:true, maintainAspectRatio:false, cutout:'60%',
+      plugins:{ legend:{ position:'bottom', labels:{ font:{size:11}, padding:12 } } }
+    }
+  });
+}
+
+// ===== CHART: OPERATORI =====
+function renderChartOperatori() {
+  const ops = {};
+  allData.forEach(v => { ops[v.operatore] = (ops[v.operatore]||0) + Number(v.totale); });
+  const sorted = Object.entries(ops).sort((a,b)=>b[1]-a[1]);
+
+  if (chartOp) chartOp.destroy();
+  chartOp = new Chart(document.getElementById('chartOperatori').getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels: sorted.map(([op]) => opName(op)),
+      datasets: [{ label:'Incasso', data: sorted.map(([,v])=>v),
+        backgroundColor: ['rgba(20,84,160,0.18)','rgba(168,120,0,0.18)','rgba(26,122,68,0.18)'],
+        borderColor:     ['rgba(20,84,160,0.8)','rgba(168,120,0,0.8)','rgba(26,122,68,0.8)'],
+        borderWidth: 2, borderRadius: 6 }]
+    },
+    options: { responsive:true, maintainAspectRatio:false, indexAxis:'y',
+      plugins:{ legend:{ display:false } },
+      scales: {
+        x:{ grid:{ color:'rgba(0,0,0,0.05)' }, ticks:{ callback:v=>'€'+v, font:{size:10} } },
+        y:{ grid:{ display:false }, ticks:{ font:{size:11} } }
+      }
+    }
+  });
+}
+
+// ===== BREAKDOWN =====
 function renderBreakdown() {
   // Pagamenti
-  const cash = allData.filter(v=>v.pagamento==='cash').reduce((a,v)=>a+Number(v.totale),0);
-  const pos = allData.filter(v=>v.pagamento==='pos').reduce((a,v)=>a+Number(v.totale),0);
+  const cash    = allData.filter(v=>v.pagamento==='cash').reduce((a,v)=>a+Number(v.totale),0);
+  const pos     = allData.filter(v=>v.pagamento==='pos').reduce((a,v)=>a+Number(v.totale),0);
   const posplus = allData.filter(v=>v.pagamento==='posplus').reduce((a,v)=>a+Number(v.totale),0);
-  const totPay = cash + pos + posplus || 1;
+  const totPay  = cash + pos + posplus || 1;
   document.getElementById('bdPagamento').innerHTML = [
-    { label:'Contanti', val: cash, color:'var(--green)', pct: cash/totPay },
-    { label:'POS', val: pos, color:'var(--sea)', pct: pos/totPay },
-    { label:'POS+', val: posplus, color:'var(--gold)', pct: posplus/totPay },
+    { label:'Contanti', val:cash,    color:'var(--green)', pct:cash/totPay },
+    { label:'POS',      val:pos,     color:'var(--sea)',   pct:pos/totPay },
+    { label:'POS+',     val:posplus, color:'var(--gold)',  pct:posplus/totPay },
   ].map(r => `
-    <div class="breakdown-row">
-      <div style="flex:1">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-          <span class="br-label"><span class="br-dot" style="background:${r.color}"></span>${r.label}</span>
-          <span class="br-val">${fmt(r.val)}</span>
-        </div>
-        <div class="br-bar-wrap"><div class="br-bar" style="width:${(r.pct*100).toFixed(0)}%;background:${r.color}"></div></div>
+    <div class="breakdown-row"><div style="flex:1">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+        <span class="br-label"><span class="br-dot" style="background:${r.color}"></span>${r.label}</span>
+        <span class="br-val">${fmt(r.val)}</span>
       </div>
-    </div>`).join('');
+      <div class="br-bar-wrap"><div class="br-bar" style="width:${(r.pct*100).toFixed(0)}%;background:${r.color}"></div></div>
+    </div></div>`).join('');
 
   // Operatori
-  const ops = { op1: 'Cassa 1', op2: 'Cassa 2', dir: 'Direttore' };
   const opTot = {};
-  allData.forEach(v => {
-    opTot[v.operatore] = (opTot[v.operatore]||0) + Number(v.totale);
-  });
+  allData.forEach(v => { opTot[v.operatore] = (opTot[v.operatore]||0) + Number(v.totale); });
   const maxOp = Math.max(...Object.values(opTot), 1);
   document.getElementById('bdOperatori').innerHTML = Object.entries(opTot)
     .sort((a,b)=>b[1]-a[1])
     .map(([op,tot]) => `
-    <div class="breakdown-row">
-      <div style="flex:1">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-          <span class="br-label">${ops[op]||op}</span>
-          <span class="br-val">${fmt(tot)}</span>
-        </div>
-        <div class="br-bar-wrap"><div class="br-bar" style="width:${(tot/maxOp*100).toFixed(0)}%;background:var(--sea)"></div></div>
+    <div class="breakdown-row"><div style="flex:1">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+        <span class="br-label">${opName(op)}</span>
+        <span class="br-val">${fmt(tot)}</span>
       </div>
-    </div>`).join('') || '<div class="empty">Nessun dato</div>';
+      <div class="br-bar-wrap"><div class="br-bar" style="width:${(tot/maxOp*100).toFixed(0)}%;background:var(--sea)"></div></div>
+    </div></div>`).join('') || '<div class="empty">Nessun dato</div>';
 
   // Turni
   const turniCount = {};
-  allData.forEach(v => {
-    turniCount[v.turno] = (turniCount[v.turno]||0) + v.qty;
-  });
+  allData.forEach(v => { turniCount[v.turno] = (turniCount[v.turno]||0) + v.qty; });
   const sorted = Object.entries(turniCount).sort((a,b)=>b[1]-a[1]).slice(0,8);
   const maxT = sorted[0]?.[1] || 1;
   document.getElementById('bdTurni').innerHTML = sorted.map(([ora, cnt]) => `
@@ -569,18 +837,20 @@ function renderBreakdown() {
     </div>`).join('') || '<div class="empty">Nessun dato</div>';
 }
 
+// ===== TABELLA RIEPILOGO PER GIORNO =====
 function renderTable() {
   const byDay = {};
   allData.forEach(v => {
-    if (!byDay[v.data]) byDay[v.data] = { data: v.data, visitatori: 0, totale: 0, cash: 0, pos: 0, posplus: 0, base: 0, premium: 0 };
+    if (!byDay[v.data]) byDay[v.data] = { data:v.data, visitatori:0, totale:0, cash:0, pos:0, posplus:0, base:0, premium:0, ridotto:0, nopay:0 };
     const d = byDay[v.data];
-    d.visitatori += v.qty;
-    d.totale += Number(v.totale);
+    d.visitatori += v.qty; d.totale += Number(v.totale);
     if (v.pagamento==='cash') d.cash += Number(v.totale);
     else if (v.pagamento==='pos') d.pos += Number(v.totale);
-    else d.posplus += Number(v.totale);
+    else if (v.pagamento==='posplus') d.posplus += Number(v.totale);
     if (v.tipo==='base') d.base += v.qty;
-    else d.premium += v.qty;
+    else if (v.tipo==='premium') d.premium += v.qty;
+    else if (v.tipo==='ridotto') d.ridotto += v.qty;
+    else if (v.tipo==='nopay') d.nopay += v.qty;
   });
   const days = Object.values(byDay).sort((a,b)=>b.data.localeCompare(a.data));
 
@@ -592,14 +862,8 @@ function renderTable() {
   document.getElementById('tableWrap').innerHTML = `
     <table>
       <thead><tr>
-        <th>Data</th>
-        <th>Visitatori</th>
-        <th>Base</th>
-        <th>Premium</th>
-        <th>Contanti</th>
-        <th>POS</th>
-        <th>POS+</th>
-        <th>Totale</th>
+        <th>Data</th><th>Visitatori</th><th>Base</th><th>Premium</th><th>Ridotto</th><th>Non pag.</th>
+        <th>Contanti</th><th>POS</th><th>POS+</th><th>Totale</th>
       </tr></thead>
       <tbody>
         ${days.map(d => {
@@ -607,8 +871,7 @@ function renderTable() {
           return `<tr>
             <td class="td-date">${dd}/${m}/${y}</td>
             <td>${d.visitatori}</td>
-            <td>${d.base}</td>
-            <td>${d.premium}</td>
+            <td>${d.base}</td><td>${d.premium}</td><td>${d.ridotto}</td><td>${d.nopay}</td>
             <td><span class="pay-pill pay-cash">${fmtShort(d.cash)}</span></td>
             <td><span class="pay-pill pay-pos">${fmtShort(d.pos)}</span></td>
             <td><span class="pay-pill pay-posplus">${fmtShort(d.posplus)}</span></td>
@@ -620,6 +883,8 @@ function renderTable() {
           <td>${days.reduce((a,d)=>a+d.visitatori,0)}</td>
           <td>${days.reduce((a,d)=>a+d.base,0)}</td>
           <td>${days.reduce((a,d)=>a+d.premium,0)}</td>
+          <td>${days.reduce((a,d)=>a+d.ridotto,0)}</td>
+          <td>${days.reduce((a,d)=>a+d.nopay,0)}</td>
           <td><span class="pay-pill pay-cash">${fmtShort(days.reduce((a,d)=>a+d.cash,0))}</span></td>
           <td><span class="pay-pill pay-pos">${fmtShort(days.reduce((a,d)=>a+d.pos,0))}</span></td>
           <td><span class="pay-pill pay-posplus">${fmtShort(days.reduce((a,d)=>a+d.posplus,0))}</span></td>
@@ -629,18 +894,122 @@ function renderTable() {
     </table>`;
 }
 
-// ===== EXPORT CSV =====
+// ===== FILTRI DETTAGLIO =====
+function setFilter(type, val) {
+  if (type === 'tipo') filterTipo = val;
+  else if (type === 'pag') filterPag = val;
+  else if (type === 'op') filterOp = val;
+
+  // Aggiorna bottoni attivi
+  const groups = { tipo: ['','base','premium','ridotto','nopay'], pag: ['','cash','pos','posplus'], op: ['','op1','op2','dir'] };
+  const btns = document.querySelectorAll('.filter-btn');
+  let tipoIdx = 0, pagIdx = 0, opIdx = 0;
+  btns.forEach(b => {
+    const onclick = b.getAttribute('onclick') || '';
+    if (onclick.includes("'tipo'")) {
+      const v = (onclick.match(/'tipo','([^']*)'/) || ['',''])[1];
+      b.classList.toggle('active', v === filterTipo);
+    } else if (onclick.includes("'pag'")) {
+      const v = (onclick.match(/'pag','([^']*)'/) || ['',''])[1];
+      b.classList.toggle('active', v === filterPag);
+    } else if (onclick.includes("'op'")) {
+      const v = (onclick.match(/'op','([^']*)'/) || ['',''])[1];
+      b.classList.toggle('active', v === filterOp);
+    }
+  });
+  renderDettaglio();
+}
+
+// ===== TABELLA DETTAGLIO TRANSAZIONI =====
+function renderDettaglio() {
+  let data = [...allData].reverse(); // più recenti prima
+
+  if (filterTipo) data = data.filter(v => v.tipo === filterTipo);
+  if (filterPag)  data = data.filter(v => v.pagamento === filterPag);
+  if (filterOp)   data = data.filter(v => v.operatore === filterOp);
+
+  document.getElementById('detCount').textContent = `${data.length} transazioni`;
+
+  if (!data.length) {
+    document.getElementById('dettaglioWrap').innerHTML = '<div class="empty">Nessuna transazione trovata</div>';
+    return;
+  }
+
+  document.getElementById('dettaglioWrap').innerHTML = `
+    <table>
+      <thead><tr>
+        <th>#Ticket</th>
+        <th>Data</th>
+        <th>Ora vendita</th>
+        <th>Turno</th>
+        <th>Tipo</th>
+        <th>Qty</th>
+        <th>Prezzo unit.</th>
+        <th>Pagamento</th>
+        <th>Operatore</th>
+        <th>Totale</th>
+      </tr></thead>
+      <tbody>
+        ${data.map(v => `<tr>
+          <td class="td-ticket">${esc(v.ticket_num)}</td>
+          <td class="td-date">${fmtDate(v.data)}</td>
+          <td class="td-ora">${v.ora ? esc(v.ora.substring(0,5)) : fmtDatetime(v.created_at)}</td>
+          <td>${esc(v.turno)}</td>
+          <td><span class="tipo-pill ${tipoClass(v.tipo)}">${tipoLabel(v.tipo)}</span></td>
+          <td>${Number(v.qty)}</td>
+          <td>${fmt(Number(v.prezzo)||0)}</td>
+          <td><span class="pay-pill ${pagClass(v.pagamento)}">${pagLabel(v.pagamento)}</span></td>
+          <td class="op-label">${opName(v.operatore)}</td>
+          <td class="td-total">${fmt(Number(v.totale))}</td>
+        </tr>`).join('')}
+      </tbody>
+    </table>`;
+}
+
+// ===== EXPORT CSV RIEPILOGO (aggregato per giorno) =====
 function exportCSV() {
   const { from, to } = getDateRange();
-  const rows = [['Data','Turno','Tipo','Qty','Prezzo','Totale','Pagamento','Operatore']];
+  const byDay = {};
   allData.forEach(v => {
-    const op = v.operatore==='op1'?'Cassa 1':v.operatore==='op2'?'Cassa 2':'Direttore';
-    rows.push([v.data, v.turno, v.tipo, v.qty, v.prezzo, v.totale, v.pagamento, op]);
+    if (!byDay[v.data]) byDay[v.data] = { data:v.data, visitatori:0, totale:0, cash:0, pos:0, posplus:0, base:0, premium:0, ridotto:0, nopay:0 };
+    const d = byDay[v.data];
+    d.visitatori += v.qty; d.totale += Number(v.totale);
+    if (v.pagamento==='cash') d.cash += Number(v.totale);
+    else if (v.pagamento==='pos') d.pos += Number(v.totale);
+    else if (v.pagamento==='posplus') d.posplus += Number(v.totale);
+    if (v.tipo==='base') d.base += v.qty;
+    else if (v.tipo==='premium') d.premium += v.qty;
+    else if (v.tipo==='ridotto') d.ridotto += v.qty;
+    else if (v.tipo==='nopay') d.nopay += v.qty;
   });
-  const csv = '\ufeff' + rows.map(r => r.join(';')).join('\n');
+  const days = Object.values(byDay).sort((a,b)=>a.data.localeCompare(b.data));
+  const rows = [['Data','Visitatori','Base','Premium','Ridotto','Non pag.','Contanti','POS','POS+','Totale']];
+  days.forEach(d => {
+    rows.push([d.data, d.visitatori, d.base, d.premium, d.ridotto, d.nopay,
+      d.cash.toFixed(2), d.pos.toFixed(2), d.posplus.toFixed(2), d.totale.toFixed(2)]);
+  });
+  _downloadCSV(rows, `scopello-riepilogo-${from}-${to}.csv`);
+}
+
+// ===== EXPORT CSV DETTAGLIO =====
+function exportDettaglioCSV() {
+  const { from, to } = getDateRange();
+  let data = [...allData];
+  if (filterTipo) data = data.filter(v => v.tipo === filterTipo);
+  if (filterPag)  data = data.filter(v => v.pagamento === filterPag);
+  if (filterOp)   data = data.filter(v => v.operatore === filterOp);
+  const rows = [['Data','Ora','Turno','#Ticket','Tipo','Qty','Prezzo','Totale','Pagamento','Operatore','CreatedAt']];
+  data.forEach(v => {
+    rows.push([v.data, v.ora||'', v.turno, v.ticket_num||'', v.tipo, v.qty, v.prezzo, v.totale, v.pagamento, opName(v.operatore), v.created_at||'']);
+  });
+  _downloadCSV(rows, `scopello-dettaglio-${from}-${to}.csv`);
+}
+
+function _downloadCSV(rows, filename) {
+  const csv = '﻿' + rows.map(r => r.join(';')).join('\n');
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv;charset=utf-8;'}));
-  a.download = `scopello-report-${from}-${to}.csv`;
+  a.download = filename;
   a.click();
 }
 
