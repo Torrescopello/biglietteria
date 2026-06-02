@@ -374,6 +374,16 @@ td.td-ora { color: var(--text); font-weight: 700; }
         <div class="kpi-val" id="kpiNopay">—</div>
         <div class="kpi-sub">gratuiti / omaggio</div>
       </div>
+      <div class="kpi-card k-sea">
+        <div class="kpi-label">Operatore top</div>
+        <div class="kpi-val" id="kpiTopOp" style="font-size:1.3rem">—</div>
+        <div class="kpi-sub" id="kpiTopOpSub">per incasso</div>
+      </div>
+      <div class="kpi-card k-stone">
+        <div class="kpi-label">Tipo più venduto</div>
+        <div class="kpi-val" id="kpiTopTipo" style="font-size:1.3rem">—</div>
+        <div class="kpi-sub" id="kpiTopTipoSub">per quantità</div>
+      </div>
     </div>
 
     <!-- CHARTS ROW 1 -->
@@ -462,8 +472,8 @@ td.td-ora { color: var(--text); font-weight: 700; }
         <div class="filter-sep"></div>
         <span class="filter-label">Operatore</span>
         <button class="filter-btn active" onclick="setFilter('op','')">Tutti</button>
-        <button class="filter-btn" onclick="setFilter('op','op1')">Cassa 1</button>
-        <button class="filter-btn" onclick="setFilter('op','op2')">Cassa 2</button>
+        <button class="filter-btn" id="filterBtnOp1" onclick="setFilter('op','op1')">Cassa 1</button>
+        <button class="filter-btn" id="filterBtnOp2" onclick="setFilter('op','op2')">Cassa 2</button>
         <button class="filter-btn" onclick="setFilter('op','dir')">Direttore</button>
       </div>
       <div id="dettaglioWrap" style="overflow-x:auto"><div class="loading"><div class="loading-spinner"></div>Caricamento...</div></div>
@@ -481,8 +491,9 @@ const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 let currentPeriod = 'today';
 let allData = [];
 let chartGiorni = null, chartTipi = null, chartOre = null, chartPag = null, chartOp = null;
-let realtimeChannel = null;
+let realtimeChannel = null, realtimeConfigChannel = null;
 let filterTipo = '', filterPag = '', filterOp = '';
+let nomiCasse = { op1: 'Cassa 1', op2: 'Cassa 2' };
 
 // ===== CARICA PASSWORD DA SUPABASE =====
 async function loadDirPw() {
@@ -491,6 +502,37 @@ async function loadDirPw() {
 }
 loadDirPw();
 
+// ===== CARICA NOMI OPERATORI DA SUPABASE =====
+async function loadNomiCasse() {
+  const { data } = await db.from('app_config').select('value').eq('key','nomi_casse').maybeSingle();
+  if (data?.value) {
+    Object.assign(nomiCasse, data.value);
+    applyNomiCasse();
+  }
+}
+
+function applyNomiCasse() {
+  const b1 = document.getElementById('filterBtnOp1');
+  const b2 = document.getElementById('filterBtnOp2');
+  if (b1) b1.textContent = nomiCasse.op1;
+  if (b2) b2.textContent = nomiCasse.op2;
+  if (allData.length) {
+    renderChartOperatori();
+    renderBreakdown();
+    renderDettaglio();
+  }
+}
+
+function startRealtimeConfig() {
+  if (realtimeConfigChannel) return;
+  realtimeConfigChannel = db.channel('report-config')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'app_config', filter: 'key=eq.nomi_casse' },
+      async payload => {
+        if (payload.new?.value) { Object.assign(nomiCasse, payload.new.value); applyNomiCasse(); }
+      })
+    .subscribe();
+}
+
 // ===== SANITIZE =====
 function esc(str) {
   if (str == null) return '—';
@@ -498,14 +540,16 @@ function esc(str) {
 }
 
 // ===== LOGIN =====
-function repLogin() {
+async function repLogin() {
   const pw = document.getElementById('repPw').value;
   if (pw === DIR_PW) {
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('appScreen').style.display = 'block';
     initDates();
+    await loadNomiCasse();
     loadData();
     startRealtime();
+    startRealtimeConfig();
   } else {
     document.getElementById('repErr').textContent = 'Password non corretta.';
     document.getElementById('repPw').style.borderColor = 'var(--red)';
@@ -517,6 +561,7 @@ function repLogout() {
   document.getElementById('appScreen').style.display = 'none';
   document.getElementById('repPw').value = '';
   stopRealtime();
+  if (realtimeConfigChannel) { db.removeChannel(realtimeConfigChannel); realtimeConfigChannel = null; }
 }
 
 // ===== PERIOD =====
@@ -605,7 +650,7 @@ function setLiveOffline() {
 // ===== HELPERS =====
 function fmt(n) { return '€ ' + Number(n).toFixed(2).replace('.', ','); }
 function fmtShort(n) { return '€ ' + Number(n).toFixed(0).replace('.', ','); }
-function opName(op) { return op === 'op1' ? 'Cassa 1' : op === 'op2' ? 'Cassa 2' : 'Direttore'; }
+function opName(op) { return op === 'op1' ? nomiCasse.op1 : op === 'op2' ? nomiCasse.op2 : 'Direttore'; }
 function tipoLabel(t) { return { base:'Base', premium:'Premium', ridotto:'Ridotto', nopay:'Non pag.' }[t] || t; }
 function tipoClass(t) { return 'tipo-' + (t || 'base'); }
 function pagClass(p) { return p === 'cash' ? 'pay-cash' : p === 'pos' ? 'pay-pos' : p === 'posplus' ? 'pay-posplus' : 'pay-gratis'; }
@@ -666,6 +711,19 @@ function renderKPI() {
   document.getElementById('kpiRidotto').textContent = qRidotto;
   document.getElementById('kpiRidottoSub').textContent = fmt(iRidotto);
   document.getElementById('kpiNopay').textContent = qNopay;
+
+  // Top operatore per incasso
+  const opIncasso = {};
+  allData.forEach(v => { opIncasso[v.operatore] = (opIncasso[v.operatore]||0) + Number(v.totale); });
+  const topOpEntry = Object.entries(opIncasso).sort((a,b)=>b[1]-a[1])[0];
+  document.getElementById('kpiTopOp').textContent = topOpEntry ? opName(topOpEntry[0]) : '—';
+  document.getElementById('kpiTopOpSub').textContent = topOpEntry ? fmt(topOpEntry[1]) : 'nessuna vendita';
+
+  // Tipo più venduto per quantità
+  const tipiQty = { base: qBase, premium: qPremium, ridotto: qRidotto, nopay: qNopay };
+  const topTipoEntry = Object.entries(tipiQty).filter(([,q])=>q>0).sort((a,b)=>b[1]-a[1])[0];
+  document.getElementById('kpiTopTipo').textContent = topTipoEntry ? tipoLabel(topTipoEntry[0]) : '—';
+  document.getElementById('kpiTopTipoSub').textContent = topTipoEntry ? `${topTipoEntry[1]} biglietti` : 'nessuna vendita';
 }
 
 // ===== CHART: INCASSI GIORNALIERI =====
