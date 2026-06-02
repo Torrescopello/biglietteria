@@ -3025,6 +3025,15 @@ function eseguiUpgrade() {
 
   // Cambia tipo in state
   upgRighe.forEach(v => { v.tipo = 'premium'; });
+  // Aggiorna anche le righe in pendingSync per evitare duplicati al momento della sincronizzazione
+  let pendingSyncChanged = false;
+  pendingSync = pendingSync.map(p => {
+    if (p.ticket_num === upgradeTicketNum && (p.tipo === 'base' || p.tipo === 'ridotto')) {
+      pendingSyncChanged = true; return { ...p, tipo: 'premium' };
+    }
+    return p;
+  });
+  if (pendingSyncChanged) savePending();
 
   // Registra integrazione
   if (!Array.isArray(state.integrazioni)) state.integrazioni = [];
