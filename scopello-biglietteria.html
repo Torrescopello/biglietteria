@@ -2825,12 +2825,17 @@ function annullaDir(id) {
   // Testo riepilogo
   const sameTicket = state.vendite.filter(v => v.ticketNum === vendita.ticketNum);
   const righe = sameTicket.map(v => `${v.qty}× ${tipoLabel(v.tipo)}`).join(', ');
-  const totale = sameTicket.reduce((a,v) => a + v.totale, 0);
+  const totaleVendita = sameTicket.reduce((a,v) => a + v.totale, 0);
+  const integrazione = (state.integrazioni || []).find(i => i.ticketNum === vendita.ticketNum);
+  const totale = totaleVendita + (integrazione ? integrazione.diff : 0);
   const pagOrig = payLabel(vendita.pagamento);
+  const upgradeNote = integrazione
+    ? `<br><span style="color:var(--gold);font-size:0.85rem;">⬆ Include upgrade +€ ${integrazione.diff.toFixed(2).replace('.',',')} (${payLabel(integrazione.pagamento)})</span>`
+    : '';
   document.getElementById('modalRimborsoText').innerHTML =
     `Ticket <strong>${vendita.ticketNum}</strong> — ${righe}<br>
      Turno: <strong>${vendita.turno}</strong> · Pagato con: <strong>${pagOrig}</strong><br>
-     Totale: <strong style="color:var(--red)">€ ${totale.toFixed(2).replace('.',',')}</strong>`;
+     Totale: <strong style="color:var(--red)">€ ${totale.toFixed(2).replace('.',',')}</strong>${upgradeNote}`;
   document.getElementById('modalRimborso').classList.add('visible');
 }
 
@@ -2862,8 +2867,12 @@ function eseguiAnnullaDir() {
   const vendita = state.vendite.find(v => v.id === annullaDirId);
   if (!vendita) return;
   const sameTicket = state.vendite.filter(v => v.ticketNum === vendita.ticketNum);
-  const totale = sameTicket.reduce((a,v) => a + v.totale, 0);
+  const totaleVendita = sameTicket.reduce((a,v) => a + v.totale, 0);
   const qtyTot = sameTicket.reduce((a,v) => a + v.qty, 0);
+  // Se il ticket era stato upgradato, includi il diff nel totale del rimborso e rimuovi l'integrazione
+  const integIdx = (state.integrazioni || []).findIndex(i => i.ticketNum === vendita.ticketNum);
+  const integrazione = integIdx >= 0 ? state.integrazioni[integIdx] : null;
+  const totale = totaleVendita + (integrazione ? integrazione.diff : 0);
   if (!Array.isArray(state.rimborsi)) state.rimborsi = [];
   state.rimborsi.push({
     ticketNum: vendita.ticketNum,
@@ -2877,6 +2886,10 @@ function eseguiAnnullaDir() {
     operatoreCassa: sameTicket[0].operatore
   });
   saveRimborsi();
+  if (integrazione) {
+    state.integrazioni.splice(integIdx, 1);
+    saveIntegrazioni();
+  }
   closeModal('modalRimborso');
   sameTicket.forEach(v => doAnnullaVendita(v));
   if (document.getElementById('tab-cassa').classList.contains('active')) renderCassa();
