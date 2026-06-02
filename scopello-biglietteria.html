@@ -2928,6 +2928,13 @@ function eseguiCambiaPagamento() {
   // Aggiorna stato locale e chiudi subito
   state.vendite.filter(v => v.ticketNum === cambiaPagTicket)
     .forEach(v => { v.pagamento = cambiaPagSel; });
+  // Aggiorna anche le righe in pendingSync per evitare duplicati al momento della sincronizzazione
+  let pendingSyncChanged = false;
+  pendingSync = pendingSync.map(p => {
+    if (p.ticket_num === cambiaPagTicket) { pendingSyncChanged = true; return { ...p, pagamento: cambiaPagSel }; }
+    return p;
+  });
+  if (pendingSyncChanged) savePending();
   closeModal('modalCambiaPag');
   updateSummary();
   if (document.getElementById('tab-storico').classList.contains('active')) renderStorico();
@@ -3018,6 +3025,15 @@ function eseguiUpgrade() {
 
   // Cambia tipo in state
   upgRighe.forEach(v => { v.tipo = 'premium'; });
+  // Aggiorna anche le righe in pendingSync per evitare duplicati al momento della sincronizzazione
+  let pendingSyncChanged = false;
+  pendingSync = pendingSync.map(p => {
+    if (p.ticket_num === upgradeTicketNum && (p.tipo === 'base' || p.tipo === 'ridotto')) {
+      pendingSyncChanged = true; return { ...p, tipo: 'premium' };
+    }
+    return p;
+  });
+  if (pendingSyncChanged) savePending();
 
   // Registra integrazione
   if (!Array.isArray(state.integrazioni)) state.integrazioni = [];
@@ -3120,6 +3136,13 @@ async function eseguiSposta() {
     state.turni[turnoVecchio].prenotati = Math.max(0, state.turni[turnoVecchio].prenotati - totalQty);
   }
   state.turni[spostaNewTurno].prenotati += totalQty;
+  // Aggiorna anche le righe in pendingSync per evitare duplicati al momento della sincronizzazione
+  let pendingSyncChanged = false;
+  pendingSync = pendingSync.map(p => {
+    if (p.ticket_num === spostaTicketNum) { pendingSyncChanged = true; return { ...p, turno: spostaNewTurno }; }
+    return p;
+  });
+  if (pendingSyncChanged) savePending();
 
   // Aggiorna nel DB (online subito, offline in coda)
   if (isOnline) {
