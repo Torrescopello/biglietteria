@@ -435,6 +435,17 @@ td.td-ora { color: var(--text); font-weight: 700; }
       </div>
     </div>
 
+    <!-- DETTAGLIO PER OPERATORE -->
+    <div class="table-card">
+      <div class="table-header">
+        <div class="table-title">Dettaglio per operatore</div>
+        <div class="table-actions">
+          <span class="table-count" id="opDetailPeriod"></span>
+        </div>
+      </div>
+      <div id="opDetailWrap" style="overflow-x:auto"></div>
+    </div>
+
     <!-- RIEPILOGO PER GIORNO (multi-day) -->
     <div class="table-card" id="cardRiepilogo">
       <div class="table-header">
@@ -577,6 +588,12 @@ function setPeriod(p) {
   const btns = document.querySelectorAll('.period-btn');
   const idx = ['today','week','month','season'].indexOf(p);
   if (idx >= 0) btns[idx].classList.add('active');
+  // Aggiorna i campi data con il periodo selezionato
+  if (p !== 'custom') {
+    const { from, to } = getDateRange();
+    document.getElementById('dateFrom').value = from;
+    document.getElementById('dateTo').value = to;
+  }
   // Reset filtri al cambio periodo per evitare confusione
   filterTipo = ''; filterPag = ''; filterOp = '';
   document.querySelectorAll('.filter-btn').forEach(b => {
@@ -676,6 +693,7 @@ function renderAll() {
   renderChartPagamenti();
   renderChartOperatori();
   renderBreakdown();
+  renderOpDetail();
   renderTable();
   renderDettaglio();
 }
@@ -893,6 +911,74 @@ function renderBreakdown() {
       <div class="turni-bar-wrap"><div class="turni-bar" style="width:${(cnt/maxT*100).toFixed(0)}%;background:var(--stone)"></div></div>
       <span class="turni-count">${cnt} vis.</span>
     </div>`).join('') || '<div class="empty">Nessun dato</div>';
+}
+
+// ===== DETTAGLIO PER OPERATORE =====
+function renderOpDetail() {
+  const { from, to } = getDateRange();
+  const periodoLabel = from === to ? fmtDate(from) : `${fmtDate(from)} → ${fmtDate(to)}`;
+  document.getElementById('opDetailPeriod').textContent = periodoLabel;
+
+  // Raccoglie tutti gli operatori presenti
+  const ops = [...new Set(allData.map(v => v.operatore))].sort();
+
+  if (!ops.length) {
+    document.getElementById('opDetailWrap').innerHTML = '<div class="empty">Nessuna vendita nel periodo selezionato</div>';
+    return;
+  }
+
+  // Costruisce dati per operatore
+  const rows = ops.map(op => {
+    const vv = allData.filter(v => v.operatore === op);
+    const base    = vv.filter(v=>v.tipo==='base').reduce((a,v)=>a+v.qty,0);
+    const premium = vv.filter(v=>v.tipo==='premium').reduce((a,v)=>a+v.qty,0);
+    const ridotto = vv.filter(v=>v.tipo==='ridotto').reduce((a,v)=>a+v.qty,0);
+    const nopay   = vv.filter(v=>v.tipo==='nopay').reduce((a,v)=>a+v.qty,0);
+    const totQty  = base + premium + ridotto + nopay;
+    const totale  = vv.reduce((a,v)=>a+Number(v.totale),0);
+    return { op, base, premium, ridotto, nopay, totQty, totale };
+  });
+
+  // Riga totali
+  const totBase    = rows.reduce((a,r)=>a+r.base,0);
+  const totPremium = rows.reduce((a,r)=>a+r.premium,0);
+  const totRidotto = rows.reduce((a,r)=>a+r.ridotto,0);
+  const totNopay   = rows.reduce((a,r)=>a+r.nopay,0);
+  const totQty     = rows.reduce((a,r)=>a+r.totQty,0);
+  const totIncasso = rows.reduce((a,r)=>a+r.totale,0);
+
+  document.getElementById('opDetailWrap').innerHTML = `
+    <table>
+      <thead><tr>
+        <th>Operatore</th>
+        <th style="text-align:center">Base</th>
+        <th style="text-align:center">Premium</th>
+        <th style="text-align:center">Ridotto</th>
+        <th style="text-align:center">Non pag.</th>
+        <th style="text-align:center">Totale biglietti</th>
+        <th style="text-align:right">Incasso</th>
+      </tr></thead>
+      <tbody>
+        ${rows.map(r => `<tr>
+          <td class="td-date">${opName(r.op)}</td>
+          <td style="text-align:center">${r.base ? `<span class="tipo-pill tipo-base">${r.base}</span>` : '<span style="color:var(--muted)">—</span>'}</td>
+          <td style="text-align:center">${r.premium ? `<span class="tipo-pill tipo-premium">${r.premium}</span>` : '<span style="color:var(--muted)">—</span>'}</td>
+          <td style="text-align:center">${r.ridotto ? `<span class="tipo-pill tipo-ridotto">${r.ridotto}</span>` : '<span style="color:var(--muted)">—</span>'}</td>
+          <td style="text-align:center">${r.nopay ? `<span class="tipo-pill tipo-nopay">${r.nopay}</span>` : '<span style="color:var(--muted)">—</span>'}</td>
+          <td style="text-align:center;font-weight:700;color:var(--text)">${r.totQty}</td>
+          <td class="td-total" style="text-align:right">${fmt(r.totale)}</td>
+        </tr>`).join('')}
+        <tr style="background:var(--bg);font-weight:700;border-top:2px solid var(--border)">
+          <td class="td-date">TOTALE</td>
+          <td style="text-align:center"><span class="tipo-pill tipo-base">${totBase}</span></td>
+          <td style="text-align:center"><span class="tipo-pill tipo-premium">${totPremium}</span></td>
+          <td style="text-align:center"><span class="tipo-pill tipo-ridotto">${totRidotto}</span></td>
+          <td style="text-align:center"><span class="tipo-pill tipo-nopay">${totNopay}</span></td>
+          <td style="text-align:center;font-weight:700;color:var(--text)">${totQty}</td>
+          <td class="td-total" style="text-align:right">${fmt(totIncasso)}</td>
+        </tr>
+      </tbody>
+    </table>`;
 }
 
 // ===== TABELLA RIEPILOGO PER GIORNO =====
