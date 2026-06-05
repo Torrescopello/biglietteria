@@ -860,7 +860,7 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); }
     <div class="topbar">
       <div class="topbar-brand">
         <h1>Torre di Scopello</h1>
-        <p>Percorso Storico Naturalistico <span style="font-size:0.5rem;color:var(--muted);">v91</span></p>
+        <p>Percorso Storico Naturalistico <span style="font-size:0.5rem;color:var(--muted);">v92</span></p>
       </div>
       <div class="topbar-right">
         <span class="op-badge" id="syncBadge" style="font-size:0.65rem;">✓ Online</span>
@@ -1504,6 +1504,7 @@ async function tryAutoLogin() {
     state.operatore = saved.op;
     state.isDir = (saved.op === 'dir');
     showScreen('appScreen');
+    loadNoteFromStorage();
     updateOpLabels();
     loadTicketCounter();
     renderAll();
@@ -2095,7 +2096,8 @@ function cleanOldLocalStorage() {
     keys.forEach(k => {
       if ((k.startsWith('scopello_ingressi_') ||
            k.startsWith('scopello_extra_') ||
-           k.startsWith('scopello_integrazioni_')) &&
+           k.startsWith('scopello_integrazioni_') ||
+           k.startsWith('scopello_note_')) &&
           !k.endsWith(today)) {
         localStorage.removeItem(k);
       }
@@ -2132,6 +2134,7 @@ async function doLogin() {
       box.classList.remove('success');
       showScreen('appScreen');
       cleanOldLocalStorage();
+      loadNoteFromStorage();
       updateOpLabels();
       loadTicketCounter();
       renderAll();
@@ -3178,14 +3181,27 @@ async function eseguiSposta() {
 // ============================================================
 // NOTE
 // ============================================================
+function persistNote() {
+  const today = getTodayISO();
+  try { localStorage.setItem('scopello_note_' + today, JSON.stringify(state.note)); } catch(e) {}
+}
+
+function loadNoteFromStorage() {
+  const today = getTodayISO();
+  try {
+    const saved = JSON.parse(localStorage.getItem('scopello_note_' + today) || 'null');
+    if (saved && typeof saved === 'object') state.note = saved;
+  } catch(e) {}
+}
+
 function saveNote() {
   if (!state.operatore || state.operatore === 'dir') return;
   const txt = document.getElementById('noteText').value.trim();
   if (!txt) return;
   const ora = new Date().toLocaleTimeString('it-IT', {hour:'2-digit', minute:'2-digit'});
-  // Assicura che l'array esista sempre
   if (!Array.isArray(state.note[state.operatore])) state.note[state.operatore] = [];
   state.note[state.operatore].push({ testo: txt, ora });
+  persistNote();
   document.getElementById('noteText').value = '';
   renderNoteList();
   const msg = document.getElementById('noteSavedMsg');
@@ -3195,6 +3211,7 @@ function saveNote() {
 
 function deleteNote(op, idx) {
   state.note[op].splice(idx, 1);
+  persistNote();
   renderNoteList();
 }
 
