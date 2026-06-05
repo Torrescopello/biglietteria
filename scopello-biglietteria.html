@@ -3782,7 +3782,7 @@ function renderIngresso() {
   // Posti liberi = cap + extra - vendite nette (ridotto+nopay contano come base)
   const vendPrem = venditeNettePerTipo('premium');
   const vendBase = venditeNettePerTipo('base') + venditeNettePerTipo('ridotto') + venditeNettePerTipo('nopay');
-  const rimPremium = Math.max(0, CONFIG.capPremium + state.extraPosti.premium - vendPrem);
+  const rimPremium = Math.max(0, CONFIG.capPremium + state.extraPosti.premium - vendPrem - prenOggiLettiniPrenotati());
   const rimBase    = Math.max(0, CONFIG.capBase    + state.extraPosti.base    - vendBase);
 
   const elRP = document.getElementById('panRimPremium');
@@ -3813,11 +3813,13 @@ function renderIngresso() {
 
   // Resoconto incasso
   const rimborsi = state.rimborsi || [];
+  const integrazioniPay = state.integrazioni || [];
   const calcPay = (p) => {
     const vend  = state.vendite.filter(v=>v.pagamento===p).reduce((a,v)=>a+v.totale,0);
     const reint = rimborsi.filter(r=>r.pagamentoOriginale===p).reduce((a,r)=>a+r.totale,0);
     const rimb  = rimborsi.filter(r=>r.rimborsoCon===p).reduce((a,r)=>a+r.totale,0);
-    return vend + reint - rimb;
+    const integ = integrazioniPay.filter(i=>i.pagamento===p).reduce((a,i)=>a+i.diff,0);
+    return vend + reint - rimb + integ;
   };
   const cash = calcPay('cash'), pos = calcPay('pos'), posplus = calcPay('posplus');
   const totale = cash + pos + posplus;
