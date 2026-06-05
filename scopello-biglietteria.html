@@ -1712,6 +1712,16 @@ async function loadTodayVendite() {
     try { localStorage.setItem('scopello_ticket_counter', ticketCounter); } catch(e) {}
   }
 
+  // Riapplica upgrade: se l'UPDATE sul DB non era ancora visibile al momento della SELECT,
+  // il tipo risulterebbe ancora 'base'. Le integrazioni in state sono la fonte di verità locale.
+  (state.integrazioni || []).forEach(integ => {
+    state.vendite.forEach(v => {
+      if (v.ticketNum === integ.ticketNum && (v.tipo === 'base' || v.tipo === 'ridotto')) {
+        v.tipo = 'premium';
+      }
+    });
+  });
+
   // Carica rimborsi dal DB (più aggiornato del localStorage su multi-device)
   await loadRimborsiFromDB();
 
@@ -3010,11 +3020,12 @@ function eseguiUpgrade() {
   if (!upgRighe.length) { closeModal('modalUpgrade'); return; }
 
   const qtyTot = upgRighe.reduce((a,v) => a + v.qty, 0);
-  // Controlla capienza Premium prima dell'upgrade
+  // Controlla capienza Premium prima dell'upgrade (include prenotazioni come addToCart)
   const nettiPremium = venditeNettePerTipo('premium');
+  const prenotati = prenOggiLettiniPrenotati();
   const capTot = CONFIG.capPremium + (state.extraPosti?.premium || 0);
-  if (nettiPremium + qtyTot > capTot) {
-    showErrorToast(`Lettini Premium esauriti — max ${capTot}`);
+  if (nettiPremium + prenotati + qtyTot > capTot) {
+    showErrorToast(`Lettini Premium esauriti — max ${capTot}${prenotati ? ' (' + prenotati + ' prenotati)' : ''}`);
     if (btn) btn.disabled = false;
     return;
   }
