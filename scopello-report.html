@@ -631,7 +631,14 @@ async function loadData() {
   const { from, to } = getDateRange();
   const { data, error } = await db.from('vendite').select('*').gte('data', from).lte('data', to).order('created_at', { ascending: true });
   if (error) { console.error(error); setLiveOffline(); return; }
-  allData = data || [];
+  // Deduplica righe identiche nel DB (stesso ticket_num+tipo+operatore+data)
+  const _seen = new Set();
+  allData = (data || []).filter(v => {
+    const k = `${v.data}|${v.ticket_num}|${v.tipo}|${v.qty}|${v.pagamento}|${v.operatore}|${v.turno}`;
+    if (_seen.has(k)) return false;
+    _seen.add(k);
+    return true;
+  });
 
   // Carica integrazioni (upgrade base→premium) da app_config per il range di date
   allInteg = [];
