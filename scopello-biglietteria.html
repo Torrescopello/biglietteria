@@ -1564,7 +1564,22 @@ async function saveVendita(vendita) {
         const { error: e2 } = await db.from('vendite').insert(rowNoTicket);
         if (e2) { pendingSync.push({...rowNoTicket, localId: vendita.id}); savePending(); }
       } else {
-        pendingSync.push({...row, localId: vendita.id}); savePending();
+        // Prima di accodare, controlla se l'insert è già arrivato al DB
+        // (errore di rete dopo l'insert riuscito lato server)
+        let alreadyInDB = false;
+        if (row.ticket_num && row.tipo && row.operatore && row.data) {
+          const { data: existing } = await db.from('vendite')
+            .select('id')
+            .eq('data', row.data).eq('ticket_num', row.ticket_num)
+            .eq('tipo', row.tipo).eq('operatore', row.operatore)
+            .maybeSingle();
+          if (existing) {
+            alreadyInDB = true;
+            const v = state.vendite.find(x => x.id === vendita.id);
+            if (v) v.dbId = existing.id;
+          }
+        }
+        if (!alreadyInDB) { pendingSync.push({...row, localId: vendita.id}); savePending(); }
       }
     } else if (inserted) {
       // Aggiorna dbId sulla vendita in memoria
@@ -1596,6 +1611,24 @@ async function syncPending() {
   savePending();
   for (const row of toSync) {
     const { localId, ...data } = row;
+
+    // Verifica idempotenza: se la riga esiste già nel DB (insert riuscito ma risposta persa)
+    // usa il record esistente invece di reinserire, evitando duplicati.
+    if (data.ticket_num && data.tipo && data.operatore && data.data) {
+      const { data: existing } = await db.from('vendite')
+        .select('id')
+        .eq('data', data.data)
+        .eq('ticket_num', data.ticket_num)
+        .eq('tipo', data.tipo)
+        .eq('operatore', data.operatore)
+        .maybeSingle();
+      if (existing) {
+        const v = state.vendite.find(x => x.id === localId);
+        if (v && !v.dbId) v.dbId = existing.id;
+        continue;
+      }
+    }
+
     const { data: inserted, error } = await db.from('vendite').insert(data).select('id').single();
     if (error) { pendingSync.push(row); savePending(); }
     else if (inserted && localId) {
