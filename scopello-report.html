@@ -1120,6 +1120,12 @@ function renderDettaglio() {
     return;
   }
 
+  // Mappa differenza upgrade per ticket (data|#ticket): mostra il prezzo Premium reale.
+  // La differenza è registrata una volta per ticket, quindi la applichiamo a una sola riga.
+  const integMap = {};
+  allInteg.forEach(i => { const k = i.data + '|' + i.ticketNum; integMap[k] = (integMap[k] || 0) + i.diff; });
+  const integApplied = new Set();
+
   document.getElementById('dettaglioWrap').innerHTML = `
     <table>
       <thead><tr>
@@ -1135,18 +1141,27 @@ function renderDettaglio() {
         <th>Totale</th>
       </tr></thead>
       <tbody>
-        ${data.map(v => `<tr>
+        ${data.map(v => {
+          const k = v.data + '|' + (v.ticket_num || '');
+          let diff = 0;
+          if (v.tipo === 'premium' && integMap[k] && !integApplied.has(k)) { diff = integMap[k]; integApplied.add(k); }
+          const isUpg = diff > 0;
+          const totReale = Number(v.totale) + diff;
+          const qty = Number(v.qty) || 1;
+          const prezzoReale = isUpg ? totReale / qty : (Number(v.prezzo)||0);
+          return `<tr>
           <td class="td-ticket">${esc(v.ticket_num)}</td>
           <td class="td-date">${fmtDate(v.data)}</td>
           <td class="td-ora">${v.ora ? esc(v.ora.substring(0,5)) : fmtDatetime(v.created_at)}</td>
           <td>${esc(v.turno)}</td>
-          <td><span class="tipo-pill ${tipoClass(v.tipo)}">${tipoLabel(v.tipo)}</span></td>
+          <td><span class="tipo-pill ${tipoClass(v.tipo)}">${tipoLabel(v.tipo)}</span>${isUpg ? ' <span title="Upgrade da Base" style="color:var(--gold);font-weight:700">⬆</span>' : ''}</td>
           <td>${Number(v.qty)}</td>
-          <td>${fmt(Number(v.prezzo)||0)}</td>
+          <td>${fmt(prezzoReale)}</td>
           <td><span class="pay-pill ${pagClass(v.pagamento)}">${pagLabel(v.pagamento)}</span></td>
           <td class="op-label">${opName(v.operatore)}</td>
-          <td class="td-total">${fmt(Number(v.totale))}</td>
-        </tr>`).join('')}
+          <td class="td-total">${fmt(totReale)}</td>
+        </tr>`;
+        }).join('')}
       </tbody>
     </table>`;
 }

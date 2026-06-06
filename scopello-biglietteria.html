@@ -860,7 +860,7 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); }
     <div class="topbar">
       <div class="topbar-brand">
         <h1>Torre di Scopello</h1>
-        <p>Percorso Storico Naturalistico <span style="font-size:0.5rem;color:var(--muted);">v95</span></p>
+        <p>Percorso Storico Naturalistico <span style="font-size:0.5rem;color:var(--muted);">v96</span></p>
       </div>
       <div class="topbar-right">
         <span class="op-badge" id="syncBadge" style="font-size:0.65rem;">✓ Online</span>
@@ -1838,6 +1838,18 @@ function saveIntegrazioni() {
   }
 }
 
+// Rimuove l'integrazione (upgrade) di un ticket annullato e restituisce la differenza
+// rimossa, così l'incasso dell'upgrade non resta conteggiato per un ticket annullato.
+function removeIntegrazioniForTicket(ticketNum) {
+  if (!Array.isArray(state.integrazioni) || !state.integrazioni.length) return 0;
+  const removed = state.integrazioni.filter(i => i.ticketNum === ticketNum);
+  if (!removed.length) return 0;
+  const diffTot = removed.reduce((a, i) => a + i.diff, 0);
+  state.integrazioni = state.integrazioni.filter(i => i.ticketNum !== ticketNum);
+  saveIntegrazioni();
+  return diffTot;
+}
+
 function saveGiornataSync() {
   if (!isOnline) return;
   const today = getTodayISO();
@@ -1864,10 +1876,24 @@ async function loadGiornataSync() {
     try { localStorage.setItem('scopello_ingressi_' + today, JSON.stringify(state.ingressi)); } catch(e) {}
   }
   if (Array.isArray(val.integrazioni)) {
-    state.integrazioni = val.integrazioni;
-    try { localStorage.setItem('scopello_integrazioni_' + today, JSON.stringify(state.integrazioni)); } catch(e) {}
+    // MERGE per ticketNum: non perdere upgrade fatti localmente (es. offline)
+    // non ancora presenti nel DB. Un ticket può essere upgradato una sola volta,
+    // quindi l'unione per ticketNum è sicura.
+    const remote = val.integrazioni;
+    const remoteTickets = new Set(remote.map(i => i.ticketNum));
+    const localOnly = (state.integrazioni || []).filter(i => !remoteTickets.has(i.ticketNum));
+    const merged = remote.concat(localOnly);
+    state.integrazioni = merged;
+    try { localStorage.setItem('scopello_integrazioni_' + today, JSON.stringify(merged)); } catch(e) {}
+    // Se c'erano upgrade solo locali, ripubblicali su DB così le altre casse e il report li vedono
+    if (localOnly.length && isOnline) {
+      db.from('app_config')
+        .upsert({ key: 'integrazioni_' + today, value: merged }, { onConflict: 'key' })
+        .catch(() => {});
+      saveGiornataSync();
+    }
     // Riapplica upgrade a state.vendite (potrebbero essere stati caricati dal DB con tipo 'base')
-    state.integrazioni.forEach(integ => {
+    merged.forEach(integ => {
       state.vendite.forEach(v => {
         if (v.ticketNum === integ.ticketNum && (v.tipo === 'base' || v.tipo === 'ridotto')) {
           v.tipo = 'premium';
@@ -2619,6 +2645,7 @@ function undoLastSale() {
   const sameTicket = state.vendite.filter(v => v.ticketNum === myLast.ticketNum);
   const righe = sameTicket.map(v => `${v.qty}× ${tipoLabel(v.tipo)}`).join(', ');
   if (!confirm(`Annullare ticket ${myLast.ticketNum}: ${righe} turno ${myLast.turno}?`)) return;
+  removeIntegrazioniForTicket(myLast.ticketNum);
   sameTicket.forEach(v => doAnnullaVendita(v));
 }
 
@@ -2852,7 +2879,9 @@ function annullaDir(id) {
   // Testo riepilogo
   const sameTicket = state.vendite.filter(v => v.ticketNum === vendita.ticketNum);
   const righe = sameTicket.map(v => `${v.qty}× ${tipoLabel(v.tipo)}`).join(', ');
-  const totale = sameTicket.reduce((a,v) => a + v.totale, 0);
+  // Include la differenza di un eventuale upgrade: il cliente ha pagato base + diff
+  const diffUpg = (state.integrazioni || []).filter(i => i.ticketNum === vendita.ticketNum).reduce((a,i)=>a+i.diff,0);
+  const totale = sameTicket.reduce((a,v) => a + v.totale, 0) + diffUpg;
   const pagOrig = payLabel(vendita.pagamento);
   document.getElementById('modalRimborsoText').innerHTML =
     `Ticket <strong>${vendita.ticketNum}</strong> — ${righe}<br>
@@ -2889,8 +2918,12 @@ function eseguiAnnullaDir() {
   const vendita = state.vendite.find(v => v.id === annullaDirId);
   if (!vendita) return;
   const sameTicket = state.vendite.filter(v => v.ticketNum === vendita.ticketNum);
-  const totale = sameTicket.reduce((a,v) => a + v.totale, 0);
+  const totaleBase = sameTicket.reduce((a,v) => a + v.totale, 0);
   const qtyTot = sameTicket.reduce((a,v) => a + v.qty, 0);
+  // Se il ticket era stato upgradato a Premium, includi la differenza nel rimborso
+  // e rimuovi l'integrazione (così non resta conteggiata come incasso di un ticket annullato)
+  const diffUpgrade = removeIntegrazioniForTicket(vendita.ticketNum);
+  const totale = totaleBase + diffUpgrade;
   if (!Array.isArray(state.rimborsi)) state.rimborsi = [];
   state.rimborsi.push({
     ticketNum: vendita.ticketNum,
@@ -2916,6 +2949,8 @@ function eliminaPerErrore() {
   if (!vendita) return;
   if (!confirm(`Eliminare il ticket ${vendita.ticketNum} come errore di cassa? Non verrà registrato nei rimborsi.`)) return;
   const sameTicket = state.vendite.filter(v => v.ticketNum === vendita.ticketNum);
+  // Rimuove anche un eventuale upgrade, altrimenti l'incasso resterebbe in cassa
+  removeIntegrazioniForTicket(vendita.ticketNum);
   closeModal('modalRimborso');
   sameTicket.forEach(v => doAnnullaVendita(v));
   if (document.getElementById('tab-cassa').classList.contains('active')) renderCassa();
@@ -3085,8 +3120,8 @@ function eseguiUpgrade() {
 
   // Sync tipo a Supabase (scatta realtime sugli altri dispositivi → updateCartUI)
   const today = new Date().toLocaleDateString('it-IT',{year:'numeric',month:'2-digit',day:'2-digit'}).split('/').reverse().join('-');
+  const upgDbIds = upgRighe.filter(v => v.dbId).map(v => v.dbId);
   if (isOnline) {
-    const upgDbIds = upgRighe.filter(v => v.dbId).map(v => v.dbId);
     if (upgDbIds.length) {
       db.from('vendite').update({ tipo: 'premium' })
         .in('id', upgDbIds).eq('data', today)
@@ -3095,6 +3130,10 @@ function eseguiUpgrade() {
           savePendingUpdates(); updateSyncBadge();
         });
     }
+  } else {
+    // Offline: metti in coda l'UPDATE del tipo così non viene perso alla riconnessione
+    upgDbIds.forEach(dbId => pendingUpdates.push({ dbId, tipo: 'premium' }));
+    savePendingUpdates(); updateSyncBadge();
   }
 
   showInfoToast('⬆ Ticket ' + upgradeTicketNum + ' upgradato a Premium');

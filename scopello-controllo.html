@@ -311,10 +311,51 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // ============================================================
-// CONFIG
+// CONFIG — orari allineati alla configurazione del direttore (orari_cfg)
 // ============================================================
-const ORARI = ['11:00','11:30','12:00','12:30','13:00','13:30','14:00','14:30',
-               '15:00','15:30','16:00','16:30','17:00','17:30','18:00'];
+const ORARI_DEFAULT = { prima:'11:00', ultima:'18:00', pausaInizio:'13:30', pausaFine:'15:00' };
+
+function loadOrariCfgLocal() {
+  try {
+    const s = JSON.parse(localStorage.getItem('scopello_orari_cfg') || 'null');
+    if (s && s.prima && s.ultima && s.pausaInizio && s.pausaFine) return s;
+  } catch(e) {}
+  return { ...ORARI_DEFAULT };
+}
+
+let orariCfg = loadOrariCfgLocal();
+
+// Genera gli slot di 30 minuti da `prima` a `ultima`, saltando la pausa (come l'app cassa)
+function generaOrariCtrl() {
+  const c = orariCfg || ORARI_DEFAULT;
+  const toMin = s => { const [h,m] = s.split(':').map(Number); return h*60 + m; };
+  const toStr = m => `${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`;
+  const start = toMin(c.prima), end = toMin(c.ultima), pS = toMin(c.pausaInizio), pE = toMin(c.pausaFine);
+  const out = [];
+  for (let t = start; t <= end; t += 30) { if (t < pS || t >= pE) out.push(toStr(t)); }
+  return out;
+}
+
+let ORARI = generaOrariCtrl();
+
+// Carica orari e nomi casse da Supabase (fallback: localStorage / default)
+async function loadConfigFromDB() {
+  if (!isOnline) return;
+  try {
+    const { data } = await db.from('app_config').select('key,value').in('key', ['orari_cfg','nomi_casse']);
+    (data || []).forEach(row => {
+      let val = row.value;
+      if (typeof val === 'string') { try { val = JSON.parse(val); } catch(e) { return; } }
+      if (row.key === 'orari_cfg' && val && val.prima && val.ultima && val.pausaInizio && val.pausaFine) {
+        orariCfg = { prima: val.prima, ultima: val.ultima, pausaInizio: val.pausaInizio, pausaFine: val.pausaFine };
+        try { localStorage.setItem('scopello_orari_cfg', JSON.stringify(orariCfg)); } catch(e) {}
+        ORARI = generaOrariCtrl();
+      } else if (row.key === 'nomi_casse' && val && typeof val === 'object') {
+        try { localStorage.setItem('scopello_nomi', JSON.stringify({ op1: val.op1 || 'Cassa 1', op2: val.op2 || 'Cassa 2' })); } catch(e) {}
+      }
+    });
+  } catch(e) {}
+}
 
 function getAllPasswords() {
   try {
@@ -368,6 +409,7 @@ function salvaIngressiLocale() {
 window.addEventListener('online', async () => {
   isOnline = true;
   updateSyncBadge();
+  await loadConfigFromDB();
   await loadVendite();
   render();
   startRealtime();
@@ -457,6 +499,7 @@ async function initApp() {
   caricaIngressiLocale();
   updateClock();
   updateSyncBadge();
+  await loadConfigFromDB();
   await loadVendite();
   render();
   if (isOnline && !dbPaused) startRealtime();
@@ -699,6 +742,13 @@ function startRealtime() {
       filter: `data=eq.${todayStr()}`
     }, async () => {
       await loadVendite();
+      render();
+    })
+    .on('postgres_changes', {
+      event: '*', schema: 'public', table: 'app_config',
+      filter: `key=eq.orari_cfg`
+    }, async () => {
+      await loadConfigFromDB();
       render();
     })
     .subscribe();
