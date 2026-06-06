@@ -1706,6 +1706,15 @@ async function loadTodayVendite() {
     }
   });
 
+  // Rimuovi righe duplicate nel DB (stesso ticketNum+tipo+qty+pagamento+operatore+turno)
+  const _seenKeys = new Set();
+  state.vendite = state.vendite.filter(v => {
+    const k = `${v.ticketNum}|${v.tipo}|${v.qty}|${v.pagamento}|${v.operatore}|${v.turno}`;
+    if (_seenKeys.has(k)) return false;
+    _seenKeys.add(k);
+    return true;
+  });
+
   // Aggiorna counter solo se il DB ha ticket più avanzati
   if (maxTicketNum > ticketCounter) {
     ticketCounter = maxTicketNum;
@@ -2816,7 +2825,13 @@ function renderStorico() {
     gruppi[v.ticketNum].push(v);
   });
 
-  list.innerHTML = Object.entries(gruppi).map(([tNum, righe]) => {
+  const gruppiSorted = Object.entries(gruppi).sort(([a], [b]) => {
+    const na = parseInt(a.replace('#','')) || 0;
+    const nb = parseInt(b.replace('#','')) || 0;
+    return nb - na;
+  });
+
+  list.innerHTML = gruppiSorted.map(([tNum, righe]) => {
     const prima = righe[0];
     const totale = righe.reduce((a,v)=>a+v.totale,0);
     const opLabel = prima.operatore==='dir'?'Direttore':CONFIG.nomiCasse[prima.operatore]||prima.operatore;
