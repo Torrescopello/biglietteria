@@ -1892,10 +1892,14 @@ function removeIntegrazioniForTicket(ticketNum) {
   return diffTot;
 }
 
+// Identificativo univoco di questa sessione/dispositivo: serve per riconoscere
+// e ignorare l'eco realtime delle scritture fatte da noi stessi (vedi loadGiornataSync).
+const SESSION_ID = 'sess_' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+
 function saveGiornataSync() {
   if (!isOnline) return;
   const today = getTodayISO();
-  const payload = { data: today, extraPosti: state.extraPosti, ingressi: state.ingressi, integrazioni: state.integrazioni };
+  const payload = { data: today, extraPosti: state.extraPosti, ingressi: state.ingressi, integrazioni: state.integrazioni, source: SESSION_ID };
   db.from('app_config')
     .upsert({ key: 'stato_oggi', value: payload }, { onConflict: 'key' })
     .catch(() => {});
@@ -1909,6 +1913,9 @@ async function loadGiornataSync() {
   let val = data.value;
   if (typeof val === 'string') { try { val = JSON.parse(val); } catch(e) { return; } }
   if (!val || val.data !== today) return;
+  // Eco della nostra stessa scrittura: lo stato locale è già aggiornato, evita
+  // il round-trip di rete che sovrascriveva lo stato e rallentava i pulsanti +/-.
+  if (val.source === SESSION_ID) return;
   if (val.extraPosti) {
     state.extraPosti = val.extraPosti;
     try { localStorage.setItem('scopello_extra_' + today, JSON.stringify(state.extraPosti)); } catch(e) {}
