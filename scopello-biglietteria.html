@@ -1861,9 +1861,13 @@ function saveIngressi() {
   saveGiornataSync();
 }
 
-function saveExtra() {
-  const extraKey = 'scopello_extra_' + new Date().toLocaleDateString('it-IT',{year:'numeric',month:'2-digit',day:'2-digit'}).split('/').reverse().join('-');
+function saveExtraLocal() {
+  const extraKey = 'scopello_extra_' + getTodayISO();
   try { localStorage.setItem(extraKey, JSON.stringify(state.extraPosti)); } catch(e) {}
+}
+
+function saveExtra() {
+  saveExtraLocal();
   saveGiornataSync();
 }
 
@@ -1892,10 +1896,14 @@ function removeIntegrazioniForTicket(ticketNum) {
   return diffTot;
 }
 
+// Identificativo univoco di questa sessione/dispositivo: serve per riconoscere
+// e ignorare l'eco realtime delle scritture fatte da noi stessi (vedi loadGiornataSync).
+const SESSION_ID = 'sess_' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+
 function saveGiornataSync() {
   if (!isOnline) return;
   const today = getTodayISO();
-  const payload = { data: today, extraPosti: state.extraPosti, ingressi: state.ingressi, integrazioni: state.integrazioni };
+  const payload = { data: today, extraPosti: state.extraPosti, ingressi: state.ingressi, integrazioni: state.integrazioni, source: SESSION_ID };
   db.from('app_config')
     .upsert({ key: 'stato_oggi', value: payload }, { onConflict: 'key' })
     .catch(() => {});
@@ -1909,6 +1917,9 @@ async function loadGiornataSync() {
   let val = data.value;
   if (typeof val === 'string') { try { val = JSON.parse(val); } catch(e) { return; } }
   if (!val || val.data !== today) return;
+  // Eco della nostra stessa scrittura: lo stato locale è già aggiornato, evita
+  // il round-trip di rete che sovrascriveva lo stato e rallentava i pulsanti +/-.
+  if (val.source === SESSION_ID) return;
   if (val.extraPosti) {
     state.extraPosti = val.extraPosti;
     try { localStorage.setItem('scopello_extra_' + today, JSON.stringify(state.extraPosti)); } catch(e) {}
@@ -3609,6 +3620,38 @@ function changeCap(d) {
   saveConfigToDB();
 }
 
+// Aggiorna solo i contatori di disponibilità della panoramica (operazione leggera,
+// usata sia da renderIngresso sia per il feedback immediato dei pulsanti +/-).
+function updateDisponibilitaCounters() {
+  // Posti liberi = cap + extra - vendite nette (ridotto+nopay contano come base)
+  const vendPrem = venditeNettePerTipo('premium');
+  const vendBase = venditeNettePerTipo('base') + venditeNettePerTipo('ridotto') + venditeNettePerTipo('nopay');
+  const rimPremium = Math.max(0, CONFIG.capPremium + state.extraPosti.premium - vendPrem - prenOggiLettiniPrenotati());
+  const rimBase    = Math.max(0, CONFIG.capBase    + state.extraPosti.base    - vendBase);
+
+  const elRP = document.getElementById('panRimPremium');
+  if (elRP) {
+    elRP.textContent = rimPremium;
+    elRP.className = 'pan-slot-count' + (rimPremium === 0 ? ' esaurito' : rimPremium <= 5 ? ' scarso' : '');
+    document.getElementById('panSubPremium').textContent = rimPremium === 0 ? 'ESAURITI' : 'liberi';
+  }
+
+  const elRB = document.getElementById('panRimBase');
+  if (elRB) {
+    elRB.textContent = rimBase;
+    elRB.className = 'pan-slot-count' + (rimBase === 0 ? ' esaurito' : rimBase <= 10 ? ' scarso' : '');
+    document.getElementById('panSubBase').textContent = rimBase === 0 ? 'ESAURITI' : 'liberi';
+  }
+
+  const ep = state.extraPosti.premium;
+  const elEP = document.getElementById('panExtraPremium');
+  if (elEP) elEP.textContent = ep > 0 ? '+' + ep + ' extra' : '';
+  const eb = state.extraPosti.base;
+  const elEB = document.getElementById('panExtraBase');
+  if (elEB) elEB.textContent = eb > 0 ? '+' + eb + ' extra' : '';
+}
+
+let _extraFlushTimer = null;
 function addExtra(tipo, d) {
   if (!state.extraPosti) state.extraPosti = { premium: 0, base: 0 };
   if (tipo === 'premium') {
@@ -3616,9 +3659,20 @@ function addExtra(tipo, d) {
   } else {
     state.extraPosti.base = Math.max(0, state.extraPosti.base + d);
   }
-  saveExtra();
-  updateCartUI();
-  renderIngresso();
+  // Persistenza locale immediata: nessun rischio di perdere il dato anche se
+  // l'app viene chiusa subito dopo il tap.
+  saveExtraLocal();
+  // Feedback immediato: aggiorna subito i contatori visibili.
+  updateDisponibilitaCounters();
+  // Coalesce solo le parti pesanti (sync di rete + re-render completo): su tap
+  // rapidi evita di bloccare la UI ripetendo lavoro pesante a ogni click.
+  if (_extraFlushTimer) clearTimeout(_extraFlushTimer);
+  _extraFlushTimer = setTimeout(() => {
+    _extraFlushTimer = null;
+    saveGiornataSync();
+    updateCartUI();
+    renderIngresso();
+  }, 300);
 }
 
 function changeCapPremium(d) {
@@ -3906,28 +3960,8 @@ function renderIngresso() {
   const next = getIngressoNextTurno();
   const byTurno = groupVenditePerIngresso();
 
-  // Panoramica istantanea
-
-  // Posti liberi = cap + extra - vendite nette (ridotto+nopay contano come base)
-  const vendPrem = venditeNettePerTipo('premium');
-  const vendBase = venditeNettePerTipo('base') + venditeNettePerTipo('ridotto') + venditeNettePerTipo('nopay');
-  const rimPremium = Math.max(0, CONFIG.capPremium + state.extraPosti.premium - vendPrem - prenOggiLettiniPrenotati());
-  const rimBase    = Math.max(0, CONFIG.capBase    + state.extraPosti.base    - vendBase);
-
-  const elRP = document.getElementById('panRimPremium');
-  elRP.textContent = rimPremium;
-  elRP.className = 'pan-slot-count' + (rimPremium === 0 ? ' esaurito' : rimPremium <= 5 ? ' scarso' : '');
-  document.getElementById('panSubPremium').textContent = rimPremium === 0 ? 'ESAURITI' : 'liberi';
-
-  const elRB = document.getElementById('panRimBase');
-  elRB.textContent = rimBase;
-  elRB.className = 'pan-slot-count' + (rimBase === 0 ? ' esaurito' : rimBase <= 10 ? ' scarso' : '');
-  document.getElementById('panSubBase').textContent = rimBase === 0 ? 'ESAURITI' : 'liberi';
-
-  const ep = state.extraPosti.premium;
-  document.getElementById('panExtraPremium').textContent = ep > 0 ? '+' + ep + ' extra' : '';
-  const eb = state.extraPosti.base;
-  document.getElementById('panExtraBase').textContent = eb > 0 ? '+' + eb + ' extra' : '';
+  // Panoramica istantanea — contatori disponibilità (aggiornamento leggero, riusabile)
+  updateDisponibilitaCounters();
 
   // Resoconto biglietti per tipo (al netto dei rimborsi)
   const tipi = ['base','premium','ridotto','nopay'];
