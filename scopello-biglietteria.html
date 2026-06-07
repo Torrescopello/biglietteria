@@ -1861,9 +1861,13 @@ function saveIngressi() {
   saveGiornataSync();
 }
 
-function saveExtra() {
-  const extraKey = 'scopello_extra_' + new Date().toLocaleDateString('it-IT',{year:'numeric',month:'2-digit',day:'2-digit'}).split('/').reverse().join('-');
+function saveExtraLocal() {
+  const extraKey = 'scopello_extra_' + getTodayISO();
   try { localStorage.setItem(extraKey, JSON.stringify(state.extraPosti)); } catch(e) {}
+}
+
+function saveExtra() {
+  saveExtraLocal();
   saveGiornataSync();
 }
 
@@ -3655,14 +3659,17 @@ function addExtra(tipo, d) {
   } else {
     state.extraPosti.base = Math.max(0, state.extraPosti.base + d);
   }
+  // Persistenza locale immediata: nessun rischio di perdere il dato anche se
+  // l'app viene chiusa subito dopo il tap.
+  saveExtraLocal();
   // Feedback immediato: aggiorna subito i contatori visibili.
   updateDisponibilitaCounters();
-  // Coalesce il salvataggio (localStorage + sync di rete) e il re-render completo:
-  // su tap rapidi evita di bloccare la UI ripetendo lavoro pesante a ogni click.
+  // Coalesce solo le parti pesanti (sync di rete + re-render completo): su tap
+  // rapidi evita di bloccare la UI ripetendo lavoro pesante a ogni click.
   if (_extraFlushTimer) clearTimeout(_extraFlushTimer);
   _extraFlushTimer = setTimeout(() => {
     _extraFlushTimer = null;
-    saveExtra();
+    saveGiornataSync();
     updateCartUI();
     renderIngresso();
   }, 300);
