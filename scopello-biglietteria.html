@@ -860,7 +860,7 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); }
     <div class="topbar">
       <div class="topbar-brand">
         <h1>Torre di Scopello</h1>
-        <p>Percorso Storico Naturalistico <span style="font-size:0.5rem;color:var(--muted);">v103</span></p>
+        <p>Percorso Storico Naturalistico <span style="font-size:0.5rem;color:var(--muted);">v104</span></p>
       </div>
       <div class="topbar-right">
         <span class="op-badge" id="syncBadge" style="font-size:0.65rem;">✓ Online</span>
@@ -2380,7 +2380,7 @@ function switchTab(name) {
   if (name === 'vendita')       { renderTurniVendita(); updateCartUI(); updateSummary(); }
   if (name === 'turni')         renderTurni();
   if (name === 'storico')       renderStorico();
-  if (name === 'cassa')         renderCassa();
+  if (name === 'cassa')         { renderCassa(); if (isOnline && state.operatore) loadGiornataSync(); }
   if (name === 'ingresso')      renderIngresso();
   if (name === 'prenotazioni')  renderPrenotazioni();
 }
@@ -4376,8 +4376,25 @@ function apriModificaRimborso(idx) {
 // REALTIME — aggiornamento automatico quando un'altra cassa vende
 // ============================================================
 let realtimeChannel = null;
+let syncPollTimer = null;
+
+// Aggiornamento periodico di sicurezza: il realtime può cadere o non recapitare
+// alcuni eventi. Ogni 10s ricontrolliamo lo stato condiviso (note, ingressi,
+// extra, integrazioni) così il direttore vede le note degli operatori entro
+// pochi secondi anche se il realtime non scatta.
+function startSyncPoll() {
+  if (syncPollTimer) return;
+  syncPollTimer = setInterval(() => {
+    if (isOnline && state.operatore) loadGiornataSync();
+  }, 10000);
+}
+
+function stopSyncPoll() {
+  if (syncPollTimer) { clearInterval(syncPollTimer); syncPollTimer = null; }
+}
 
 function startRealtime() {
+  startSyncPoll();
   if (realtimeChannel) return; // già attivo
   const today = new Date().toLocaleDateString('it-IT', {year:'numeric',month:'2-digit',day:'2-digit'}).split('/').reverse().join('-');
   realtimeChannel = db
@@ -4416,6 +4433,7 @@ function startRealtime() {
 }
 
 function stopRealtime() {
+  stopSyncPoll();
   if (realtimeChannel) {
     db.removeChannel(realtimeChannel);
     realtimeChannel = null;
