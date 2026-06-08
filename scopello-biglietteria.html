@@ -860,7 +860,7 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); }
     <div class="topbar">
       <div class="topbar-brand">
         <h1>Torre di Scopello</h1>
-        <p>Percorso Storico Naturalistico <span style="font-size:0.5rem;color:var(--muted);">v99</span></p>
+        <p>Percorso Storico Naturalistico <span style="font-size:0.5rem;color:var(--muted);">v100</span></p>
       </div>
       <div class="topbar-right">
         <span class="op-badge" id="syncBadge" style="font-size:0.65rem;">✓ Online</span>
@@ -1905,7 +1905,7 @@ const SESSION_ID = 'sess_' + Math.random().toString(36).slice(2) + Date.now().to
 function saveGiornataSync() {
   if (!isOnline) return;
   const today = getTodayISO();
-  const payload = { data: today, extraPosti: state.extraPosti, ingressi: state.ingressi, integrazioni: state.integrazioni, source: SESSION_ID };
+  const payload = { data: today, extraPosti: state.extraPosti, ingressi: state.ingressi, integrazioni: state.integrazioni, note: state.note, source: SESSION_ID };
   db.from('app_config')
     .upsert({ key: 'stato_oggi', value: payload }, { onConflict: 'key' })
     .catch(() => {});
@@ -1955,6 +1955,26 @@ async function loadGiornataSync() {
         }
       });
     });
+  }
+  if (val.note && typeof val.note === 'object') {
+    // Le note di ogni operatore sono "possedute" dal dispositivo loggato come
+    // quell'operatore: lì la copia locale è autorevole (include le cancellazioni).
+    // Per gli altri operatori si prende sempre la versione remota. Così il
+    // direttore (e qualsiasi dispositivo di controllo) vede le note di entrambi
+    // gli operatori da qualunque dispositivo, senza che una cassa sovrascriva
+    // le note dell'altra con un array vuoto.
+    const myOp = (state.operatore === 'op1' || state.operatore === 'op2') ? state.operatore : null;
+    const newNote = { op1: [], op2: [] };
+    ['op1', 'op2'].forEach(op => {
+      if (op === myOp) {
+        newNote[op] = Array.isArray(state.note[op]) ? state.note[op] : [];
+      } else {
+        newNote[op] = Array.isArray(val.note[op]) ? val.note[op]
+                    : (Array.isArray(state.note[op]) ? state.note[op] : []);
+      }
+    });
+    state.note = newNote;
+    persistNote();
   }
   updateCartUI();
   if (document.getElementById('tab-ingresso') && document.getElementById('tab-ingresso').classList.contains('active')) renderIngresso();
@@ -3320,6 +3340,7 @@ function saveNote() {
   if (!Array.isArray(state.note[state.operatore])) state.note[state.operatore] = [];
   state.note[state.operatore].push({ testo: txt, ora });
   persistNote();
+  saveGiornataSync();
   document.getElementById('noteText').value = '';
   renderNoteList();
   const msg = document.getElementById('noteSavedMsg');
@@ -3330,6 +3351,7 @@ function saveNote() {
 function deleteNote(op, idx) {
   state.note[op].splice(idx, 1);
   persistNote();
+  saveGiornataSync();
   renderNoteList();
 }
 
