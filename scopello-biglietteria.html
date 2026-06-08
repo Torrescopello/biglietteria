@@ -1475,7 +1475,7 @@ async function checkFirstTicket() {
 
 function applyFirstTicket() {
   const val = parseInt(document.getElementById('firstTicketInput').value);
-  if (isNaN(val) || val < 1 || val > 999) { showErrorToast('Inserisci un numero tra 1 e 999'); return; }
+  if (isNaN(val) || val < 1 || val > TICKET_MAX) { showErrorToast('Inserisci un numero tra 1 e ' + TICKET_MAX); return; }
   const today = getTodayISO();
   ticketCounter = val - 1;
   try { localStorage.setItem('scopello_ticket_counter', ticketCounter); } catch(e) {}
@@ -2421,7 +2421,7 @@ function loadTicketCounter() {
 function applyTicketStart() {
   const el = document.getElementById('ticketStartSet');
   const val = parseInt(el.value);
-  if (isNaN(val) || val < 1 || val > 999) { alert('Inserisci un numero tra 1 e 999.'); return; }
+  if (isNaN(val) || val < 1 || val > TICKET_MAX) { alert('Inserisci un numero tra 1 e ' + TICKET_MAX + '.'); return; }
   ticketCounter = val - 1;
   try { localStorage.setItem('scopello_ticket_counter', ticketCounter); } catch(e) {}
   saveConfigToDB();
