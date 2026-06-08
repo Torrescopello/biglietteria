@@ -860,7 +860,7 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); }
     <div class="topbar">
       <div class="topbar-brand">
         <h1>Torre di Scopello</h1>
-        <p>Percorso Storico Naturalistico <span style="font-size:0.5rem;color:var(--muted);">v102</span></p>
+        <p>Percorso Storico Naturalistico <span style="font-size:0.5rem;color:var(--muted);">v103</span></p>
       </div>
       <div class="topbar-right">
         <span class="op-badge" id="syncBadge" style="font-size:0.65rem;">✓ Online</span>
@@ -1444,8 +1444,7 @@ window.addEventListener('online', async () => {
     startRealtime();
     loadPrenotazioni();
     await loadGiornataSync();
-    await loadNotesFromDB();
-    publishMyNotes();
+    saveGiornataSync();
   }
 });
 window.addEventListener('offline', () => { isOnline = false; updateSyncBadge(); });
@@ -1512,7 +1511,7 @@ async function tryAutoLogin() {
     updateSyncBadge();
     await syncPending();
     await loadTodayVendite();
-    if (isOnline) { startRealtime(); loadPrenotazioni(); await loadGiornataSync(); await loadNotesFromDB(); publishMyNotes(); }
+    if (isOnline) { startRealtime(); loadPrenotazioni(); await loadGiornataSync(); saveGiornataSync(); }
     await checkFirstTicket();
   } catch(e) {
     console.error('Auto-login fallito:', e);
@@ -1907,7 +1906,7 @@ const SESSION_ID = 'sess_' + Math.random().toString(36).slice(2) + Date.now().to
 function saveGiornataSync() {
   if (!isOnline) return;
   const today = getTodayISO();
-  const payload = { data: today, extraPosti: state.extraPosti, ingressi: state.ingressi, integrazioni: state.integrazioni, source: SESSION_ID };
+  const payload = { data: today, extraPosti: state.extraPosti, ingressi: state.ingressi, integrazioni: state.integrazioni, note: state.note, source: SESSION_ID };
   db.from('app_config')
     .upsert({ key: 'stato_oggi', value: payload }, { onConflict: 'key' })
     .catch(() => {});
@@ -1931,6 +1930,19 @@ async function loadGiornataSync() {
   if (val.ingressi) {
     state.ingressi = val.ingressi;
     try { localStorage.setItem('scopello_ingressi_' + today, JSON.stringify(state.ingressi)); } catch(e) {}
+  }
+  if (val.note && typeof val.note === 'object') {
+    // Merge per-operatore: l'operatore loggato è autorevole sulle proprie note
+    // (incluse cancellazioni e scritture offline), per l'altra cassa prende il
+    // remoto. Così il direttore vede le note di entrambi e nessuna cassa azzera
+    // quelle dell'altra. Le note viaggiano dentro stato_oggi (chiave a nome fisso,
+    // l'unico canale che si sincronizza in modo affidabile cross-device).
+    const myOp = (state.operatore === 'op1' || state.operatore === 'op2') ? state.operatore : null;
+    ['op1', 'op2'].forEach(op => {
+      if (op === myOp) return;
+      if (Array.isArray(val.note[op])) state.note[op] = val.note[op];
+    });
+    persistNote();
   }
   if (Array.isArray(val.integrazioni)) {
     // MERGE per ticketNum: non perdere upgrade fatti localmente (es. offline)
@@ -1961,9 +1973,6 @@ async function loadGiornataSync() {
   updateCartUI();
   if (document.getElementById('tab-ingresso') && document.getElementById('tab-ingresso').classList.contains('active')) renderIngresso();
   if (document.getElementById('tab-cassa') && document.getElementById('tab-cassa').classList.contains('active')) renderCassa();
-  // Ricarica anche le note: usiamo il canale realtime di stato_oggi (collaudato)
-  // come segnale, mentre i dati delle note vivono nelle loro chiavi dedicate.
-  loadNotesFromDB();
 }
 
 async function loadPasswordsFromDB() {
@@ -2242,7 +2251,7 @@ async function doLogin() {
       // Prima sincronizza le vendite offline, poi carica dal DB
       await syncPending();
       await loadTodayVendite();
-      if (isOnline) { startRealtime(); loadPrenotazioni(); await loadGiornataSync(); await loadNotesFromDB(); publishMyNotes(); }
+      if (isOnline) { startRealtime(); loadPrenotazioni(); await loadGiornataSync(); saveGiornataSync(); }
       await checkFirstTicket();
     }, 900);
   } else {
@@ -3317,47 +3326,6 @@ function loadNoteFromStorage() {
   } catch(e) {}
 }
 
-// Chiave dedicata per operatore: ogni cassa scrive SOLO la propria
-// (note_op1_<data> / note_op2_<data>), tutti leggono entrambe. Così nessun
-// dispositivo può sovrascrivere le note dell'altro, e il direttore le vede
-// da qualsiasi dispositivo.
-function noteKeyDB(op) { return 'note_' + op + '_' + getTodayISO(); }
-
-function pushNote(op) {
-  if (!isOnline || (op !== 'op1' && op !== 'op2')) return;
-  db.from('app_config')
-    .upsert({ key: noteKeyDB(op), value: state.note[op] || [] }, { onConflict: 'key' })
-    .catch(() => {});
-}
-
-async function loadNotesFromDB() {
-  if (!isOnline) return;
-  // L'operatore loggato è autorevole sulle proprie note (include cancellazioni
-  // e modifiche offline non ancora pubblicate): non sovrascriverle col remoto.
-  const myOp = (state.operatore === 'op1' || state.operatore === 'op2') ? state.operatore : null;
-  for (const op of ['op1', 'op2']) {
-    if (op === myOp) continue;
-    try {
-      const { data } = await db.from('app_config').select('value').eq('key', noteKeyDB(op)).maybeSingle();
-      let val = data && data.value;
-      if (typeof val === 'string') { try { val = JSON.parse(val); } catch(e) { val = null; } }
-      if (Array.isArray(val)) state.note[op] = val;
-    } catch(e) {}
-  }
-  // SOLA LETTURA: non scrive nulla, altrimenti l'eco realtime della scrittura
-  // richiamerebbe questa funzione creando un loop. La pubblicazione delle note
-  // proprie avviene esplicitamente al login (publishMyNotes) e in saveNote/deleteNote.
-  persistNote();
-  const cassaTab = document.getElementById('tab-cassa');
-  if (cassaTab && cassaTab.classList.contains('active')) renderCassa();
-}
-
-// Pubblica una volta le note locali dell'operatore loggato (es. scritte offline
-// o prima dell'aggiornamento), così direttore e altra cassa le vedono.
-function publishMyNotes() {
-  if (state.operatore === 'op1' || state.operatore === 'op2') pushNote(state.operatore);
-}
-
 function saveNote() {
   if (!state.operatore || state.operatore === 'dir') return;
   const txt = document.getElementById('noteText').value.trim();
@@ -3366,8 +3334,7 @@ function saveNote() {
   if (!Array.isArray(state.note[state.operatore])) state.note[state.operatore] = [];
   state.note[state.operatore].push({ testo: txt, ora });
   persistNote();
-  pushNote(state.operatore);
-  saveGiornataSync(); // "tocca" stato_oggi: segnala agli altri dispositivi di ricaricare le note
+  saveGiornataSync(); // pubblica le note dentro stato_oggi (sync cross-device)
   document.getElementById('noteText').value = '';
   renderNoteList();
   const msg = document.getElementById('noteSavedMsg');
@@ -3378,8 +3345,7 @@ function saveNote() {
 function deleteNote(op, idx) {
   state.note[op].splice(idx, 1);
   persistNote();
-  pushNote(op);
-  saveGiornataSync(); // "tocca" stato_oggi: segnala agli altri dispositivi di ricaricare le note
+  saveGiornataSync(); // pubblica le note dentro stato_oggi (sync cross-device)
   renderNoteList();
 }
 
@@ -3961,8 +3927,6 @@ async function resetDay() {
     await db.from('ingressi').delete().eq('data', today).catch(() => {});
     await db.from('rimborsi_giornata').delete().eq('data', today).catch(() => {});
     await db.from('app_config').delete().eq('key', 'stato_oggi').catch(() => {});
-    await db.from('app_config').delete().eq('key', noteKeyDB('op1')).catch(() => {});
-    await db.from('app_config').delete().eq('key', noteKeyDB('op2')).catch(() => {});
   } else {
     localStorage.setItem('scopello_pending_reset', today);
   }
@@ -4447,16 +4411,6 @@ function startRealtime() {
       event: '*', schema: 'public', table: 'app_config', filter: `key=eq.stato_oggi`
     }, () => {
       loadGiornataSync();
-    })
-    .on('postgres_changes', {
-      event: '*', schema: 'public', table: 'app_config', filter: `key=eq.note_op1_${today}`
-    }, () => {
-      loadNotesFromDB();
-    })
-    .on('postgres_changes', {
-      event: '*', schema: 'public', table: 'app_config', filter: `key=eq.note_op2_${today}`
-    }, () => {
-      loadNotesFromDB();
     })
     .subscribe();
 }
