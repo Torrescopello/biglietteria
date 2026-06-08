@@ -860,7 +860,7 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); }
     <div class="topbar">
       <div class="topbar-brand">
         <h1>Torre di Scopello</h1>
-        <p>Percorso Storico Naturalistico <span style="font-size:0.5rem;color:var(--muted);">v101</span></p>
+        <p>Percorso Storico Naturalistico <span style="font-size:0.5rem;color:var(--muted);">v102</span></p>
       </div>
       <div class="topbar-right">
         <span class="op-badge" id="syncBadge" style="font-size:0.65rem;">✓ Online</span>
@@ -1445,6 +1445,7 @@ window.addEventListener('online', async () => {
     loadPrenotazioni();
     await loadGiornataSync();
     await loadNotesFromDB();
+    publishMyNotes();
   }
 });
 window.addEventListener('offline', () => { isOnline = false; updateSyncBadge(); });
@@ -1511,7 +1512,7 @@ async function tryAutoLogin() {
     updateSyncBadge();
     await syncPending();
     await loadTodayVendite();
-    if (isOnline) { startRealtime(); loadPrenotazioni(); await loadGiornataSync(); await loadNotesFromDB(); }
+    if (isOnline) { startRealtime(); loadPrenotazioni(); await loadGiornataSync(); await loadNotesFromDB(); publishMyNotes(); }
     await checkFirstTicket();
   } catch(e) {
     console.error('Auto-login fallito:', e);
@@ -1960,6 +1961,9 @@ async function loadGiornataSync() {
   updateCartUI();
   if (document.getElementById('tab-ingresso') && document.getElementById('tab-ingresso').classList.contains('active')) renderIngresso();
   if (document.getElementById('tab-cassa') && document.getElementById('tab-cassa').classList.contains('active')) renderCassa();
+  // Ricarica anche le note: usiamo il canale realtime di stato_oggi (collaudato)
+  // come segnale, mentre i dati delle note vivono nelle loro chiavi dedicate.
+  loadNotesFromDB();
 }
 
 async function loadPasswordsFromDB() {
@@ -2238,7 +2242,7 @@ async function doLogin() {
       // Prima sincronizza le vendite offline, poi carica dal DB
       await syncPending();
       await loadTodayVendite();
-      if (isOnline) { startRealtime(); loadPrenotazioni(); await loadGiornataSync(); await loadNotesFromDB(); }
+      if (isOnline) { startRealtime(); loadPrenotazioni(); await loadGiornataSync(); await loadNotesFromDB(); publishMyNotes(); }
       await checkFirstTicket();
     }, 900);
   } else {
@@ -3340,12 +3344,18 @@ async function loadNotesFromDB() {
       if (Array.isArray(val)) state.note[op] = val;
     } catch(e) {}
   }
-  // Pubblica le proprie note locali (anche quelle scritte prima del login/online)
-  // così il direttore e l'altra cassa le vedono.
-  if (myOp) pushNote(myOp);
+  // SOLA LETTURA: non scrive nulla, altrimenti l'eco realtime della scrittura
+  // richiamerebbe questa funzione creando un loop. La pubblicazione delle note
+  // proprie avviene esplicitamente al login (publishMyNotes) e in saveNote/deleteNote.
   persistNote();
   const cassaTab = document.getElementById('tab-cassa');
   if (cassaTab && cassaTab.classList.contains('active')) renderCassa();
+}
+
+// Pubblica una volta le note locali dell'operatore loggato (es. scritte offline
+// o prima dell'aggiornamento), così direttore e altra cassa le vedono.
+function publishMyNotes() {
+  if (state.operatore === 'op1' || state.operatore === 'op2') pushNote(state.operatore);
 }
 
 function saveNote() {
@@ -3357,6 +3367,7 @@ function saveNote() {
   state.note[state.operatore].push({ testo: txt, ora });
   persistNote();
   pushNote(state.operatore);
+  saveGiornataSync(); // "tocca" stato_oggi: segnala agli altri dispositivi di ricaricare le note
   document.getElementById('noteText').value = '';
   renderNoteList();
   const msg = document.getElementById('noteSavedMsg');
@@ -3368,6 +3379,7 @@ function deleteNote(op, idx) {
   state.note[op].splice(idx, 1);
   persistNote();
   pushNote(op);
+  saveGiornataSync(); // "tocca" stato_oggi: segnala agli altri dispositivi di ricaricare le note
   renderNoteList();
 }
 
