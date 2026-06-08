@@ -1475,7 +1475,7 @@ async function checkFirstTicket() {
 
 function applyFirstTicket() {
   const val = parseInt(document.getElementById('firstTicketInput').value);
-  if (isNaN(val) || val < 1 || val > 999) { showErrorToast('Inserisci un numero tra 1 e 999'); return; }
+  if (isNaN(val) || val < 1 || val > TICKET_MAX) { showErrorToast('Inserisci un numero tra 1 e ' + TICKET_MAX); return; }
   const today = getTodayISO();
   ticketCounter = val - 1;
   try { localStorage.setItem('scopello_ticket_counter', ticketCounter); } catch(e) {}
@@ -1714,8 +1714,10 @@ async function loadTodayVendite() {
   state.rimborsi = storedRimborsi;  // ripristina rimborsi salvati
   CONFIG.orari.forEach(o => { state.turni[o] = { prenotati: 0 }; });
 
-  // Trova il massimo numero ticket già emesso oggi per evitare duplicati
-  let maxTicketNum = ticketCounter;
+  // Trova l'ultimo numero ticket emesso oggi (dati ordinati per created_at crescente).
+  // Con la numerazione che riparte da 1 dopo il 100 il massimo non è più affidabile:
+  // serve la posizione reale del rotolo, cioè l'ultimo ticket cronologicamente emesso.
+  let lastTicketNum = null;
   data.forEach(v => {
     if (state.turni[v.turno]) state.turni[v.turno].prenotati += v.qty;
     state.vendite.push({
@@ -1735,7 +1737,7 @@ async function loadTodayVendite() {
     // Estrai numero da ticket_num (es. '#042' -> 42)
     if (v.ticket_num) {
       const n = parseInt(v.ticket_num.replace('#',''));
-      if (!isNaN(n) && n > maxTicketNum) maxTicketNum = n;
+      if (!isNaN(n)) lastTicketNum = n;
     }
   });
 
@@ -1748,9 +1750,9 @@ async function loadTodayVendite() {
     return true;
   });
 
-  // Aggiorna counter solo se il DB ha ticket più avanzati
-  if (maxTicketNum > ticketCounter) {
-    ticketCounter = maxTicketNum;
+  // Allinea il counter all'ultimo ticket emesso nel DB (posizione reale del rotolo)
+  if (lastTicketNum !== null && lastTicketNum !== ticketCounter) {
+    ticketCounter = lastTicketNum;
     try { localStorage.setItem('scopello_ticket_counter', ticketCounter); } catch(e) {}
   }
 
@@ -2373,33 +2375,37 @@ function switchTab(name) {
 // TICKET COUNTER
 // ============================================================
 let ticketCounter = 0;
+const TICKET_MAX = 100; // la numerazione fisica va da 1 a 100, poi riparte da 1
 
 async function syncTicketCounterFromDB() {
   if (!isOnline) return;
   const today = new Date().toLocaleDateString('it-IT', {year:'numeric',month:'2-digit',day:'2-digit'}).split('/').reverse().join('-');
-  const { data } = await db.from('vendite').select('ticket_num').eq('data', today).not('ticket_num', 'is', null);
+  const { data } = await db.from('vendite').select('ticket_num').eq('data', today).not('ticket_num', 'is', null).order('created_at', { ascending: true });
   if (!data) return;
-  let max = ticketCounter;
+  // Con la numerazione ciclica 1-100 conta l'ultimo ticket emesso, non il massimo
+  let last = null;
   data.forEach(v => {
     if (v.ticket_num) {
       const n = parseInt(v.ticket_num.replace('#',''));
-      if (!isNaN(n) && n > max) max = n;
+      if (!isNaN(n)) last = n;
     }
   });
-  if (max > ticketCounter) {
-    ticketCounter = max;
+  if (last !== null && last !== ticketCounter) {
+    ticketCounter = last;
     try { localStorage.setItem('scopello_ticket_counter', ticketCounter); } catch(e) {}
   }
 }
 
 function getNextTicketNum() {
   ticketCounter++;
+  if (ticketCounter > TICKET_MAX) ticketCounter = 1; // riparte da 1 dopo il 100
   try { localStorage.setItem('scopello_ticket_counter', ticketCounter); } catch(e) {}
   return '#' + String(ticketCounter).padStart(3, '0');
 }
 
 function peekNextTicketNum() {
-  return '#' + String(ticketCounter + 1).padStart(3, '0');
+  const next = ticketCounter + 1 > TICKET_MAX ? 1 : ticketCounter + 1;
+  return '#' + String(next).padStart(3, '0');
 }
 
 // Nota: il counter viene sincronizzato col massimo dal DB ad ogni login
@@ -2415,7 +2421,7 @@ function loadTicketCounter() {
 function applyTicketStart() {
   const el = document.getElementById('ticketStartSet');
   const val = parseInt(el.value);
-  if (isNaN(val) || val < 1 || val > 999) { alert('Inserisci un numero tra 1 e 999.'); return; }
+  if (isNaN(val) || val < 1 || val > TICKET_MAX) { alert('Inserisci un numero tra 1 e ' + TICKET_MAX + '.'); return; }
   ticketCounter = val - 1;
   try { localStorage.setItem('scopello_ticket_counter', ticketCounter); } catch(e) {}
   saveConfigToDB();
@@ -3591,7 +3597,7 @@ function renderCassa() {
     document.getElementById('nameCassa2').value = CONFIG.nomiCasse.op2;
     document.getElementById('pwLabel1').textContent = 'Password ' + CONFIG.nomiCasse.op1;
     document.getElementById('pwLabel2').textContent = 'Password ' + CONFIG.nomiCasse.op2;
-    document.getElementById('ticketStartSet').value = ticketCounter + 1 > 100 ? 1 : ticketCounter + 1;
+    document.getElementById('ticketStartSet').value = ticketCounter + 1 > TICKET_MAX ? 1 : ticketCounter + 1;
     popolaSelectOrari();
     updateLinguaButtons();
   }
