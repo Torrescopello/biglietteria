@@ -860,7 +860,7 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); }
     <div class="topbar">
       <div class="topbar-brand">
         <h1>Torre di Scopello</h1>
-        <p>Percorso Storico Naturalistico <span style="font-size:0.5rem;color:var(--muted);">v104</span></p>
+        <p>Percorso Storico Naturalistico <span style="font-size:0.5rem;color:var(--muted);">v105</span></p>
       </div>
       <div class="topbar-right">
         <span class="op-badge" id="syncBadge" style="font-size:0.65rem;">✓ Online</span>
@@ -1903,13 +1903,25 @@ function removeIntegrazioniForTicket(ticketNum) {
 // e ignorare l'eco realtime delle scritture fatte da noi stessi (vedi loadGiornataSync).
 const SESSION_ID = 'sess_' + Math.random().toString(36).slice(2) + Date.now().toString(36);
 
-function saveGiornataSync() {
+async function saveGiornataSync() {
   if (!isOnline) return;
   const today = getTodayISO();
   const payload = { data: today, extraPosti: state.extraPosti, ingressi: state.ingressi, integrazioni: state.integrazioni, note: state.note, source: SESSION_ID };
-  db.from('app_config')
-    .upsert({ key: 'stato_oggi', value: payload }, { onConflict: 'key' })
-    .catch(() => {});
+  try {
+    // Prima si tenta l'upsert (richiede un vincolo di unicità sulla colonna key).
+    // Se quel vincolo non esiste nel database l'upsert fallisce: si ripiega su
+    // controlla-ed-aggiorna, lo stesso metodo affidabile di password/nomi casse.
+    const { error } = await db.from('app_config')
+      .upsert({ key: 'stato_oggi', value: payload }, { onConflict: 'key' });
+    if (error) {
+      const { data: existing } = await db.from('app_config').select('key').eq('key', 'stato_oggi').maybeSingle();
+      if (existing) {
+        await db.from('app_config').update({ value: payload }).eq('key', 'stato_oggi');
+      } else {
+        await db.from('app_config').insert({ key: 'stato_oggi', value: payload });
+      }
+    }
+  } catch(e) {}
 }
 
 async function loadGiornataSync() {
