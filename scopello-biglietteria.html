@@ -860,7 +860,7 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); }
     <div class="topbar">
       <div class="topbar-brand">
         <h1>Torre di Scopello</h1>
-        <p>Percorso Storico Naturalistico <span style="font-size:0.5rem;color:var(--muted);">v96</span></p>
+        <p>Percorso Storico Naturalistico <span style="font-size:0.5rem;color:var(--muted);">v105</span></p>
       </div>
       <div class="topbar-right">
         <span class="op-badge" id="syncBadge" style="font-size:0.65rem;">✓ Online</span>
@@ -1444,6 +1444,7 @@ window.addEventListener('online', async () => {
     startRealtime();
     loadPrenotazioni();
     await loadGiornataSync();
+    saveGiornataSync();
   }
 });
 window.addEventListener('offline', () => { isOnline = false; updateSyncBadge(); });
@@ -1475,7 +1476,7 @@ async function checkFirstTicket() {
 
 function applyFirstTicket() {
   const val = parseInt(document.getElementById('firstTicketInput').value);
-  if (isNaN(val) || val < 1 || val > 999) { showErrorToast('Inserisci un numero tra 1 e 999'); return; }
+  if (isNaN(val) || val < 1 || val > TICKET_MAX) { showErrorToast('Inserisci un numero tra 1 e ' + TICKET_MAX); return; }
   const today = getTodayISO();
   ticketCounter = val - 1;
   try { localStorage.setItem('scopello_ticket_counter', ticketCounter); } catch(e) {}
@@ -1510,7 +1511,7 @@ async function tryAutoLogin() {
     updateSyncBadge();
     await syncPending();
     await loadTodayVendite();
-    if (isOnline) { startRealtime(); loadPrenotazioni(); await loadGiornataSync(); }
+    if (isOnline) { startRealtime(); loadPrenotazioni(); await loadGiornataSync(); saveGiornataSync(); }
     await checkFirstTicket();
   } catch(e) {
     console.error('Auto-login fallito:', e);
@@ -1564,7 +1565,22 @@ async function saveVendita(vendita) {
         const { error: e2 } = await db.from('vendite').insert(rowNoTicket);
         if (e2) { pendingSync.push({...rowNoTicket, localId: vendita.id}); savePending(); }
       } else {
-        pendingSync.push({...row, localId: vendita.id}); savePending();
+        // Prima di accodare, controlla se l'insert è già arrivato al DB
+        // (errore di rete dopo l'insert riuscito lato server)
+        let alreadyInDB = false;
+        if (row.ticket_num && row.tipo && row.operatore && row.data) {
+          const { data: existing } = await db.from('vendite')
+            .select('id')
+            .eq('data', row.data).eq('ticket_num', row.ticket_num)
+            .eq('tipo', row.tipo).eq('operatore', row.operatore)
+            .maybeSingle();
+          if (existing) {
+            alreadyInDB = true;
+            const v = state.vendite.find(x => x.id === vendita.id);
+            if (v) v.dbId = existing.id;
+          }
+        }
+        if (!alreadyInDB) { pendingSync.push({...row, localId: vendita.id}); savePending(); }
       }
     } else if (inserted) {
       // Aggiorna dbId sulla vendita in memoria
@@ -1596,6 +1612,24 @@ async function syncPending() {
   savePending();
   for (const row of toSync) {
     const { localId, ...data } = row;
+
+    // Verifica idempotenza: se la riga esiste già nel DB (insert riuscito ma risposta persa)
+    // usa il record esistente invece di reinserire, evitando duplicati.
+    if (data.ticket_num && data.tipo && data.operatore && data.data) {
+      const { data: existing } = await db.from('vendite')
+        .select('id')
+        .eq('data', data.data)
+        .eq('ticket_num', data.ticket_num)
+        .eq('tipo', data.tipo)
+        .eq('operatore', data.operatore)
+        .maybeSingle();
+      if (existing) {
+        const v = state.vendite.find(x => x.id === localId);
+        if (v && !v.dbId) v.dbId = existing.id;
+        continue;
+      }
+    }
+
     const { data: inserted, error } = await db.from('vendite').insert(data).select('id').single();
     if (error) { pendingSync.push(row); savePending(); }
     else if (inserted && localId) {
@@ -1681,8 +1715,10 @@ async function loadTodayVendite() {
   state.rimborsi = storedRimborsi;  // ripristina rimborsi salvati
   CONFIG.orari.forEach(o => { state.turni[o] = { prenotati: 0 }; });
 
-  // Trova il massimo numero ticket già emesso oggi per evitare duplicati
-  let maxTicketNum = ticketCounter;
+  // Trova l'ultimo numero ticket emesso oggi (dati ordinati per created_at crescente).
+  // Con la numerazione che riparte da 1 dopo il 100 il massimo non è più affidabile:
+  // serve la posizione reale del rotolo, cioè l'ultimo ticket cronologicamente emesso.
+  let lastTicketNum = null;
   data.forEach(v => {
     if (state.turni[v.turno]) state.turni[v.turno].prenotati += v.qty;
     state.vendite.push({
@@ -1702,13 +1738,22 @@ async function loadTodayVendite() {
     // Estrai numero da ticket_num (es. '#042' -> 42)
     if (v.ticket_num) {
       const n = parseInt(v.ticket_num.replace('#',''));
-      if (!isNaN(n) && n > maxTicketNum) maxTicketNum = n;
+      if (!isNaN(n)) lastTicketNum = n;
     }
   });
 
-  // Aggiorna counter solo se il DB ha ticket più avanzati
-  if (maxTicketNum > ticketCounter) {
-    ticketCounter = maxTicketNum;
+  // Rimuovi righe duplicate nel DB (stesso ticketNum+tipo+qty+pagamento+operatore+turno)
+  const _seenKeys = new Set();
+  state.vendite = state.vendite.filter(v => {
+    const k = `${v.ticketNum}|${v.tipo}|${v.qty}|${v.pagamento}|${v.operatore}|${v.turno}|${v.ora}`;
+    if (_seenKeys.has(k)) return false;
+    _seenKeys.add(k);
+    return true;
+  });
+
+  // Allinea il counter all'ultimo ticket emesso nel DB (posizione reale del rotolo)
+  if (lastTicketNum !== null && lastTicketNum !== ticketCounter) {
+    ticketCounter = lastTicketNum;
     try { localStorage.setItem('scopello_ticket_counter', ticketCounter); } catch(e) {}
   }
 
@@ -1819,9 +1864,13 @@ function saveIngressi() {
   saveGiornataSync();
 }
 
-function saveExtra() {
-  const extraKey = 'scopello_extra_' + new Date().toLocaleDateString('it-IT',{year:'numeric',month:'2-digit',day:'2-digit'}).split('/').reverse().join('-');
+function saveExtraLocal() {
+  const extraKey = 'scopello_extra_' + getTodayISO();
   try { localStorage.setItem(extraKey, JSON.stringify(state.extraPosti)); } catch(e) {}
+}
+
+function saveExtra() {
+  saveExtraLocal();
   saveGiornataSync();
 }
 
@@ -1850,13 +1899,29 @@ function removeIntegrazioniForTicket(ticketNum) {
   return diffTot;
 }
 
-function saveGiornataSync() {
+// Identificativo univoco di questa sessione/dispositivo: serve per riconoscere
+// e ignorare l'eco realtime delle scritture fatte da noi stessi (vedi loadGiornataSync).
+const SESSION_ID = 'sess_' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+
+async function saveGiornataSync() {
   if (!isOnline) return;
   const today = getTodayISO();
-  const payload = { data: today, extraPosti: state.extraPosti, ingressi: state.ingressi, integrazioni: state.integrazioni };
-  db.from('app_config')
-    .upsert({ key: 'stato_oggi', value: payload }, { onConflict: 'key' })
-    .catch(() => {});
+  const payload = { data: today, extraPosti: state.extraPosti, ingressi: state.ingressi, integrazioni: state.integrazioni, note: state.note, source: SESSION_ID };
+  try {
+    // Prima si tenta l'upsert (richiede un vincolo di unicità sulla colonna key).
+    // Se quel vincolo non esiste nel database l'upsert fallisce: si ripiega su
+    // controlla-ed-aggiorna, lo stesso metodo affidabile di password/nomi casse.
+    const { error } = await db.from('app_config')
+      .upsert({ key: 'stato_oggi', value: payload }, { onConflict: 'key' });
+    if (error) {
+      const { data: existing } = await db.from('app_config').select('key').eq('key', 'stato_oggi').maybeSingle();
+      if (existing) {
+        await db.from('app_config').update({ value: payload }).eq('key', 'stato_oggi');
+      } else {
+        await db.from('app_config').insert({ key: 'stato_oggi', value: payload });
+      }
+    }
+  } catch(e) {}
 }
 
 async function loadGiornataSync() {
@@ -1867,6 +1932,9 @@ async function loadGiornataSync() {
   let val = data.value;
   if (typeof val === 'string') { try { val = JSON.parse(val); } catch(e) { return; } }
   if (!val || val.data !== today) return;
+  // Eco della nostra stessa scrittura: lo stato locale è già aggiornato, evita
+  // il round-trip di rete che sovrascriveva lo stato e rallentava i pulsanti +/-.
+  if (val.source === SESSION_ID) return;
   if (val.extraPosti) {
     state.extraPosti = val.extraPosti;
     try { localStorage.setItem('scopello_extra_' + today, JSON.stringify(state.extraPosti)); } catch(e) {}
@@ -1874,6 +1942,19 @@ async function loadGiornataSync() {
   if (val.ingressi) {
     state.ingressi = val.ingressi;
     try { localStorage.setItem('scopello_ingressi_' + today, JSON.stringify(state.ingressi)); } catch(e) {}
+  }
+  if (val.note && typeof val.note === 'object') {
+    // Merge per-operatore: l'operatore loggato è autorevole sulle proprie note
+    // (incluse cancellazioni e scritture offline), per l'altra cassa prende il
+    // remoto. Così il direttore vede le note di entrambi e nessuna cassa azzera
+    // quelle dell'altra. Le note viaggiano dentro stato_oggi (chiave a nome fisso,
+    // l'unico canale che si sincronizza in modo affidabile cross-device).
+    const myOp = (state.operatore === 'op1' || state.operatore === 'op2') ? state.operatore : null;
+    ['op1', 'op2'].forEach(op => {
+      if (op === myOp) return;
+      if (Array.isArray(val.note[op])) state.note[op] = val.note[op];
+    });
+    persistNote();
   }
   if (Array.isArray(val.integrazioni)) {
     // MERGE per ticketNum: non perdere upgrade fatti localmente (es. offline)
@@ -2182,7 +2263,7 @@ async function doLogin() {
       // Prima sincronizza le vendite offline, poi carica dal DB
       await syncPending();
       await loadTodayVendite();
-      if (isOnline) { startRealtime(); loadPrenotazioni(); await loadGiornataSync(); }
+      if (isOnline) { startRealtime(); loadPrenotazioni(); await loadGiornataSync(); saveGiornataSync(); }
       await checkFirstTicket();
     }, 900);
   } else {
@@ -2311,7 +2392,7 @@ function switchTab(name) {
   if (name === 'vendita')       { renderTurniVendita(); updateCartUI(); updateSummary(); }
   if (name === 'turni')         renderTurni();
   if (name === 'storico')       renderStorico();
-  if (name === 'cassa')         renderCassa();
+  if (name === 'cassa')         { renderCassa(); if (isOnline && state.operatore) loadGiornataSync(); }
   if (name === 'ingresso')      renderIngresso();
   if (name === 'prenotazioni')  renderPrenotazioni();
 }
@@ -2320,33 +2401,37 @@ function switchTab(name) {
 // TICKET COUNTER
 // ============================================================
 let ticketCounter = 0;
+const TICKET_MAX = 100; // la numerazione fisica va da 1 a 100, poi riparte da 1
 
 async function syncTicketCounterFromDB() {
   if (!isOnline) return;
   const today = new Date().toLocaleDateString('it-IT', {year:'numeric',month:'2-digit',day:'2-digit'}).split('/').reverse().join('-');
-  const { data } = await db.from('vendite').select('ticket_num').eq('data', today).not('ticket_num', 'is', null);
+  const { data } = await db.from('vendite').select('ticket_num').eq('data', today).not('ticket_num', 'is', null).order('created_at', { ascending: true });
   if (!data) return;
-  let max = ticketCounter;
+  // Con la numerazione ciclica 1-100 conta l'ultimo ticket emesso, non il massimo
+  let last = null;
   data.forEach(v => {
     if (v.ticket_num) {
       const n = parseInt(v.ticket_num.replace('#',''));
-      if (!isNaN(n) && n > max) max = n;
+      if (!isNaN(n)) last = n;
     }
   });
-  if (max > ticketCounter) {
-    ticketCounter = max;
+  if (last !== null && last !== ticketCounter) {
+    ticketCounter = last;
     try { localStorage.setItem('scopello_ticket_counter', ticketCounter); } catch(e) {}
   }
 }
 
 function getNextTicketNum() {
   ticketCounter++;
+  if (ticketCounter > TICKET_MAX) ticketCounter = 1; // riparte da 1 dopo il 100
   try { localStorage.setItem('scopello_ticket_counter', ticketCounter); } catch(e) {}
   return '#' + String(ticketCounter).padStart(3, '0');
 }
 
 function peekNextTicketNum() {
-  return '#' + String(ticketCounter + 1).padStart(3, '0');
+  const next = ticketCounter + 1 > TICKET_MAX ? 1 : ticketCounter + 1;
+  return '#' + String(next).padStart(3, '0');
 }
 
 // Nota: il counter viene sincronizzato col massimo dal DB ad ogni login
@@ -2362,7 +2447,7 @@ function loadTicketCounter() {
 function applyTicketStart() {
   const el = document.getElementById('ticketStartSet');
   const val = parseInt(el.value);
-  if (isNaN(val) || val < 1 || val > 999) { alert('Inserisci un numero tra 1 e 999.'); return; }
+  if (isNaN(val) || val < 1 || val > TICKET_MAX) { alert('Inserisci un numero tra 1 e ' + TICKET_MAX + '.'); return; }
   ticketCounter = val - 1;
   try { localStorage.setItem('scopello_ticket_counter', ticketCounter); } catch(e) {}
   saveConfigToDB();
@@ -2816,7 +2901,15 @@ function renderStorico() {
     gruppi[v.ticketNum].push(v);
   });
 
-  list.innerHTML = Object.entries(gruppi).map(([tNum, righe]) => {
+  // Ordina per timestamp più recente nel gruppo: gestisce la numerazione ciclica
+  // (es. il nuovo #001 emesso dopo il #100 deve apparire in cima, non in fondo)
+  const gruppiSorted = Object.entries(gruppi).sort(([, ra], [, rb]) => {
+    const ta = Math.max(...ra.map(v => v.timestamp instanceof Date ? v.timestamp.getTime() : 0));
+    const tb = Math.max(...rb.map(v => v.timestamp instanceof Date ? v.timestamp.getTime() : 0));
+    return tb - ta;
+  });
+
+  list.innerHTML = gruppiSorted.map(([tNum, righe]) => {
     const prima = righe[0];
     const totale = righe.reduce((a,v)=>a+v.totale,0);
     const opLabel = prima.operatore==='dir'?'Direttore':CONFIG.nomiCasse[prima.operatore]||prima.operatore;
@@ -3255,6 +3348,7 @@ function saveNote() {
   if (!Array.isArray(state.note[state.operatore])) state.note[state.operatore] = [];
   state.note[state.operatore].push({ testo: txt, ora });
   persistNote();
+  saveGiornataSync(); // pubblica le note dentro stato_oggi (sync cross-device)
   document.getElementById('noteText').value = '';
   renderNoteList();
   const msg = document.getElementById('noteSavedMsg');
@@ -3265,6 +3359,7 @@ function saveNote() {
 function deleteNote(op, idx) {
   state.note[op].splice(idx, 1);
   persistNote();
+  saveGiornataSync(); // pubblica le note dentro stato_oggi (sync cross-device)
   renderNoteList();
 }
 
@@ -3532,7 +3627,7 @@ function renderCassa() {
     document.getElementById('nameCassa2').value = CONFIG.nomiCasse.op2;
     document.getElementById('pwLabel1').textContent = 'Password ' + CONFIG.nomiCasse.op1;
     document.getElementById('pwLabel2').textContent = 'Password ' + CONFIG.nomiCasse.op2;
-    document.getElementById('ticketStartSet').value = ticketCounter + 1 > 100 ? 1 : ticketCounter + 1;
+    document.getElementById('ticketStartSet').value = ticketCounter + 1 > TICKET_MAX ? 1 : ticketCounter + 1;
     popolaSelectOrari();
     updateLinguaButtons();
   }
@@ -3561,6 +3656,38 @@ function changeCap(d) {
   saveConfigToDB();
 }
 
+// Aggiorna solo i contatori di disponibilità della panoramica (operazione leggera,
+// usata sia da renderIngresso sia per il feedback immediato dei pulsanti +/-).
+function updateDisponibilitaCounters() {
+  // Posti liberi = cap + extra - vendite nette (ridotto+nopay contano come base)
+  const vendPrem = venditeNettePerTipo('premium');
+  const vendBase = venditeNettePerTipo('base') + venditeNettePerTipo('ridotto') + venditeNettePerTipo('nopay');
+  const rimPremium = Math.max(0, CONFIG.capPremium + state.extraPosti.premium - vendPrem - prenOggiLettiniPrenotati());
+  const rimBase    = Math.max(0, CONFIG.capBase    + state.extraPosti.base    - vendBase);
+
+  const elRP = document.getElementById('panRimPremium');
+  if (elRP) {
+    elRP.textContent = rimPremium;
+    elRP.className = 'pan-slot-count' + (rimPremium === 0 ? ' esaurito' : rimPremium <= 5 ? ' scarso' : '');
+    document.getElementById('panSubPremium').textContent = rimPremium === 0 ? 'ESAURITI' : 'liberi';
+  }
+
+  const elRB = document.getElementById('panRimBase');
+  if (elRB) {
+    elRB.textContent = rimBase;
+    elRB.className = 'pan-slot-count' + (rimBase === 0 ? ' esaurito' : rimBase <= 10 ? ' scarso' : '');
+    document.getElementById('panSubBase').textContent = rimBase === 0 ? 'ESAURITI' : 'liberi';
+  }
+
+  const ep = state.extraPosti.premium;
+  const elEP = document.getElementById('panExtraPremium');
+  if (elEP) elEP.textContent = ep > 0 ? '+' + ep + ' extra' : '';
+  const eb = state.extraPosti.base;
+  const elEB = document.getElementById('panExtraBase');
+  if (elEB) elEB.textContent = eb > 0 ? '+' + eb + ' extra' : '';
+}
+
+let _extraFlushTimer = null;
 function addExtra(tipo, d) {
   if (!state.extraPosti) state.extraPosti = { premium: 0, base: 0 };
   if (tipo === 'premium') {
@@ -3568,9 +3695,20 @@ function addExtra(tipo, d) {
   } else {
     state.extraPosti.base = Math.max(0, state.extraPosti.base + d);
   }
-  saveExtra();
-  updateCartUI();
-  renderIngresso();
+  // Persistenza locale immediata: nessun rischio di perdere il dato anche se
+  // l'app viene chiusa subito dopo il tap.
+  saveExtraLocal();
+  // Feedback immediato: aggiorna subito i contatori visibili.
+  updateDisponibilitaCounters();
+  // Coalesce solo le parti pesanti (sync di rete + re-render completo): su tap
+  // rapidi evita di bloccare la UI ripetendo lavoro pesante a ogni click.
+  if (_extraFlushTimer) clearTimeout(_extraFlushTimer);
+  _extraFlushTimer = setTimeout(() => {
+    _extraFlushTimer = null;
+    saveGiornataSync();
+    updateCartUI();
+    renderIngresso();
+  }, 300);
 }
 
 function changeCapPremium(d) {
@@ -3858,28 +3996,8 @@ function renderIngresso() {
   const next = getIngressoNextTurno();
   const byTurno = groupVenditePerIngresso();
 
-  // Panoramica istantanea
-
-  // Posti liberi = cap + extra - vendite nette (ridotto+nopay contano come base)
-  const vendPrem = venditeNettePerTipo('premium');
-  const vendBase = venditeNettePerTipo('base') + venditeNettePerTipo('ridotto') + venditeNettePerTipo('nopay');
-  const rimPremium = Math.max(0, CONFIG.capPremium + state.extraPosti.premium - vendPrem - prenOggiLettiniPrenotati());
-  const rimBase    = Math.max(0, CONFIG.capBase    + state.extraPosti.base    - vendBase);
-
-  const elRP = document.getElementById('panRimPremium');
-  elRP.textContent = rimPremium;
-  elRP.className = 'pan-slot-count' + (rimPremium === 0 ? ' esaurito' : rimPremium <= 5 ? ' scarso' : '');
-  document.getElementById('panSubPremium').textContent = rimPremium === 0 ? 'ESAURITI' : 'liberi';
-
-  const elRB = document.getElementById('panRimBase');
-  elRB.textContent = rimBase;
-  elRB.className = 'pan-slot-count' + (rimBase === 0 ? ' esaurito' : rimBase <= 10 ? ' scarso' : '');
-  document.getElementById('panSubBase').textContent = rimBase === 0 ? 'ESAURITI' : 'liberi';
-
-  const ep = state.extraPosti.premium;
-  document.getElementById('panExtraPremium').textContent = ep > 0 ? '+' + ep + ' extra' : '';
-  const eb = state.extraPosti.base;
-  document.getElementById('panExtraBase').textContent = eb > 0 ? '+' + eb + ' extra' : '';
+  // Panoramica istantanea — contatori disponibilità (aggiornamento leggero, riusabile)
+  updateDisponibilitaCounters();
 
   // Resoconto biglietti per tipo (al netto dei rimborsi)
   const tipi = ['base','premium','ridotto','nopay'];
@@ -4272,8 +4390,25 @@ function apriModificaRimborso(idx) {
 // REALTIME — aggiornamento automatico quando un'altra cassa vende
 // ============================================================
 let realtimeChannel = null;
+let syncPollTimer = null;
+
+// Aggiornamento periodico di sicurezza: il realtime può cadere o non recapitare
+// alcuni eventi. Ogni 10s ricontrolliamo lo stato condiviso (note, ingressi,
+// extra, integrazioni) così il direttore vede le note degli operatori entro
+// pochi secondi anche se il realtime non scatta.
+function startSyncPoll() {
+  if (syncPollTimer) return;
+  syncPollTimer = setInterval(() => {
+    if (isOnline && state.operatore) loadGiornataSync();
+  }, 10000);
+}
+
+function stopSyncPoll() {
+  if (syncPollTimer) { clearInterval(syncPollTimer); syncPollTimer = null; }
+}
 
 function startRealtime() {
+  startSyncPoll();
   if (realtimeChannel) return; // già attivo
   const today = new Date().toLocaleDateString('it-IT', {year:'numeric',month:'2-digit',day:'2-digit'}).split('/').reverse().join('-');
   realtimeChannel = db
@@ -4312,6 +4447,7 @@ function startRealtime() {
 }
 
 function stopRealtime() {
+  stopSyncPoll();
   if (realtimeChannel) {
     db.removeChannel(realtimeChannel);
     realtimeChannel = null;
