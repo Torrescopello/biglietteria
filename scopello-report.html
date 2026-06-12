@@ -577,8 +577,15 @@ function repLogout() {
 }
 
 // ===== PERIOD =====
+// Data odierna in fuso LOCALE (coerente con la Cassa, che salva le date locali):
+// toISOString() è in UTC e tra le 00:00 e le 02:00 italiane darebbe il giorno prima.
+function todayLocalISO() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
 function initDates() {
-  const today = new Date().toISOString().split('T')[0];
+  const today = todayLocalISO();
   document.getElementById('dateFrom').value = today;
   document.getElementById('dateTo').value = today;
 }
@@ -608,7 +615,7 @@ function setPeriod(p) {
 
 function getDateRange() {
   const today = new Date();
-  const fmt = d => d.toISOString().split('T')[0];
+  const fmt = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
   if (currentPeriod === 'today') { const t = fmt(today); return { from: t, to: t }; }
   if (currentPeriod === 'week') {
     const mon = new Date(today); mon.setDate(today.getDate() - (today.getDay() || 7) + 1);
@@ -640,13 +647,16 @@ async function loadData() {
     return true;
   });
 
-  // Carica integrazioni (upgrade base→premium) da app_config per il range di date
+  // Carica integrazioni (upgrade base→premium) da app_config per il range di date.
+  // Le chiavi vanno generate in data LOCALE: toISOString() converte in UTC e con
+  // fuso +2 la mezzanotte locale slitta al giorno prima (chiave del giorno sbagliato).
   allInteg = [];
   const integKeys = [];
+  const fmtLocalDate = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
   const cur = new Date(from + 'T00:00:00');
   const end = new Date(to + 'T00:00:00');
   while (cur <= end) {
-    integKeys.push('integrazioni_' + cur.toISOString().slice(0,10));
+    integKeys.push('integrazioni_' + fmtLocalDate(cur));
     cur.setDate(cur.getDate() + 1);
   }
   if (integKeys.length) {
@@ -677,7 +687,7 @@ function stopSyncPoll() {
 function startRealtime() {
   startSyncPoll();
   if (realtimeChannel) return;
-  const today = new Date().toISOString().split('T')[0];
+  const today = todayLocalISO();
   realtimeChannel = db.channel('report-live')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'vendite', filter: `data=eq.${today}` },
       async () => { await loadData(); })
