@@ -1874,17 +1874,46 @@ function saveExtra() {
   saveGiornataSync();
 }
 
+// Scrive una chiave su app_config con fallback insert/update: l'upsert con
+// onConflict richiede un vincolo di unicità su 'key' che su questo DB manca
+// (stesso problema già risolto per stato_oggi). Senza fallback la scrittura
+// falliva in silenzio e il report non vedeva mai le integrazioni.
+async function upsertConfigKey(key, value) {
+  if (!isOnline) return false;
+  try {
+    const { error } = await db.from('app_config').upsert({ key, value }, { onConflict: 'key' });
+    if (!error) return true;
+    const { data: existing } = await db.from('app_config').select('key').eq('key', key).maybeSingle();
+    if (existing) {
+      const { error: e2 } = await db.from('app_config').update({ value }).eq('key', key);
+      return !e2;
+    }
+    const { error: e3 } = await db.from('app_config').insert({ key, value });
+    return !e3;
+  } catch(e) { return false; }
+}
+
+// Pubblica le integrazioni di una data su app_config unendole a quelle già
+// presenti sul DB (per ticketNum), così una cassa non cancella gli upgrade
+// registrati dall'altra.
+async function publishIntegrazioni(date, localArr) {
+  try {
+    const { data } = await db.from('app_config').select('value').eq('key', 'integrazioni_' + date).maybeSingle();
+    const remote = Array.isArray(data?.value) ? data.value : [];
+    const have = new Set(remote.map(i => i.ticketNum));
+    const merged = remote.concat((localArr || []).filter(i => !have.has(i.ticketNum)));
+    if (!merged.length) return true;
+    return await upsertConfigKey('integrazioni_' + date, merged);
+  } catch(e) { return false; }
+}
+
 function saveIntegrazioni() {
   const today = getTodayISO();
   const key = 'scopello_integrazioni_' + today;
   try { localStorage.setItem(key, JSON.stringify(state.integrazioni)); } catch(e) {}
   saveGiornataSync();
   // Salva anche con chiave data-specifica su Supabase per il report storico
-  if (isOnline) {
-    db.from('app_config')
-      .upsert({ key: 'integrazioni_' + today, value: state.integrazioni }, { onConflict: 'key' })
-      .catch(() => {});
-  }
+  if (isOnline) upsertConfigKey('integrazioni_' + today, state.integrazioni);
 }
 
 // Rimuove l'integrazione (upgrade) di un ticket annullato e restituisce la differenza
@@ -1968,9 +1997,7 @@ async function loadGiornataSync() {
     try { localStorage.setItem('scopello_integrazioni_' + today, JSON.stringify(merged)); } catch(e) {}
     // Se c'erano upgrade solo locali, ripubblicali su DB così le altre casse e il report li vedono
     if (localOnly.length && isOnline) {
-      db.from('app_config')
-        .upsert({ key: 'integrazioni_' + today, value: merged }, { onConflict: 'key' })
-        .catch(() => {});
+      upsertConfigKey('integrazioni_' + today, merged);
       saveGiornataSync();
     }
     // Riapplica upgrade a state.vendite (potrebbero essere stati caricati dal DB con tipo 'base')
@@ -2215,15 +2242,38 @@ function cleanOldLocalStorage() {
   try {
     const keys = Object.keys(localStorage);
     keys.forEach(k => {
+      // Le integrazioni dei giorni passati NON si cancellano qui: prima vanno
+      // pubblicate sul DB (backfillOldIntegrazioni), che le rimuove a successo.
       if ((k.startsWith('scopello_ingressi_') ||
            k.startsWith('scopello_extra_') ||
-           k.startsWith('scopello_integrazioni_') ||
            k.startsWith('scopello_note_')) &&
           !k.endsWith(today)) {
         localStorage.removeItem(k);
       }
     });
   } catch(e) {}
+}
+
+// Recupero: integrazioni di giorni passati rimaste solo in localStorage
+// (la scrittura su app_config falliva per il vincolo di unicità mancante).
+// Le pubblica sul DB e rimuove la chiave locale solo a scrittura riuscita,
+// così il report storico le ritrova.
+async function backfillOldIntegrazioni() {
+  if (!isOnline) return;
+  const today = getTodayISO();
+  let keys = [];
+  try {
+    keys = Object.keys(localStorage).filter(k => k.startsWith('scopello_integrazioni_') && !k.endsWith(today));
+  } catch(e) { return; }
+  for (const k of keys) {
+    const date = k.replace('scopello_integrazioni_', '');
+    let arr = [];
+    try { arr = JSON.parse(localStorage.getItem(k) || '[]'); } catch(e) {}
+    if (!Array.isArray(arr) || !arr.length) { try { localStorage.removeItem(k); } catch(e) {} continue; }
+    if (await publishIntegrazioni(date, arr)) {
+      try { localStorage.removeItem(k); } catch(e) {}
+    }
+  }
 }
 
 async function doLogin() {
@@ -2263,7 +2313,13 @@ async function doLogin() {
       // Prima sincronizza le vendite offline, poi carica dal DB
       await syncPending();
       await loadTodayVendite();
-      if (isOnline) { startRealtime(); loadPrenotazioni(); await loadGiornataSync(); saveGiornataSync(); }
+      if (isOnline) {
+        startRealtime(); loadPrenotazioni(); await loadGiornataSync(); saveGiornataSync();
+        // Assicura che la chiave del giorno esista sul DB anche se gli upgrade
+        // sono stati fatti prima di questo fix, e recupera i giorni passati
+        if ((state.integrazioni || []).length) publishIntegrazioni(getTodayISO(), state.integrazioni);
+        backfillOldIntegrazioni();
+      }
       await checkFirstTicket();
     }, 900);
   } else {
