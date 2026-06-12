@@ -662,11 +662,26 @@ async function loadData() {
 }
 
 // ===== REALTIME =====
+// Poll di sicurezza: il realtime può cadere o non recapitare alcuni eventi
+// (in particolare gli upsert su app_config delle integrazioni). Ogni 30s
+// ricarichiamo i dati così il report resta allineato anche senza eventi.
+let syncPollTimer = null;
+function startSyncPoll() {
+  if (syncPollTimer) return;
+  syncPollTimer = setInterval(() => { loadData(); }, 30000);
+}
+function stopSyncPoll() {
+  if (syncPollTimer) { clearInterval(syncPollTimer); syncPollTimer = null; }
+}
+
 function startRealtime() {
+  startSyncPoll();
   if (realtimeChannel) return;
   const today = new Date().toISOString().split('T')[0];
   realtimeChannel = db.channel('report-live')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'vendite', filter: `data=eq.${today}` },
+      async () => { await loadData(); })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'app_config', filter: `key=eq.integrazioni_${today}` },
       async () => { await loadData(); })
     .subscribe(status => {
       if (status === 'SUBSCRIBED') setLiveOnline();
@@ -675,6 +690,7 @@ function startRealtime() {
 }
 
 function stopRealtime() {
+  stopSyncPoll();
   if (realtimeChannel) { db.removeChannel(realtimeChannel); realtimeChannel = null; }
   setLiveOffline();
 }
