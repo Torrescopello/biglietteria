@@ -860,7 +860,7 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); }
     <div class="topbar">
       <div class="topbar-brand">
         <h1>Torre di Scopello</h1>
-        <p>Percorso Storico Naturalistico <span style="font-size:0.5rem;color:var(--muted);">v113</span></p>
+        <p>Percorso Storico Naturalistico <span style="font-size:0.5rem;color:var(--muted);">v114</span></p>
       </div>
       <div class="topbar-right">
         <span class="op-badge" id="syncBadge" style="font-size:0.65rem;">✓ Online</span>
@@ -1561,34 +1561,42 @@ async function saveVendita(vendita) {
     operatore: vendita.operatore,
     ora: vendita.ora,
     data: new Date().toLocaleDateString('it-IT', {year:'numeric',month:'2-digit',day:'2-digit'}).split('/').reverse().join('-'),
-    ticket_num: vendita.ticketNum || null
+    ticket_num: vendita.ticketNum || null,
+    ticket_uid: vendita.ticketUid || null
   };
   if (isOnline) {
-    const { data: inserted, error } = await db.from('vendite').insert(row).select('id').single();
+    let { data: inserted, error } = await db.from('vendite').insert(row).select('id').single();
+    // Retrocompatibilità: se una colonna opzionale non esiste ancora nel DB
+    // (ticket_uid o ticket_num), la togliamo e riproviamo, senza perdere la vendita.
+    if (error && error.message && error.message.includes('ticket_uid')) {
+      delete row.ticket_uid;
+      // La colonna uid non esiste ancora: azzera l'uid anche in memoria così
+      // l'identità del ticket resta stabile (ticketNum) tra una ricarica e l'altra.
+      const v0 = state.vendite.find(x => x.id === vendita.id); if (v0) v0.ticketUid = null;
+      ({ data: inserted, error } = await db.from('vendite').insert(row).select('id').single());
+    }
+    if (error && error.message && error.message.includes('ticket_num')) {
+      delete row.ticket_uid; delete row.ticket_num;
+      const v0 = state.vendite.find(x => x.id === vendita.id); if (v0) v0.ticketUid = null;
+      ({ data: inserted, error } = await db.from('vendite').insert(row).select('id').single());
+    }
     if (error) {
-      // Se la colonna ticket_num non esiste ancora, riprova senza
-      if (error.message && error.message.includes('ticket_num')) {
-        const { ticket_num, ...rowNoTicket } = row;
-        const { error: e2 } = await db.from('vendite').insert(rowNoTicket);
-        if (e2) { pendingSync.push({...rowNoTicket, localId: vendita.id}); savePending(); }
-      } else {
-        // Prima di accodare, controlla se l'insert è già arrivato al DB
-        // (errore di rete dopo l'insert riuscito lato server)
-        let alreadyInDB = false;
-        if (row.ticket_num && row.tipo && row.operatore && row.data) {
-          const { data: existing } = await db.from('vendite')
-            .select('id')
-            .eq('data', row.data).eq('ticket_num', row.ticket_num)
-            .eq('tipo', row.tipo).eq('operatore', row.operatore)
-            .maybeSingle();
-          if (existing) {
-            alreadyInDB = true;
-            const v = state.vendite.find(x => x.id === vendita.id);
-            if (v) v.dbId = existing.id;
-          }
-        }
-        if (!alreadyInDB) { pendingSync.push({...row, localId: vendita.id}); savePending(); }
+      // Errore di rete: prima di accodare, controlla se l'insert è già arrivato al
+      // DB (risposta persa dopo insert riuscito). Con l'uid il controllo è esatto.
+      let alreadyInDB = false;
+      if (row.ticket_uid) {
+        const { data: existing } = await db.from('vendite')
+          .select('id').eq('ticket_uid', row.ticket_uid).eq('tipo', row.tipo).maybeSingle();
+        if (existing) { alreadyInDB = true; const v = state.vendite.find(x => x.id === vendita.id); if (v) v.dbId = existing.id; }
+      } else if (row.ticket_num && row.tipo && row.operatore && row.data) {
+        const { data: existing } = await db.from('vendite')
+          .select('id')
+          .eq('data', row.data).eq('ticket_num', row.ticket_num)
+          .eq('tipo', row.tipo).eq('operatore', row.operatore)
+          .maybeSingle();
+        if (existing) { alreadyInDB = true; const v = state.vendite.find(x => x.id === vendita.id); if (v) v.dbId = existing.id; }
       }
+      if (!alreadyInDB) { pendingSync.push({...row, localId: vendita.id}); savePending(); }
     } else if (inserted) {
       // Aggiorna dbId sulla vendita in memoria
       const v = state.vendite.find(x => x.id === vendita.id);
@@ -1620,24 +1628,36 @@ async function syncPending() {
   for (const row of toSync) {
     const { localId, ...data } = row;
 
-    // Verifica idempotenza: se la riga esiste già nel DB (insert riuscito ma risposta persa)
-    // usa il record esistente invece di reinserire, evitando duplicati.
-    if (data.ticket_num && data.tipo && data.operatore && data.data) {
-      const { data: existing } = await db.from('vendite')
+    // Verifica idempotenza: se la riga esiste già nel DB (insert riuscito ma risposta
+    // persa) si usa il record esistente invece di reinserire, evitando doppioni.
+    // Con l'uid il controllo è esatto (uid+tipo); senza, ricade su ticket_num.
+    let existing = null;
+    if (data.ticket_uid) {
+      ({ data: existing } = await db.from('vendite')
+        .select('id').eq('ticket_uid', data.ticket_uid).eq('tipo', data.tipo).maybeSingle());
+    } else if (data.ticket_num && data.tipo && data.operatore && data.data) {
+      ({ data: existing } = await db.from('vendite')
         .select('id')
         .eq('data', data.data)
         .eq('ticket_num', data.ticket_num)
         .eq('tipo', data.tipo)
         .eq('operatore', data.operatore)
-        .maybeSingle();
-      if (existing) {
-        const v = state.vendite.find(x => x.id === localId);
-        if (v && !v.dbId) v.dbId = existing.id;
-        continue;
-      }
+        .maybeSingle());
+    }
+    if (existing) {
+      const v = state.vendite.find(x => x.id === localId);
+      if (v && !v.dbId) v.dbId = existing.id;
+      continue;
     }
 
-    const { data: inserted, error } = await db.from('vendite').insert(data).select('id').single();
+    // Toglie ticket_uid se la colonna non esiste ancora nel DB (retrocompatibilità)
+    let insRow = data;
+    let { data: inserted, error } = await db.from('vendite').insert(insRow).select('id').single();
+    if (error && error.message && error.message.includes('ticket_uid')) {
+      const { ticket_uid, ...rowNoUid } = insRow; insRow = rowNoUid;
+      const v0 = state.vendite.find(x => x.id === localId); if (v0) v0.ticketUid = null;
+      ({ data: inserted, error } = await db.from('vendite').insert(insRow).select('id').single());
+    }
     if (error) { pendingSync.push(row); savePending(); }
     else if (inserted && localId) {
       // Aggiorna dbId sulla vendita in memoria così delete/update successivi funzionano
@@ -1740,7 +1760,8 @@ async function loadTodayVendite() {
       pagamento: v.pagamento,
       operatore: v.operatore,
       timestamp: new Date(v.created_at),
-      ticketNum: v.ticket_num || '—'
+      ticketNum: v.ticket_num || '—',
+      ticketUid: v.ticket_uid || null
     });
     // Estrai numero da ticket_num (es. '#042' -> 42)
     if (v.ticket_num) {
@@ -1749,26 +1770,31 @@ async function loadTodayVendite() {
     }
   });
 
-  // Rimuovi le righe duplicate — IN MODO SICURO RISPETTO ALLA NUMERAZIONE CICLICA.
-  // Un singolo ticket ha al massimo UNA riga per tipo (il carrello aggrega per tipo),
-  // quindi normalmente due righe con stesso ticket+tipo sono un doppione tecnico (es.
-  // il #026 reinserito in ritardo dalla coda). MA la numerazione è ciclica 1-100: in
-  // una giornata con oltre 100 biglietti lo stesso numero viene riusato per vendite
-  // reali diverse, e fonderle/cancellarle perderebbe incassi veri.
-  // Perciò: la fusione "morbida" (per ticketNum+tipo, con eliminazione del doppione
-  // dal DB) si applica SOLO se NON può esserci stato un giro completo del rotolo
-  // (numero di righe del giorno <= 100). Oltre, si usa una chiave rigida che include
-  // tutti i campi: non può mai unire due vendite distinte (si limita a scartare copie
-  // esatte create nello stesso istante, caso rarissimo).
+  // Rimuovi le righe duplicate — A PROVA DI NUMERAZIONE CICLICA.
+  // 1) Righe CON uid: l'uid è univoco per ogni vendita reale, quindi (uid + tipo) è
+  //    l'identità certa. Due righe con stesso (uid, tipo) sono SEMPRE un doppione
+  //    tecnico (anche dopo il giro del rotolo): si fondono e si cancella l'extra.
+  // 2) Righe SENZA uid (vecchie, precedenti a questo aggiornamento): non avendo
+  //    l'identità certa si usa l'euristica sicura — fusione per ticketNum+tipo solo
+  //    se nel giorno non può esserci stato un giro completo (<=100 righe), altrimenti
+  //    chiave rigida con tutti i campi, che non può mai unire due vendite distinte.
   const _noWrapPossible = data.length <= TICKET_MAX;
   const _seenKeys = new Set();
   const _dupDbIds = [];
   state.vendite = state.vendite.filter(v => {
-    const k = _noWrapPossible
-      ? `${v.ticketNum}|${v.tipo}`
-      : `${v.ticketNum}|${v.tipo}|${v.qty}|${v.pagamento}|${v.operatore}|${v.turno}|${v.ora}`;
+    let k, canDelete;
+    if (v.ticketUid) {
+      k = `uid:${v.ticketUid}|${v.tipo}`;
+      canDelete = true;
+    } else if (_noWrapPossible) {
+      k = `${v.ticketNum}|${v.tipo}`;
+      canDelete = true;
+    } else {
+      k = `${v.ticketNum}|${v.tipo}|${v.qty}|${v.pagamento}|${v.operatore}|${v.turno}|${v.ora}`;
+      canDelete = false;
+    }
     if (_seenKeys.has(k)) {
-      if (_noWrapPossible && v.dbId) _dupDbIds.push(v.dbId);
+      if (canDelete && v.dbId) _dupDbIds.push(v.dbId);
       return false;
     }
     _seenKeys.add(k);
@@ -1958,6 +1984,18 @@ function removeIntegrazioniForTicket(ticketNum) {
 // Identificativo univoco di questa sessione/dispositivo: serve per riconoscere
 // e ignorare l'eco realtime delle scritture fatte da noi stessi (vedi loadGiornataSync).
 const SESSION_ID = 'sess_' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+
+// Genera un identificativo univoco per una vendita (ticket). Usa crypto.randomUUID
+// se disponibile, con fallback per browser/dispositivi vecchi.
+function genUid() {
+  try { if (window.crypto && crypto.randomUUID) return crypto.randomUUID(); } catch(e) {}
+  return 'u_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 12);
+}
+
+// Identità affidabile di un ticket: l'uid univoco se presente, altrimenti il numero
+// ticket (retrocompatibilità con le righe vecchie create prima dell'introduzione
+// dell'uid). Da usare ovunque serva distinguere un ticket da un altro.
+function tid(v) { return (v && v.ticketUid) ? v.ticketUid : (v ? v.ticketNum : undefined); }
 
 async function saveGiornataSync() {
   if (!isOnline) return;
@@ -2793,6 +2831,12 @@ async function executeSale() {
   _saleInProgress = true;
   const now = new Date();
   const tNum = getNextTicketNum();
+  // Identificativo univoco della vendita (condiviso da tutte le righe di questo
+  // ticket). È la chiave d'identità affidabile: a differenza del numero ticket,
+  // che è ciclico 1-100 e si ripete più volte al giorno, l'uid è unico per sempre.
+  // Serve per: idempotenza in scrittura (niente doppioni) e ingressi (niente
+  // collisioni tra due ticket con lo stesso numero dopo il giro del rotolo).
+  const ticketUid = genUid();
   const pago = state.paySel || 'gratis';
   const tot = cartTotal();
   const totalQty = cartTotalQty();
@@ -2806,7 +2850,7 @@ async function executeSale() {
       ora: now.toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'}),
       turno: state.turnoSel, tipo, qty,
       prezzo, totale: prezzo * qty, pagamento: pago,
-      operatore: state.operatore, timestamp: now, ticketNum: tNum
+      operatore: state.operatore, timestamp: now, ticketNum: tNum, ticketUid
     };
   });
 
@@ -4086,12 +4130,16 @@ function getIngressoNextTurno() {
 }
 
 function groupVenditePerIngresso() {
+  // Raggruppa per IDENTITÀ del ticket (uid se presente, altrimenti numero): così due
+  // ticket con lo stesso numero dopo il giro del rotolo (>100 biglietti) restano
+  // distinti, e segnare "entrato" uno non segna per sbaglio l'altro.
   const map = {};
   CONFIG.orari.forEach(o => { map[o] = {}; });
   state.vendite.forEach(v => {
     if (!map[v.turno]) return;
-    if (!map[v.turno][v.ticketNum]) map[v.turno][v.ticketNum] = [];
-    map[v.turno][v.ticketNum].push(v);
+    const key = tid(v);
+    if (!map[v.turno][key]) map[v.turno][key] = [];
+    map[v.turno][key].push(v);
   });
   return map;
 }
@@ -4197,15 +4245,19 @@ function renderIngresso() {
 
     const righeHTML = ticketNums.length === 0
       ? '<div class="ingresso-vuoto">Nessun biglietto venduto</div>'
-      : ticketNums.map(tNum => {
-          const righe = tickets[tNum];
+      : ticketNums.map(key => {
+          // 'key' è l'identità del ticket (uid o numero) usata per lookup e azioni;
+          // il NUMERO da mostrare all'operatore è sempre righe[0].ticketNum.
+          const righe = tickets[key];
+          const numDisplay = righe[0].ticketNum;
           const desc = righe.map(v => v.qty + '× ' + tipoLabel(v.tipo)).join(', ');
           const qty = righe.reduce((a, v) => a + v.qty, 0);
           const op = righe[0].operatore === 'dir' ? 'Dir' : (CONFIG.nomiCasse[righe[0].operatore] || righe[0].operatore);
-          const entered = !!state.ingressi[tNum];
-          const entOra = entered ? state.ingressi[tNum].ora : '';
+          const entered = !!state.ingressi[key];
+          const entOra = entered ? state.ingressi[key].ora : '';
+          const keyAttr = escHtml(key);
           return `<div class="biglietto-row${entered ? ' entrato' : ''}">
-            <span class="br-num">${tNum}</span>
+            <span class="br-num">${numDisplay}</span>
             <div class="br-info">
               <div class="br-desc">${desc}</div>
               <div class="br-meta">${qty} ${qty === 1 ? 'persona' : 'persone'} · ${op} · ${righe[0].ora}</div>
@@ -4213,8 +4265,8 @@ function renderIngresso() {
             <div class="br-azioni">
               ${entered
                 ? `<span class="btn-segna-done">✓ ${entOra}</span>
-                   <button class="btn-annulla-ingresso" onclick="event.stopPropagation();undoIngressoBtn('${tNum}')" title="Annulla">✕</button>`
-                : `<button class="btn-segna" onclick="event.stopPropagation();segnaIngressoBtn('${tNum}')">ENTRA</button>`}
+                   <button class="btn-annulla-ingresso" onclick="event.stopPropagation();undoIngressoBtn('${keyAttr}')" title="Annulla">✕</button>`
+                : `<button class="btn-segna" onclick="event.stopPropagation();segnaIngressoBtn('${keyAttr}')">ENTRA</button>`}
             </div>
           </div>`;
         }).join('');
@@ -4238,16 +4290,19 @@ function toggleItDetail(id) {
   if (el) el.classList.toggle('open');
 }
 
-function segnaIngressoBtn(ticketNum) {
+function segnaIngressoBtn(key) {
+  // 'key' è l'identità del ticket (uid o numero). Per il messaggio mostriamo il
+  // numero leggibile del ticket, non la chiave interna.
   const ora = new Date().toLocaleTimeString('it-IT', {hour:'2-digit', minute:'2-digit'});
-  state.ingressi[ticketNum] = { ora };
+  state.ingressi[key] = { ora };
   saveIngressi();
   renderIngresso();
-  showInfoToast('✓ Ticket ' + ticketNum + ' entrato alle ' + ora);
+  const v = state.vendite.find(x => tid(x) === key);
+  showInfoToast('✓ Ticket ' + (v ? v.ticketNum : '') + ' entrato alle ' + ora);
 }
 
-function undoIngressoBtn(ticketNum) {
-  delete state.ingressi[ticketNum];
+function undoIngressoBtn(key) {
+  delete state.ingressi[key];
   saveIngressi();
   renderIngresso();
 }
