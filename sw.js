@@ -1,4 +1,4 @@
-const CACHE = 'biglietteria-v109';
+const CACHE = 'biglietteria-v110';
 const ASSETS = [
   './scopello-biglietteria.html',
   './manifest.json',
@@ -27,8 +27,19 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
 
-  // Richieste Supabase: sempre network con timeout 8s, fallback silenzioso
+  // Richieste Supabase
   if (url.hostname.includes('supabase.co')) {
+    // SOLO LE LETTURE (GET) hanno il timeout 8s con fallback finto 503: servono a
+    // non bloccare la UI quando la rete è lenta. Le SCRITTURE (POST/PATCH/DELETE)
+    // NON devono mai essere interrotte da un finto fallimento: se il timeout
+    // scattava su una insert, l'app la credeva fallita e la rimetteva in coda,
+    // ma intanto il server la salvava lo stesso → riga duplicata (es. ticket #026).
+    // Le scritture passano dritte: se la rete è davvero giù fetch() rifiuta da solo
+    // e l'app gestisce la coda offline, senza generare doppioni.
+    if (e.request.method !== 'GET') {
+      e.respondWith(fetch(e.request));
+      return;
+    }
     e.respondWith(
       Promise.race([
         fetch(e.request),

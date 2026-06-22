@@ -667,6 +667,22 @@ async function loadData() {
     });
   }
 
+  // Riallinea il TIPO in base agli upgrade registrati. app_config (integrazioni) è
+  // la fonte di verità per gli upgrade base/ridotto -> premium: se l'UPDATE del tipo
+  // sulla riga 'vendite' non era stato propagato (rete), il report contava il ticket
+  // come base e il conteggio Premium non tornava (es. "#027 erano 3 premium").
+  // L'incasso non cambia: la riga upgradata mantiene 'totale' al prezzo base e il
+  // differenziale è già sommato via integTot, quindi riclassificare allinea solo le
+  // quantità, rendendo il caso "tipo rimasto base" identico a quello propagato.
+  if (allInteg.length) {
+    const integKeysSet = new Set(allInteg.map(i => `${i.data}|${i.ticketNum}`));
+    allData.forEach(v => {
+      if ((v.tipo === 'base' || v.tipo === 'ridotto') && integKeysSet.has(`${v.data}|${v.ticket_num}`)) {
+        v.tipo = 'premium';
+      }
+    });
+  }
+
   document.getElementById('lastUpdate').textContent = 'Aggiornato: ' + new Date().toLocaleTimeString('it-IT', {hour:'2-digit',minute:'2-digit',second:'2-digit'});
   renderAll();
 }
