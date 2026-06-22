@@ -1,4 +1,4 @@
-const CACHE = 'biglietteria-v110';
+const CACHE = 'biglietteria-v111';
 const ASSETS = [
   './scopello-biglietteria.html',
   './manifest.json',

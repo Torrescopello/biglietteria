@@ -860,7 +860,7 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); }
     <div class="topbar">
       <div class="topbar-brand">
         <h1>Torre di Scopello</h1>
-        <p>Percorso Storico Naturalistico <span style="font-size:0.5rem;color:var(--muted);">v110</span></p>
+        <p>Percorso Storico Naturalistico <span style="font-size:0.5rem;color:var(--muted);">v111</span></p>
       </div>
       <div class="topbar-right">
         <span class="op-badge" id="syncBadge" style="font-size:0.65rem;">✓ Online</span>
@@ -2453,6 +2453,30 @@ setInterval(() => {
     renderTurniVendita();
   }
 }, 60000);
+
+// Ritento automatico della coda di sincronizzazione ogni 15s.
+// Senza questo, una vendita finita in coda per un blip di rete (con il dispositivo
+// che si crede ancora "online", quindi senza evento 'online' che la sblocchi)
+// restava in attesa finché non si rifaceva login: rischio di vendita mai inviata.
+// Ora la coda si svuota da sola e il badge "⏳ Sync (N)" si spegne appena è vuota.
+let _autoFlushing = false;
+setInterval(async () => {
+  if (_autoFlushing || !isOnline) return;
+  if (!pendingSync.length && !pendingDeletes.length && !pendingUpdates.length) return;
+  _autoFlushing = true;
+  try {
+    await syncPendingDeletes();
+    await syncPendingUpdates();
+    await syncPending();
+    if (Array.isArray(state.integrazioni) && state.integrazioni.length) {
+      await publishIntegrazioni(getTodayISO(), state.integrazioni);
+    }
+  } catch (e) {
+  } finally {
+    _autoFlushing = false;
+    updateSyncBadge();
+  }
+}, 15000);
 
 function switchTab(name) {
   document.querySelectorAll('.tab-btn').forEach((b,i) => b.classList.toggle('active', ['vendita','turni','storico','cassa','ingresso','prenotazioni'][i] === name));
