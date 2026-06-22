@@ -860,7 +860,7 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); }
     <div class="topbar">
       <div class="topbar-brand">
         <h1>Torre di Scopello</h1>
-        <p>Percorso Storico Naturalistico <span style="font-size:0.5rem;color:var(--muted);">v112</span></p>
+        <p>Percorso Storico Naturalistico <span style="font-size:0.5rem;color:var(--muted);">v113</span></p>
       </div>
       <div class="topbar-right">
         <span class="op-badge" id="syncBadge" style="font-size:0.65rem;">✓ Online</span>
@@ -1749,21 +1749,26 @@ async function loadTodayVendite() {
     }
   });
 
-  // Rimuovi le righe duplicate. Chiave = ticketNum + tipo (NON include ora, qty,
-  // pagamento, operatore, turno): un singolo ticket ha al massimo UNA riga per
-  // tipo (il carrello aggrega per tipo), quindi due righe con stesso ticket+tipo
-  // sono SEMPRE un doppione tecnico — anche quando un campo differisce, come capita
-  // a un doppione reinserito tardi dalla coda dopo che la riga era stata modificata
-  // (turno/pagamento): è il caso del #026 reinserito ~2 ore dopo la vendita reale.
-  // Si tiene SEMPRE la prima occorrenza (la più vecchia: i dati sono ordinati per
-  // created_at crescente) e si ELIMINA dal DB la riga fantasma in eccesso, così
-  // sparisce davvero e non solo dalla vista.
+  // Rimuovi le righe duplicate — IN MODO SICURO RISPETTO ALLA NUMERAZIONE CICLICA.
+  // Un singolo ticket ha al massimo UNA riga per tipo (il carrello aggrega per tipo),
+  // quindi normalmente due righe con stesso ticket+tipo sono un doppione tecnico (es.
+  // il #026 reinserito in ritardo dalla coda). MA la numerazione è ciclica 1-100: in
+  // una giornata con oltre 100 biglietti lo stesso numero viene riusato per vendite
+  // reali diverse, e fonderle/cancellarle perderebbe incassi veri.
+  // Perciò: la fusione "morbida" (per ticketNum+tipo, con eliminazione del doppione
+  // dal DB) si applica SOLO se NON può esserci stato un giro completo del rotolo
+  // (numero di righe del giorno <= 100). Oltre, si usa una chiave rigida che include
+  // tutti i campi: non può mai unire due vendite distinte (si limita a scartare copie
+  // esatte create nello stesso istante, caso rarissimo).
+  const _noWrapPossible = data.length <= TICKET_MAX;
   const _seenKeys = new Set();
   const _dupDbIds = [];
   state.vendite = state.vendite.filter(v => {
-    const k = `${v.ticketNum}|${v.tipo}`;
+    const k = _noWrapPossible
+      ? `${v.ticketNum}|${v.tipo}`
+      : `${v.ticketNum}|${v.tipo}|${v.qty}|${v.pagamento}|${v.operatore}|${v.turno}|${v.ora}`;
     if (_seenKeys.has(k)) {
-      if (v.dbId) _dupDbIds.push(v.dbId);
+      if (_noWrapPossible && v.dbId) _dupDbIds.push(v.dbId);
       return false;
     }
     _seenKeys.add(k);
@@ -3185,6 +3190,14 @@ function eseguiCambiaPagamento() {
   // Aggiorna stato locale e chiudi subito
   state.vendite.filter(v => v.ticketNum === cambiaPagTicket)
     .forEach(v => { v.pagamento = cambiaPagSel; });
+  // Allinea anche il pagamento dell'eventuale upgrade (integrazione): senza questo,
+  // la differenza dell'upgrade resterebbe attribuita al vecchio metodo nella
+  // ripartizione contanti/POS della cassa e del report.
+  if (Array.isArray(state.integrazioni)) {
+    let integChanged = false;
+    state.integrazioni.forEach(i => { if (i.ticketNum === cambiaPagTicket) { i.pagamento = cambiaPagSel; integChanged = true; } });
+    if (integChanged) saveIntegrazioni();
+  }
   // Aggiorna anche le righe in pendingSync per evitare duplicati al momento della sincronizzazione
   let pendingSyncChanged = false;
   pendingSync = pendingSync.map(p => {

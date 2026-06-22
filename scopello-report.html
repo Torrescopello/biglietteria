@@ -638,14 +638,21 @@ async function loadData() {
   const { from, to } = getDateRange();
   const { data, error } = await db.from('vendite').select('*').gte('data', from).lte('data', to).order('created_at', { ascending: true });
   if (error) { console.error(error); setLiveOffline(); return; }
-  // Deduplica le righe doppione. Chiave = data + ticket_num + tipo: in un singolo
-  // ticket esiste al massimo una riga per tipo, quindi un secondo record con stesso
-  // (data, ticket_num, tipo) è sempre un doppione tecnico — incluso il caso del
-  // doppione reinserito tardi dalla coda con un campo modificato (turno/pagamento),
-  // che con la vecchia chiave più stretta sfuggiva e gonfiava i totali (es. #026).
+  // Deduplica i doppioni — SICURO rispetto alla numerazione ciclica 1-100.
+  // Per una giornata con <=100 righe non può esserci stato un giro completo del
+  // rotolo: due record con stesso (data, ticket_num, tipo) sono un doppione tecnico
+  // (incluso il caso reinserito tardi dalla coda con un campo modificato, es. #026).
+  // Per una giornata con >100 righe lo stesso numero può appartenere a vendite reali
+  // diverse (dopo il giro del rotolo): si usa la chiave rigida con tutti i campi, che
+  // non può mai fondere due vendite distinte.
+  const _rowsPerDay = {};
+  (data || []).forEach(v => { _rowsPerDay[v.data] = (_rowsPerDay[v.data] || 0) + 1; });
   const _seen = new Set();
   allData = (data || []).filter(v => {
-    const k = `${v.data}|${v.ticket_num}|${v.tipo}`;
+    const noWrap = (_rowsPerDay[v.data] || 0) <= 100;
+    const k = noWrap
+      ? `${v.data}|${v.ticket_num}|${v.tipo}`
+      : `${v.data}|${v.ticket_num}|${v.tipo}|${v.qty}|${v.pagamento}|${v.operatore}|${v.turno}|${v.ora}`;
     if (_seen.has(k)) return false;
     _seen.add(k);
     return true;
