@@ -1438,6 +1438,13 @@ window.addEventListener('online', async () => {
   await syncPendingUpdates();
   await syncPending();
   await syncRimborsiToDB();
+  // Ripubblica le integrazioni (upgrade) anche sulla chiave data-specifica del
+  // report: se un upgrade era stato fatto offline, alla riconnessione finiva solo
+  // in stato_oggi e il report non lo vedeva. publishIntegrazioni fa merge per
+  // ticketNum, quindi è sicuro richiamarlo sempre.
+  if (Array.isArray(state.integrazioni) && state.integrazioni.length) {
+    await publishIntegrazioni(getTodayISO(), state.integrazioni);
+  }
 
   if (state.operatore) {
     await loadTodayVendite();
