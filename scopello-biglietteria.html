@@ -860,7 +860,7 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); }
     <div class="topbar">
       <div class="topbar-brand">
         <h1>Torre di Scopello</h1>
-        <p>Percorso Storico Naturalistico <span style="font-size:0.5rem;color:var(--muted);">v111</span></p>
+        <p>Percorso Storico Naturalistico <span style="font-size:0.5rem;color:var(--muted);">v112</span></p>
       </div>
       <div class="topbar-right">
         <span class="op-badge" id="syncBadge" style="font-size:0.65rem;">✓ Online</span>
@@ -1749,20 +1749,29 @@ async function loadTodayVendite() {
     }
   });
 
-  // Rimuovi righe duplicate nel DB (stesso ticketNum+tipo+qty+pagamento+operatore+turno).
-  // NB: la chiave NON include 'ora'. Una doppia INSERT dovuta a un retry di rete
-  // arriva spesso con created_at (e quindi 'ora') diverso di qualche secondo/minuto:
-  // includendo 'ora' il doppione di uno stesso ticket (es. #026) sfuggiva e veniva
-  // contato due volte nei totali. Una stessa vendita ha una sola riga per tipo
-  // (il carrello aggrega per tipo), quindi due righe identiche su questi campi sono
-  // sempre un duplicato tecnico, mai due vendite reali distinte.
+  // Rimuovi le righe duplicate. Chiave = ticketNum + tipo (NON include ora, qty,
+  // pagamento, operatore, turno): un singolo ticket ha al massimo UNA riga per
+  // tipo (il carrello aggrega per tipo), quindi due righe con stesso ticket+tipo
+  // sono SEMPRE un doppione tecnico — anche quando un campo differisce, come capita
+  // a un doppione reinserito tardi dalla coda dopo che la riga era stata modificata
+  // (turno/pagamento): è il caso del #026 reinserito ~2 ore dopo la vendita reale.
+  // Si tiene SEMPRE la prima occorrenza (la più vecchia: i dati sono ordinati per
+  // created_at crescente) e si ELIMINA dal DB la riga fantasma in eccesso, così
+  // sparisce davvero e non solo dalla vista.
   const _seenKeys = new Set();
+  const _dupDbIds = [];
   state.vendite = state.vendite.filter(v => {
-    const k = `${v.ticketNum}|${v.tipo}|${v.qty}|${v.pagamento}|${v.operatore}|${v.turno}`;
-    if (_seenKeys.has(k)) return false;
+    const k = `${v.ticketNum}|${v.tipo}`;
+    if (_seenKeys.has(k)) {
+      if (v.dbId) _dupDbIds.push(v.dbId);
+      return false;
+    }
     _seenKeys.add(k);
     return true;
   });
+  if (isOnline && _dupDbIds.length) {
+    db.from('vendite').delete().in('id', _dupDbIds).then(() => {}, () => {});
+  }
 
   // Allinea il counter all'ultimo ticket emesso nel DB (posizione reale del rotolo)
   if (lastTicketNum !== null && lastTicketNum !== ticketCounter) {
