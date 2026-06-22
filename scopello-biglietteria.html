@@ -860,7 +860,7 @@ body { font-family: var(--fu); background: var(--bg); color: var(--text); }
     <div class="topbar">
       <div class="topbar-brand">
         <h1>Torre di Scopello</h1>
-        <p>Percorso Storico Naturalistico <span style="font-size:0.5rem;color:var(--muted);">v114</span></p>
+        <p>Percorso Storico Naturalistico <span style="font-size:0.5rem;color:var(--muted);">v115</span></p>
       </div>
       <div class="topbar-right">
         <span class="op-badge" id="syncBadge" style="font-size:0.65rem;">✓ Online</span>
@@ -1810,6 +1810,13 @@ async function loadTodayVendite() {
     try { localStorage.setItem('scopello_ticket_counter', ticketCounter); } catch(e) {}
   }
 
+  // Scarta gli upgrade orfani (ticket annullato/eliminato): non devono restare
+  // conteggiati in cassa. Sicuro con le vendite offline (incluse in pendingSync).
+  if (pruneOrphanIntegrazioni()) {
+    try { localStorage.setItem('scopello_integrazioni_' + today, JSON.stringify(state.integrazioni)); } catch(e) {}
+    if (isOnline) upsertConfigKey('integrazioni_' + today, state.integrazioni);
+  }
+
   // Riapplica upgrade: se l'UPDATE sul DB non era ancora visibile al momento della SELECT,
   // il tipo risulterebbe ancora 'base'. Le integrazioni in state sono la fonte di verità locale.
   (state.integrazioni || []).forEach(integ => {
@@ -1997,6 +2004,34 @@ function genUid() {
 // dell'uid). Da usare ovunque serva distinguere un ticket da un altro.
 function tid(v) { return (v && v.ticketUid) ? v.ticketUid : (v ? v.ticketNum : undefined); }
 
+// Quota di "reintegro" di un rimborso su un dato metodo di pagamento.
+// Il reintegro reintegra l'incasso ORIGINALE del ticket annullato sul metodo con
+// cui era realmente entrato. Se il rimborso ha la ripartizione 'origBreakdown'
+// (base sul metodo del biglietto + upgrade sul metodo dell'upgrade) la usa, così
+// la divisione contanti/POS resta esatta anche quando l'upgrade era stato pagato
+// con un metodo diverso. Retrocompatibile: i rimborsi vecchi (senza breakdown)
+// usano il comportamento precedente (tutto sul pagamento del biglietto).
+function reintQuota(r, metodo) {
+  if (r && r.origBreakdown) return Number(r.origBreakdown[metodo] || 0);
+  return (r && r.pagamentoOriginale === metodo) ? Number(r.totale || 0) : 0;
+}
+
+// Scarta le integrazioni (upgrade) "orfane": quelle il cui ticket non esiste più
+// né tra le vendite caricate né nella coda di invio. Succede quando un ticket
+// upgradato viene annullato: l'upgrade va tolto dall'incasso, ma il merge delle
+// integrazioni (che unisce e non rimuove) potrebbe ripescarlo dalla copia remota.
+// Questa potatura è la rete di sicurezza che garantisce che un upgrade annullato
+// non resti mai conteggiato in cassa. Sicura con le vendite offline: il ticket non
+// ancora sincronizzato è comunque presente in pendingSync, quindi non viene scartato.
+function pruneOrphanIntegrazioni() {
+  if (!Array.isArray(state.integrazioni) || !state.integrazioni.length) return false;
+  const live = new Set(state.vendite.map(v => v.ticketNum));
+  (pendingSync || []).forEach(p => { if (p.ticket_num) live.add(p.ticket_num); });
+  const before = state.integrazioni.length;
+  state.integrazioni = state.integrazioni.filter(i => live.has(i.ticketNum));
+  return state.integrazioni.length !== before;
+}
+
 async function saveGiornataSync() {
   if (!isOnline) return;
   const today = getTodayISO();
@@ -2065,8 +2100,14 @@ async function loadGiornataSync() {
       upsertConfigKey('integrazioni_' + today, merged);
       saveGiornataSync();
     }
+    // Scarta gli upgrade orfani (ticket annullato): evita che il merge li ripeschi
+    // e li lasci conteggiati in cassa. Se ne toglie qualcuno, allinea anche il DB.
+    if (pruneOrphanIntegrazioni()) {
+      try { localStorage.setItem('scopello_integrazioni_' + today, JSON.stringify(state.integrazioni)); } catch(e) {}
+      if (isOnline) { upsertConfigKey('integrazioni_' + today, state.integrazioni); saveGiornataSync(); }
+    }
     // Riapplica upgrade a state.vendite (potrebbero essere stati caricati dal DB con tipo 'base')
-    merged.forEach(integ => {
+    state.integrazioni.forEach(integ => {
       state.vendite.forEach(v => {
         if (v.ticketNum === integ.ticketNum && (v.tipo === 'base' || v.tipo === 'ridotto')) {
           v.tipo = 'premium';
@@ -3164,6 +3205,15 @@ function eseguiAnnullaDir() {
   const sameTicket = state.vendite.filter(v => v.ticketNum === vendita.ticketNum);
   const totaleBase = sameTicket.reduce((a,v) => a + v.totale, 0);
   const qtyTot = sameTicket.reduce((a,v) => a + v.qty, 0);
+  // Ripartizione REALE dell'incasso originale per metodo di pagamento, calcolata
+  // PRIMA di rimuovere le integrazioni: la parte base sul metodo del biglietto, la
+  // differenza di ogni upgrade sul metodo con cui l'upgrade era stato pagato. Così
+  // il reintegro in cassa rispetta la divisione contanti/POS effettiva anche quando
+  // l'upgrade era stato pagato con un metodo diverso dal biglietto.
+  const origBreakdown = { cash: 0, pos: 0, posplus: 0 };
+  if (origBreakdown[vendita.pagamento] !== undefined) origBreakdown[vendita.pagamento] += totaleBase;
+  (state.integrazioni || []).filter(i => i.ticketNum === vendita.ticketNum)
+    .forEach(i => { if (origBreakdown[i.pagamento] !== undefined) origBreakdown[i.pagamento] += i.diff; });
   // Se il ticket era stato upgradato a Premium, includi la differenza nel rimborso
   // e rimuovi l'integrazione (così non resta conteggiata come incasso di un ticket annullato)
   const diffUpgrade = removeIntegrazioniForTicket(vendita.ticketNum);
@@ -3176,6 +3226,7 @@ function eseguiAnnullaDir() {
     totale,
     qty: qtyTot,
     pagamentoOriginale: vendita.pagamento,
+    origBreakdown,
     rimborsoCon: rimborsoSel,
     ora: new Date().toLocaleTimeString('it-IT', {hour:'2-digit', minute:'2-digit'}),
     operatoreCassa: sameTicket[0].operatore
@@ -3561,10 +3612,10 @@ function renderCassa() {
   const vendPos     = state.vendite.filter(v=>v.pagamento==='pos').reduce((a,v)=>a+v.totale,0);
   const vendPosPlus = state.vendite.filter(v=>v.pagamento==='posplus').reduce((a,v)=>a+v.totale,0);
 
-  // Reintegro: ticket annullati che avevano pagato con quel metodo
-  const reintCash    = rimborsi.filter(r=>r.pagamentoOriginale==='cash').reduce((a,r)=>a+r.totale,0);
-  const reintPos     = rimborsi.filter(r=>r.pagamentoOriginale==='pos').reduce((a,r)=>a+r.totale,0);
-  const reintPosPlus = rimborsi.filter(r=>r.pagamentoOriginale==='posplus').reduce((a,r)=>a+r.totale,0);
+  // Reintegro: incasso originale dei ticket annullati, ripartito sul metodo reale
+  const reintCash    = rimborsi.reduce((a,r)=>a+reintQuota(r,'cash'),0);
+  const reintPos     = rimborsi.reduce((a,r)=>a+reintQuota(r,'pos'),0);
+  const reintPosPlus = rimborsi.reduce((a,r)=>a+reintQuota(r,'posplus'),0);
 
   // Uscita: soldi effettivamente rimborsati con quel metodo
   const rimbCash    = rimborsi.filter(r=>r.rimborsoCon==='cash').reduce((a,r)=>a+r.totale,0);
@@ -3643,9 +3694,9 @@ function renderCassa() {
       const vendPosPlusOp = vv.filter(v=>v.pagamento==='posplus').reduce((a,v)=>a+v.totale,0);
       // Reintegro annulli di questo operatore (come nei totali globali)
       const opRimb = rimborsi.filter(r=>r.operatoreCassa===op);
-      const reintCashOp    = opRimb.filter(r=>r.pagamentoOriginale==='cash').reduce((a,r)=>a+r.totale,0);
-      const reintPosOp     = opRimb.filter(r=>r.pagamentoOriginale==='pos').reduce((a,r)=>a+r.totale,0);
-      const reintPosPlusOp = opRimb.filter(r=>r.pagamentoOriginale==='posplus').reduce((a,r)=>a+r.totale,0);
+      const reintCashOp    = opRimb.reduce((a,r)=>a+reintQuota(r,'cash'),0);
+      const reintPosOp     = opRimb.reduce((a,r)=>a+reintQuota(r,'pos'),0);
+      const reintPosPlusOp = opRimb.reduce((a,r)=>a+reintQuota(r,'posplus'),0);
       const rimbCashOp    = opRimb.filter(r=>r.rimborsoCon==='cash').reduce((a,r)=>a+r.totale,0);
       const rimbPosOp     = opRimb.filter(r=>r.rimborsoCon==='pos').reduce((a,r)=>a+r.totale,0);
       const rimbPosPlusOp = opRimb.filter(r=>r.rimborsoCon==='posplus').reduce((a,r)=>a+r.totale,0);
@@ -4178,7 +4229,7 @@ function renderIngresso() {
   const integrazioniPay = state.integrazioni || [];
   const calcPay = (p) => {
     const vend  = state.vendite.filter(v=>v.pagamento===p).reduce((a,v)=>a+v.totale,0);
-    const reint = rimborsi.filter(r=>r.pagamentoOriginale===p).reduce((a,r)=>a+r.totale,0);
+    const reint = rimborsi.reduce((a,r)=>a+reintQuota(r,p),0);
     const rimb  = rimborsi.filter(r=>r.rimborsoCon===p).reduce((a,r)=>a+r.totale,0);
     const integ = integrazioniPay.filter(i=>i.pagamento===p).reduce((a,i)=>a+i.diff,0);
     return vend + reint - rimb + integ;
